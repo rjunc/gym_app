@@ -74,7 +74,18 @@ export default function EntryComposer({
               type="date"
               value={form.date}
               onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-              style={{ ...inputStyle, maxWidth: "100%" }}
+              style={{
+                ...inputStyle,
+                maxWidth: "100%",
+                display: "block",
+                // iOS Safari renders type="date" with its own native chrome
+                // that can ignore a CSS width entirely; stripping the native
+                // appearance makes it size like our other custom inputs
+                // instead. The tap-to-open-picker behavior is unaffected —
+                // this only removes the default visual chrome.
+                WebkitAppearance: "none",
+                appearance: "none",
+              }}
             />
           </div>
         )}
