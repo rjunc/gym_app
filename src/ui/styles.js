@@ -7,7 +7,10 @@ export const inputStyle = {
   borderRadius: 8,
   padding: "10px 12px",
   color: "var(--text)",
-  fontSize: 13,
+  // iOS Safari auto-zooms the page on focus for any input/textarea/select
+  // rendered under 16px, and doesn't reliably zoom back out on blur. 16px
+  // stays under that threshold and avoids the zoom entirely.
+  fontSize: 16,
   outline: "none",
 };
 

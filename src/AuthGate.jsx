@@ -41,7 +41,9 @@ const inputStyle = {
   borderRadius: 8,
   padding: "10px 12px",
   color: "var(--text)",
-  fontSize: 13,
+  // Keep at/above 16px — iOS Safari auto-zooms on focus for smaller inputs
+  // and doesn't reliably zoom back out on blur.
+  fontSize: 16,
   outline: "none",
 };
 

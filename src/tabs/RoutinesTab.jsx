@@ -241,7 +241,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
                           onKeyDown={(e) => e.key === "Enter" && commitRename()}
                           onBlur={commitRename}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ ...inputStyle, padding: "4px 8px", fontSize: 13 }}
+                          style={{ ...inputStyle, padding: "4px 8px" }}
                         />
                       ) : (
                         <div>
