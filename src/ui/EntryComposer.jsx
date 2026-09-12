@@ -64,9 +64,18 @@ export default function EntryComposer({
         )}
 
         {showDate && (
-          <div>
+          // minWidth: 0 overrides flexbox's default "don't shrink below
+          // content size" on this column's items — without it, a native
+          // date-picker input's intrinsic width can force this whole row
+          // wider than the sheet, overflowing off-screen on mobile.
+          <div style={{ minWidth: 0 }}>
             <label style={labelStyle}>Date</label>
-            <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} style={inputStyle} />
+            <input
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+              style={{ ...inputStyle, maxWidth: "100%" }}
+            />
           </div>
         )}
 
