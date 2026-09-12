@@ -7,8 +7,10 @@ import { uid, todayISO } from "./id.js";
 
 export function combinedToCSV(sessions, routines, journals, folders) {
   const header = ["type", "id", "date", "name", "folder_path", "tags", "text"];
-  const sessionRows = sessions.map((s) => ["session", s.id, s.date, "", "", (s.tags || []).join(";"), s.text || ""]);
-  const journalRows = journals.map((j) => ["journal", j.id, j.date, "", "", (j.tags || []).join(";"), j.text || ""]);
+  // Sessions/journals reuse the "name" column (otherwise unused for them) to
+  // carry their optional title.
+  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || ""]);
+  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || ""]);
   const routineRows = routines.map((r) => [
     "routine",
     r.id,
@@ -42,15 +44,16 @@ export function combinedFromCSV(text, existingFolders) {
     const type = typeIdx >= 0 ? (r[typeIdx] || "").trim().toLowerCase() : "session";
     const tags = tagsIdx >= 0 && r[tagsIdx] ? r[tagsIdx].split(";").map((t) => t.trim()).filter(Boolean) : [];
     const text = textIdx >= 0 ? r[textIdx] : "";
+    const title = nameIdx >= 0 ? r[nameIdx] || "" : "";
     const id = idIdx >= 0 && r[idIdx] ? r[idIdx] : uid();
     if (type === "routine") {
       const { id: folderId, folders: nextFolders } = resolveFolderPath(foldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
       foldersAcc = nextFolders;
       routines.push({ id, name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled routine", folderId, tags, text });
     } else if (type === "journal") {
-      journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), tags, text });
+      journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
     } else {
-      sessions.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), tags, text });
+      sessions.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
     }
   });
 
@@ -66,6 +69,7 @@ function normalizeSimpleEntries(arr) {
     ? arr.map((s) => ({
         id: s.id || uid(),
         date: s.date || todayISO(),
+        title: s.title || "",
         tags: Array.isArray(s.tags) ? s.tags : typeof s.tags === "string" ? s.tags.split(";").filter(Boolean) : [],
         text: s.text || "",
       }))

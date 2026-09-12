@@ -13,6 +13,12 @@ export default function EntryComposer({
   onClose,
   showDate,
   showName,
+  // Which key in `form` the optional name/title field reads and writes, and
+  // how it's labeled/placeheld — lets Routines (name) and Sessions/Journals
+  // (title) share this one field instead of each needing their own.
+  nameField = "name",
+  nameLabel = "Name",
+  namePlaceholder = "",
   showFolder,
   folderOptions,
   textLabel,
@@ -47,11 +53,11 @@ export default function EntryComposer({
 
         {showName && (
           <div>
-            <label style={labelStyle}>Name</label>
+            <label style={labelStyle}>{nameLabel}</label>
             <input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Push day A, 20-min plyo circuit…"
+              value={form[nameField] || ""}
+              onChange={(e) => setForm((f) => ({ ...f, [nameField]: e.target.value }))}
+              placeholder={namePlaceholder}
               style={inputStyle}
             />
           </div>

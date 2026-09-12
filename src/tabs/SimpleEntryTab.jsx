@@ -24,7 +24,7 @@ export default function SimpleEntryTab({
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({ date: todayISO(), tags: [], text: "" });
+  const [form, setForm] = useState({ date: todayISO(), title: "", tags: [], text: "" });
   const [tagDraft, setTagDraft] = useState("");
 
   const allTags = useMemo(() => {
@@ -38,7 +38,10 @@ export default function SimpleEntryTab({
     return entries
       .filter((s) => {
         const matchesSearch =
-          q === "" || (s.text || "").toLowerCase().includes(q) || (s.tags || []).some((t) => t.toLowerCase().includes(q));
+          q === "" ||
+          (s.title || "").toLowerCase().includes(q) ||
+          (s.text || "").toLowerCase().includes(q) ||
+          (s.tags || []).some((t) => t.toLowerCase().includes(q));
         const matchesTags = activeTags.length === 0 || activeTags.every((t) => (s.tags || []).includes(t));
         return matchesSearch && matchesTags;
       })
@@ -47,7 +50,7 @@ export default function SimpleEntryTab({
   }, [entries, search, activeTags]);
 
   const resetForm = () => {
-    setForm({ date: todayISO(), tags: [], text: "" });
+    setForm({ date: todayISO(), title: "", tags: [], text: "" });
     setTagDraft("");
     setEditingId(null);
   };
@@ -58,7 +61,7 @@ export default function SimpleEntryTab({
   };
 
   const openEdit = (entry) => {
-    setForm({ date: entry.date, tags: [...(entry.tags || [])], text: entry.text || "" });
+    setForm({ date: entry.date, title: entry.title || "", tags: [...(entry.tags || [])], text: entry.text || "" });
     setEditingId(entry.id);
     setShowComposer(true);
     setTagDraft("");
@@ -136,7 +139,14 @@ export default function SimpleEntryTab({
                 <div key={s.id} style={cardStyle}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{formatDate(s.date)}</div>
+                      {s.title ? (
+                        <>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{s.title}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{formatDate(s.date)}</div>
+                        </>
+                      ) : (
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>{formatDate(s.date)}</div>
+                      )}
                       {s.tags && s.tags.length > 0 && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                           {s.tags.map((t) => (
@@ -208,6 +218,10 @@ export default function SimpleEntryTab({
             resetForm();
           }}
           showDate
+          showName
+          nameField="title"
+          nameLabel="Title"
+          namePlaceholder="Optional title…"
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : "Save entry"}

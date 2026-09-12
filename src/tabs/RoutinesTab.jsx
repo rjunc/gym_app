@@ -337,6 +337,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
             resetForm();
           }}
           showName
+          namePlaceholder="Push day A, 20-min plyo circuit…"
           showFolder
           folderOptions={folderOptions}
           textLabel="Routine details"
