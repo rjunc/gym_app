@@ -95,6 +95,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
       setTimeout(() => setFolderError(""), 3500);
       return;
     }
+    if (!window.confirm(`Delete the folder "${folder.name}"? This can't be undone.`)) return;
     setFolders((prev) => prev.filter((f) => f.id !== folder.id));
   };
 
@@ -135,7 +136,10 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
     resetForm();
   };
 
-  const deleteRoutine = (id) => setRoutines((prev) => prev.filter((r) => r.id !== id));
+  const deleteRoutine = (id) => {
+    if (!window.confirm("Delete this routine? This can't be undone.")) return;
+    setRoutines((prev) => prev.filter((r) => r.id !== id));
+  };
 
   const folderOptions = useMemo(() => {
     const opts = [{ id: null, label: "No folder (top level)" }];

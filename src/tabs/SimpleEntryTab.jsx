@@ -83,7 +83,10 @@ export default function SimpleEntryTab({
     resetForm();
   };
 
-  const deleteEntry = (id) => setEntries((prev) => prev.filter((s) => s.id !== id));
+  const deleteEntry = (id) => {
+    if (!window.confirm("Delete this entry? This can't be undone.")) return;
+    setEntries((prev) => prev.filter((s) => s.id !== id));
+  };
 
   const toggleTagFilter = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
