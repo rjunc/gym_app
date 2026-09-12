@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Paste this into Firebase Console → Firestore Database → Rules.
+// Each signed-in user can only read/write their own document at
+// users/{uid}/data/log — nobody else's, and nothing unauthenticated.
+//
+// Firebase's own default (before you publish anything) is deny-all:
+//   match /{document=**} { allow read, write: if false; }
+// Make sure the console shows ONLY the block below, not both stacked.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/data/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

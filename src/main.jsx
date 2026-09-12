@@ -1,9 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import AuthGate from "./AuthGate.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <AuthGate>{({ uid, email, logout }) => <App uid={uid} userEmail={email} onLogout={logout} />}</AuthGate>
   </React.StrictMode>
 );

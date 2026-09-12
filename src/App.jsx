@@ -15,9 +15,16 @@ import {
   Home,
   BookOpen,
   ClipboardList,
+  LogOut,
 } from "lucide-react";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { db } from "./firebase.js";
 
-const STORAGE_KEY = "session-log-data";
+// One document per user holds their whole log (sessions, folders, routines) —
+// small enough data that a single doc + realtime listener is simpler than
+// splitting into subcollections, and it mirrors the shape of the old
+// localStorage blob almost exactly.
+const userDocRef = (uid) => doc(db, "users", uid, "data", "log");
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -181,44 +188,61 @@ function combinedFromCSV(text, existingFolders) {
   return { sessions, routines, folders: foldersAcc };
 }
 
-export default function App() {
+export default function App({ uid, userEmail, onLogout }) {
   const [tab, setTab] = useState("sessions");
   const [sessions, setSessions] = useState([]);
   const [folders, setFolders] = useState([]);
   const [routines, setRoutines] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [syncError, setSyncError] = useState("");
   const [importError, setImportError] = useState("");
   const saveTimer = useRef(null);
   const fileInputRef = useRef(null);
+  // Set right before a Firestore snapshot updates local state, so the save
+  // effect below can tell "the server just told us this" apart from "the
+  // user just changed something" and avoid writing an echo straight back.
+  const skipNextSave = useRef(false);
 
+  // Live-sync this user's log document. Firestore's persistent local cache
+  // (configured in firebase.js) makes this resolve instantly from disk on
+  // reload/offline, then reconcile with the server in the background.
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.sessions)) setSessions(parsed.sessions);
-        if (Array.isArray(parsed.folders)) setFolders(parsed.folders);
-        if (Array.isArray(parsed.routines)) setRoutines(parsed.routines);
+    setLoaded(false);
+    const unsubscribe = onSnapshot(
+      userDocRef(uid),
+      (snap) => {
+        skipNextSave.current = true;
+        const data = snap.exists() ? snap.data() : {};
+        setSessions(Array.isArray(data.sessions) ? data.sessions : []);
+        setFolders(Array.isArray(data.folders) ? data.folders : []);
+        setRoutines(Array.isArray(data.routines) ? data.routines : []);
+        setSyncError("");
+        setLoaded(true);
+      },
+      (err) => {
+        console.error("sync failed", err);
+        setSyncError("Couldn't sync with the server. Changes will retry automatically.");
+        setLoaded(true);
       }
-    } catch (e) {
-      // nothing saved yet
-    } finally {
-      setLoaded(true);
-    }
-  }, []);
+    );
+    return unsubscribe;
+  }, [uid]);
 
   useEffect(() => {
     if (!loaded) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessions, folders, routines }));
-      } catch (e) {
+      setDoc(userDocRef(uid), { sessions, folders, routines }).catch((e) => {
         console.error("save failed", e);
-      }
+        setSyncError("Couldn't save your last change. Check your connection.");
+      });
     }, 250);
     return () => clearTimeout(saveTimer.current);
-  }, [sessions, folders, routines, loaded]);
+  }, [sessions, folders, routines, loaded, uid]);
 
   const exportJSON = () =>
     downloadFile(
@@ -294,7 +318,7 @@ export default function App() {
     return (
       <Shell>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-dim)" }}>
-          Loading your log…
+          Syncing your log…
         </div>
       </Shell>
     );
@@ -314,12 +338,16 @@ export default function App() {
         </div>
 
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {syncError && <div style={{ color: "var(--danger)", fontSize: 12 }}>{syncError}</div>}
           {importError && <div style={{ color: "var(--danger)", fontSize: 12 }}>{importError}</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 10, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 0.5, marginRight: 2 }}>
-              Sessions + routines
+            <span style={{ fontSize: 10, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {userEmail}
             </span>
-            <button onClick={exportCSV} style={{ ...secondaryBtnStyle, marginLeft: "auto" }}>
+            <button onClick={onLogout} style={{ ...secondaryBtnStyle, marginLeft: "auto" }} title="Log out">
+              <LogOut size={14} />
+            </button>
+            <button onClick={exportCSV} style={secondaryBtnStyle}>
               <Download size={14} /> CSV
             </button>
             <button onClick={exportJSON} style={secondaryBtnStyle}>
