@@ -15,6 +15,7 @@ import {
   Home,
   BookOpen,
   ClipboardList,
+  NotebookPen,
   LogOut,
 } from "lucide-react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
@@ -139,10 +140,11 @@ function resolveFolderPath(folders, pathStr) {
 
 /* ============================== COMBINED IMPORT / EXPORT ============================== */
 
-// Unified CSV: one file, one 'type' column distinguishing session rows from routine rows.
-function combinedToCSV(sessions, routines, folders) {
+// Unified CSV: one file, one 'type' column distinguishing session/journal/routine rows.
+function combinedToCSV(sessions, routines, journals, folders) {
   const header = ["type", "id", "date", "name", "folder_path", "tags", "text"];
   const sessionRows = sessions.map((s) => ["session", s.id, s.date, "", "", (s.tags || []).join(";"), s.text || ""]);
+  const journalRows = journals.map((j) => ["journal", j.id, j.date, "", "", (j.tags || []).join(";"), j.text || ""]);
   const routineRows = routines.map((r) => [
     "routine",
     r.id,
@@ -152,12 +154,12 @@ function combinedToCSV(sessions, routines, folders) {
     (r.tags || []).join(";"),
     r.text || "",
   ]);
-  return [header, ...sessionRows, ...routineRows].map((row) => row.map(csvEscape).join(",")).join("\r\n");
+  return [header, ...sessionRows, ...journalRows, ...routineRows].map((row) => row.map(csvEscape).join(",")).join("\r\n");
 }
 
 function combinedFromCSV(text, existingFolders) {
   const rows = parseCSV(text);
-  if (rows.length === 0) return { sessions: [], routines: [], folders: existingFolders };
+  if (rows.length === 0) return { sessions: [], routines: [], journals: [], folders: existingFolders };
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const typeIdx = header.indexOf("type");
   const idIdx = header.indexOf("id");
@@ -170,6 +172,7 @@ function combinedFromCSV(text, existingFolders) {
   let foldersAcc = existingFolders;
   const sessions = [];
   const routines = [];
+  const journals = [];
 
   rows.slice(1).forEach((r) => {
     const type = typeIdx >= 0 ? (r[typeIdx] || "").trim().toLowerCase() : "session";
@@ -180,12 +183,14 @@ function combinedFromCSV(text, existingFolders) {
       const { id: folderId, folders: nextFolders } = resolveFolderPath(foldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
       foldersAcc = nextFolders;
       routines.push({ id, name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled routine", folderId, tags, text });
+    } else if (type === "journal") {
+      journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), tags, text });
     } else {
       sessions.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), tags, text });
     }
   });
 
-  return { sessions, routines, folders: foldersAcc };
+  return { sessions, routines, journals, folders: foldersAcc };
 }
 
 export default function App({ uid, userEmail, onLogout }) {
@@ -193,6 +198,7 @@ export default function App({ uid, userEmail, onLogout }) {
   const [sessions, setSessions] = useState([]);
   const [folders, setFolders] = useState([]);
   const [routines, setRoutines] = useState([]);
+  const [journals, setJournals] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [importError, setImportError] = useState("");
@@ -216,6 +222,7 @@ export default function App({ uid, userEmail, onLogout }) {
         setSessions(Array.isArray(data.sessions) ? data.sessions : []);
         setFolders(Array.isArray(data.folders) ? data.folders : []);
         setRoutines(Array.isArray(data.routines) ? data.routines : []);
+        setJournals(Array.isArray(data.journals) ? data.journals : []);
         setSyncError("");
         setLoaded(true);
       },
@@ -236,22 +243,35 @@ export default function App({ uid, userEmail, onLogout }) {
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      setDoc(userDocRef(uid), { sessions, folders, routines }).catch((e) => {
+      setDoc(userDocRef(uid), { sessions, folders, routines, journals }).catch((e) => {
         console.error("save failed", e);
         setSyncError("Couldn't save your last change. Check your connection.");
       });
     }, 250);
     return () => clearTimeout(saveTimer.current);
-  }, [sessions, folders, routines, loaded, uid]);
+  }, [sessions, folders, routines, journals, loaded, uid]);
 
   const exportJSON = () =>
     downloadFile(
       `workout-data-${todayISO()}.json`,
-      JSON.stringify({ exportedAt: new Date().toISOString(), sessions, folders, routines }, null, 2),
+      JSON.stringify({ exportedAt: new Date().toISOString(), sessions, folders, routines, journals }, null, 2),
       "application/json"
     );
 
-  const exportCSV = () => downloadFile(`workout-data-${todayISO()}.csv`, combinedToCSV(sessions, routines, folders), "text/csv");
+  const exportCSV = () =>
+    downloadFile(`workout-data-${todayISO()}.csv`, combinedToCSV(sessions, routines, journals, folders), "text/csv");
+
+  // Sessions and journals share the same shape (id/date/tags/text, no
+  // folder), so one helper parses either out of an imported JSON payload.
+  const parseSimpleEntries = (arr) =>
+    Array.isArray(arr)
+      ? arr.map((s) => ({
+          id: s.id || uid(),
+          date: s.date || todayISO(),
+          tags: Array.isArray(s.tags) ? s.tags : typeof s.tags === "string" ? s.tags.split(";").filter(Boolean) : [],
+          text: s.text || "",
+        }))
+      : [];
 
   const handleFile = async (e) => {
     const file = e.target.files[0];
@@ -261,18 +281,13 @@ export default function App({ uid, userEmail, onLogout }) {
       const text = await file.text();
       let incomingSessions = [];
       let incomingRoutines = [];
+      let incomingJournals = [];
       let mergedFolders = folders;
 
       if (file.name.toLowerCase().endsWith(".json")) {
         const parsed = JSON.parse(text);
-        incomingSessions = Array.isArray(parsed.sessions)
-          ? parsed.sessions.map((s) => ({
-              id: s.id || uid(),
-              date: s.date || todayISO(),
-              tags: Array.isArray(s.tags) ? s.tags : typeof s.tags === "string" ? s.tags.split(";").filter(Boolean) : [],
-              text: s.text || "",
-            }))
-          : [];
+        incomingSessions = parseSimpleEntries(parsed.sessions);
+        incomingJournals = parseSimpleEntries(parsed.journals);
         if (Array.isArray(parsed.folders)) {
           const byId = new Map(mergedFolders.map((f) => [f.id, f]));
           parsed.folders.forEach((f) => byId.set(f.id, f));
@@ -287,13 +302,14 @@ export default function App({ uid, userEmail, onLogout }) {
               text: r.text || "",
             }))
           : [];
-        if (!Array.isArray(parsed.sessions) && !Array.isArray(parsed.routines)) {
-          throw new Error("No sessions or routines found in JSON");
+        if (!Array.isArray(parsed.sessions) && !Array.isArray(parsed.routines) && !Array.isArray(parsed.journals)) {
+          throw new Error("No sessions, journals, or routines found in JSON");
         }
       } else {
         const result = combinedFromCSV(text, mergedFolders);
         incomingSessions = result.sessions;
         incomingRoutines = result.routines;
+        incomingJournals = result.journals;
         mergedFolders = result.folders;
       }
 
@@ -301,6 +317,11 @@ export default function App({ uid, userEmail, onLogout }) {
       setSessions((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         incomingSessions.forEach((s) => byId.set(s.id, s));
+        return Array.from(byId.values());
+      });
+      setJournals((prev) => {
+        const byId = new Map(prev.map((j) => [j.id, j]));
+        incomingJournals.forEach((j) => byId.set(j.id, j));
         return Array.from(byId.values());
       });
       setRoutines((prev) => {
@@ -332,6 +353,8 @@ export default function App({ uid, userEmail, onLogout }) {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {tab === "sessions" ? (
             <SessionsTab sessions={sessions} setSessions={setSessions} />
+          ) : tab === "journals" ? (
+            <JournalsTab journals={journals} setJournals={setJournals} />
           ) : (
             <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} />
           )}
@@ -378,6 +401,8 @@ function Shell({ children }) {
         "--accent-dim": "rgba(201,162,39,0.16)",
         "--accent2": "#6FA88F",
         "--accent2-dim": "rgba(111,168,143,0.16)",
+        "--accent3": "#8C93C9",
+        "--accent3-dim": "rgba(140,147,201,0.16)",
         "--danger": "#C2604A",
         background: "var(--bg)",
         color: "var(--text)",
@@ -407,6 +432,7 @@ function Shell({ children }) {
 function TabSwitcher({ tab, setTab }) {
   const items = [
     { key: "sessions", label: "Sessions", Icon: ClipboardList },
+    { key: "journals", label: "Journals", Icon: NotebookPen },
     { key: "routines", label: "Routines", Icon: BookOpen },
   ];
   return (
@@ -484,9 +510,21 @@ function IconBtn({ children, onClick, danger }) {
   );
 }
 
-/* ============================== SESSIONS TAB ============================== */
+/* ====================== SESSIONS / JOURNALS (SIMPLE ENTRY LISTS) ====================== */
 
-function SessionsTab({ sessions, setSessions }) {
+// Sessions and journals are both just a flat, most-recent-first list of dated
+// entries with tags — no folders. Both tabs are thin wrappers around this.
+function SimpleEntryTab({
+  entries,
+  setEntries,
+  eyebrow,
+  heading,
+  searchPlaceholder,
+  emptyLabel,
+  textLabel,
+  textPlaceholder,
+  accent = "--accent",
+}) {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
   const [expanded, setExpanded] = useState(null);
@@ -497,13 +535,13 @@ function SessionsTab({ sessions, setSessions }) {
 
   const allTags = useMemo(() => {
     const set = new Set();
-    sessions.forEach((s) => (s.tags || []).forEach((t) => set.add(t)));
+    entries.forEach((s) => (s.tags || []).forEach((t) => set.add(t)));
     return Array.from(set).sort();
-  }, [sessions]);
+  }, [entries]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return sessions
+    return entries
       .filter((s) => {
         const matchesSearch =
           q === "" || (s.text || "").toLowerCase().includes(q) || (s.tags || []).some((t) => t.toLowerCase().includes(q));
@@ -512,7 +550,7 @@ function SessionsTab({ sessions, setSessions }) {
       })
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [sessions, search, activeTags]);
+  }, [entries, search, activeTags]);
 
   const resetForm = () => {
     setForm({ date: todayISO(), tags: [], text: "" });
@@ -525,9 +563,9 @@ function SessionsTab({ sessions, setSessions }) {
     setShowComposer(true);
   };
 
-  const openEdit = (session) => {
-    setForm({ date: session.date, tags: [...(session.tags || [])], text: session.text || "" });
-    setEditingId(session.id);
+  const openEdit = (entry) => {
+    setForm({ date: entry.date, tags: [...(entry.tags || [])], text: entry.text || "" });
+    setEditingId(entry.id);
     setShowComposer(true);
     setTagDraft("");
   };
@@ -543,15 +581,15 @@ function SessionsTab({ sessions, setSessions }) {
   const saveEntry = () => {
     if (!form.text.trim()) return;
     if (editingId) {
-      setSessions((prev) => prev.map((s) => (s.id === editingId ? { ...s, ...form } : s)));
+      setEntries((prev) => prev.map((s) => (s.id === editingId ? { ...s, ...form } : s)));
     } else {
-      setSessions((prev) => [{ id: uid(), ...form }, ...prev]);
+      setEntries((prev) => [{ id: uid(), ...form }, ...prev]);
     }
     setShowComposer(false);
     resetForm();
   };
 
-  const deleteEntry = (id) => setSessions((prev) => prev.filter((s) => s.id !== id));
+  const deleteEntry = (id) => setEntries((prev) => prev.filter((s) => s.id !== id));
 
   const toggleTagFilter = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
@@ -560,10 +598,10 @@ function SessionsTab({ sessions, setSessions }) {
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>Training journal</div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>Session Log</div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>{eyebrow}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>{heading}</div>
           </div>
-          <button onClick={openNewComposer} style={primaryBtnStyle}>
+          <button onClick={openNewComposer} style={{ ...primaryBtnStyle, background: `var(${accent})` }}>
             <Plus size={15} /> New entry
           </button>
         </div>
@@ -573,7 +611,7 @@ function SessionsTab({ sessions, setSessions }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search entries or tags…"
+            placeholder={searchPlaceholder}
             style={{ ...inputStyle, padding: "9px 10px 9px 32px" }}
           />
         </div>
@@ -581,7 +619,7 @@ function SessionsTab({ sessions, setSessions }) {
         {allTags.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {allTags.map((t) => (
-              <TagChip key={t} label={t} active={activeTags.includes(t)} onClick={() => toggleTagFilter(t)} />
+              <TagChip key={t} label={t} accent={accent} active={activeTags.includes(t)} onClick={() => toggleTagFilter(t)} />
             ))}
           </div>
         )}
@@ -590,7 +628,7 @@ function SessionsTab({ sessions, setSessions }) {
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "36px 10px", fontSize: 13 }}>
-            {sessions.length === 0 ? 'No sessions logged yet. Tap "New entry" to write your first one.' : "Nothing matches that search or tag filter."}
+            {entries.length === 0 ? emptyLabel : "Nothing matches that search or tag filter."}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -605,7 +643,7 @@ function SessionsTab({ sessions, setSessions }) {
                       {s.tags && s.tags.length > 0 && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                           {s.tags.map((t) => (
-                            <TagChip key={t} label={t} small onClick={() => toggleTagFilter(t)} active={activeTags.includes(t)} />
+                            <TagChip key={t} label={t} small accent={accent} onClick={() => toggleTagFilter(t)} active={activeTags.includes(t)} />
                           ))}
                         </div>
                       )}
@@ -673,12 +711,44 @@ function SessionsTab({ sessions, setSessions }) {
             resetForm();
           }}
           showDate
-          textLabel="What did you do?"
-          textPlaceholder="Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with..."
+          textLabel={textLabel}
+          textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : "Save entry"}
+          accent={accent}
         />
       )}
     </>
+  );
+}
+
+function SessionsTab({ sessions, setSessions }) {
+  return (
+    <SimpleEntryTab
+      entries={sessions}
+      setEntries={setSessions}
+      eyebrow="Training journal"
+      heading="Session Log"
+      searchPlaceholder="Search entries or tags…"
+      emptyLabel='No sessions logged yet. Tap "New entry" to write your first one.'
+      textLabel="What did you do?"
+      textPlaceholder="Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with..."
+    />
+  );
+}
+
+function JournalsTab({ journals, setJournals }) {
+  return (
+    <SimpleEntryTab
+      entries={journals}
+      setEntries={setJournals}
+      eyebrow="Personal journal"
+      heading="Journal"
+      searchPlaceholder="Search journal entries or tags…"
+      emptyLabel='No journal entries yet. Tap "New entry" to write your first one.'
+      textLabel="What's on your mind?"
+      textPlaceholder="How training's feeling, energy levels, sleep, motivation, anything worth remembering..."
+      accent="--accent3"
+    />
   );
 }
 
