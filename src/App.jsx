@@ -192,29 +192,27 @@ export default function App() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await window.storage.get(STORAGE_KEY, false);
-        if (res && res.value) {
-          const parsed = JSON.parse(res.value);
-          if (Array.isArray(parsed.sessions)) setSessions(parsed.sessions);
-          if (Array.isArray(parsed.folders)) setFolders(parsed.folders);
-          if (Array.isArray(parsed.routines)) setRoutines(parsed.routines);
-        }
-      } catch (e) {
-        // nothing saved yet
-      } finally {
-        setLoaded(true);
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.sessions)) setSessions(parsed.sessions);
+        if (Array.isArray(parsed.folders)) setFolders(parsed.folders);
+        if (Array.isArray(parsed.routines)) setRoutines(parsed.routines);
       }
-    })();
+    } catch (e) {
+      // nothing saved yet
+    } finally {
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
+    saveTimer.current = setTimeout(() => {
       try {
-        await window.storage.set(STORAGE_KEY, JSON.stringify({ sessions, folders, routines }), false);
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessions, folders, routines }));
       } catch (e) {
         console.error("save failed", e);
       }
