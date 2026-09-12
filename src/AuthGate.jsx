@@ -21,7 +21,6 @@ const shellStyle = {
   fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   maxWidth: 480,
   margin: "0 auto",
-  minHeight: "100vh",
   maxHeight: 800,
   borderRadius: 18,
   overflow: "hidden",
@@ -58,18 +57,39 @@ const buttonStyle = {
   width: "100%",
 };
 
+// Shared wrapper for all three AuthGate screens (setup notice, loading,
+// login form). Carries its own box-sizing reset since these screens render
+// before the main app's <Shell> does — without it, width:100% inputs with
+// padding overflow their container and get clipped by shellStyle's
+// overflow:hidden, which looks like "no gap on the right edge."
+function AuthShell({ children }) {
+  return (
+    <div className="auth-shell" style={shellStyle}>
+      {/* 100dvh tracks the visible viewport as mobile browser chrome (e.g.
+          Safari's address bar) shows/hides, unlike a plain 100vh which is
+          computed against the largest possible viewport. 100vh stays as a
+          fallback for browsers without dvh support. */}
+      <style>{`
+        * { box-sizing: border-box; }
+        .auth-shell { min-height: 100vh; min-height: 100dvh; }
+      `}</style>
+      {children}
+    </div>
+  );
+}
+
 // If Firebase env vars haven't been set yet, show setup instructions instead
 // of a broken app.
 function SetupNeeded() {
   return (
-    <div style={shellStyle}>
+    <AuthShell>
       <div style={{ fontWeight: 700, fontSize: 16 }}>Firebase isn't configured yet</div>
       <div style={{ color: "var(--text-dim)", fontSize: 13, lineHeight: 1.5 }}>
         Add your Firebase project credentials as environment variables (see the README) and
         redeploy. Locally, create a <code>.env.local</code> file with the
         <code> VITE_FIREBASE_*</code> keys and restart <code>npm run dev</code>.
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -98,7 +118,7 @@ function LoginForm() {
   };
 
   return (
-    <div style={shellStyle}>
+    <AuthShell>
       <div>
         <div style={{ fontSize: 20, fontWeight: 700 }}>Session Log</div>
         <div style={{ color: "var(--text-dim)", fontSize: 13, marginTop: 4 }}>
@@ -141,7 +161,7 @@ function LoginForm() {
       >
         {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
       </button>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -167,7 +187,7 @@ export default function AuthGate({ children }) {
   }, []);
 
   if (!firebaseConfigured) return <SetupNeeded />;
-  if (user === undefined) return <div style={shellStyle}>Loading…</div>;
+  if (user === undefined) return <AuthShell>Loading…</AuthShell>;
   if (user === null) return <LoginForm />;
 
   return children({ uid: user.uid, email: user.email, logout: () => signOut(auth) });
