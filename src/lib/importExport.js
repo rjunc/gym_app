@@ -3,14 +3,17 @@ import { folderPath, resolveFolderPath } from "./folders.js";
 import { uid, todayISO } from "./id.js";
 
 /* ============================== COMBINED CSV ============================== */
-// Unified CSV: one file, one 'type' column distinguishing session/journal/routine rows.
+// Unified CSV: one file, one 'type' column distinguishing session/journal/routine/
+// roll/technique rows. Routine folder paths resolve against `folders` (lifting);
+// technique folder paths resolve against `jitsFolders`.
 
-export function combinedToCSV(sessions, routines, journals, folders) {
+export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = []) {
   const header = ["type", "id", "date", "name", "folder_path", "tags", "text"];
-  // Sessions/journals reuse the "name" column (otherwise unused for them) to
-  // carry their optional title.
+  // Sessions/journals/rolls reuse the "name" column (otherwise unused for
+  // them) to carry their optional title.
   const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || ""]);
   const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || ""]);
+  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || ""]);
   const routineRows = routines.map((r) => [
     "routine",
     r.id,
@@ -20,12 +23,25 @@ export function combinedToCSV(sessions, routines, journals, folders) {
     (r.tags || []).join(";"),
     r.text || "",
   ]);
-  return [header, ...sessionRows, ...journalRows, ...routineRows].map((row) => row.map(csvEscape).join(",")).join("\r\n");
+  const techniqueRows = techniques.map((t) => [
+    "technique",
+    t.id,
+    "",
+    t.name,
+    folderPath(jitsFolders, t.folderId).map((f) => f.name).join("/"),
+    (t.tags || []).join(";"),
+    t.text || "",
+  ]);
+  return [header, ...sessionRows, ...journalRows, ...routineRows, ...rollRows, ...techniqueRows]
+    .map((row) => row.map(csvEscape).join(","))
+    .join("\r\n");
 }
 
-export function combinedFromCSV(text, existingFolders) {
+export function combinedFromCSV(text, existingFolders, existingJitsFolders = []) {
   const rows = parseCSV(text);
-  if (rows.length === 0) return { sessions: [], routines: [], journals: [], folders: existingFolders };
+  if (rows.length === 0) {
+    return { sessions: [], routines: [], journals: [], folders: existingFolders, rolls: [], techniques: [], jitsFolders: existingJitsFolders };
+  }
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const typeIdx = header.indexOf("type");
   const idIdx = header.indexOf("id");
@@ -36,9 +52,12 @@ export function combinedFromCSV(text, existingFolders) {
   const textIdx = header.indexOf("text");
 
   let foldersAcc = existingFolders;
+  let jitsFoldersAcc = existingJitsFolders;
   const sessions = [];
   const routines = [];
   const journals = [];
+  const rolls = [];
+  const techniques = [];
 
   rows.slice(1).forEach((r) => {
     const type = typeIdx >= 0 ? (r[typeIdx] || "").trim().toLowerCase() : "session";
@@ -50,20 +69,26 @@ export function combinedFromCSV(text, existingFolders) {
       const { id: folderId, folders: nextFolders } = resolveFolderPath(foldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
       foldersAcc = nextFolders;
       routines.push({ id, name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled routine", folderId, tags, text });
+    } else if (type === "technique") {
+      const { id: folderId, folders: nextFolders } = resolveFolderPath(jitsFoldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
+      jitsFoldersAcc = nextFolders;
+      techniques.push({ id, name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled technique", folderId, tags, text });
     } else if (type === "journal") {
       journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
+    } else if (type === "roll") {
+      rolls.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
     } else {
       sessions.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
     }
   });
 
-  return { sessions, routines, journals, folders: foldersAcc };
+  return { sessions, routines, journals, folders: foldersAcc, rolls, techniques, jitsFolders: jitsFoldersAcc };
 }
 
 /* ============================== JSON NORMALIZATION ============================== */
 
-// Sessions and journals share the same shape (id/date/tags/text, no folder),
-// so one helper normalizes either out of an imported JSON payload.
+// Sessions/journals/rolls all share the same shape (id/date/tags/text, no
+// folder), so one helper normalizes any of them out of an imported JSON payload.
 function normalizeSimpleEntries(arr) {
   return Array.isArray(arr)
     ? arr.map((s) => ({
@@ -76,11 +101,13 @@ function normalizeSimpleEntries(arr) {
     : [];
 }
 
-function normalizeRoutines(arr) {
+// Routines/techniques share the same shape (id/name/folderId/tags/text), so
+// one helper normalizes either out of an imported JSON payload.
+function normalizeFolderItems(arr, defaultName) {
   return Array.isArray(arr)
     ? arr.map((r) => ({
         id: r.id || uid(),
-        name: r.name || "Untitled routine",
+        name: r.name || defaultName,
         folderId: r.folderId || null,
         tags: Array.isArray(r.tags) ? r.tags : typeof r.tags === "string" ? r.tags.split(";").filter(Boolean) : [],
         text: r.text || "",
@@ -88,30 +115,35 @@ function normalizeRoutines(arr) {
     : [];
 }
 
+function mergeFolders(existingFolders, incomingFolders) {
+  if (!Array.isArray(incomingFolders)) return existingFolders;
+  const byId = new Map(existingFolders.map((f) => [f.id, f]));
+  incomingFolders.forEach((f) => byId.set(f.id, f));
+  return Array.from(byId.values());
+}
+
 /* ============================== IMPORT ENTRY POINT ============================== */
 
 // Parses an imported .json or .csv file's text into normalized
-// { sessions, journals, routines, folders }, merging any folders discovered
-// in the file into `existingFolders`. Throws if a JSON file has none of the
-// three record types.
-export function parseImportFile(filename, text, existingFolders) {
+// { sessions, journals, routines, folders, rolls, techniques, jitsFolders },
+// merging any folders discovered in the file into `existingFolders`/
+// `existingJitsFolders`. Throws if a JSON file has none of the known record types.
+export function parseImportFile(filename, text, existingFolders, existingJitsFolders = []) {
   if (filename.toLowerCase().endsWith(".json")) {
     const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed.sessions) && !Array.isArray(parsed.routines) && !Array.isArray(parsed.journals)) {
-      throw new Error("No sessions, journals, or routines found in JSON");
-    }
-    let mergedFolders = existingFolders;
-    if (Array.isArray(parsed.folders)) {
-      const byId = new Map(mergedFolders.map((f) => [f.id, f]));
-      parsed.folders.forEach((f) => byId.set(f.id, f));
-      mergedFolders = Array.from(byId.values());
+    const hasKnownData = ["sessions", "routines", "journals", "rolls", "techniques"].some((k) => Array.isArray(parsed[k]));
+    if (!hasKnownData) {
+      throw new Error("No sessions, journals, routines, rolls, or techniques found in JSON");
     }
     return {
       sessions: normalizeSimpleEntries(parsed.sessions),
       journals: normalizeSimpleEntries(parsed.journals),
-      routines: normalizeRoutines(parsed.routines),
-      folders: mergedFolders,
+      routines: normalizeFolderItems(parsed.routines, "Untitled routine"),
+      folders: mergeFolders(existingFolders, parsed.folders),
+      rolls: normalizeSimpleEntries(parsed.rolls),
+      techniques: normalizeFolderItems(parsed.techniques, "Untitled technique"),
+      jitsFolders: mergeFolders(existingJitsFolders, parsed.jitsFolders),
     };
   }
-  return combinedFromCSV(text, existingFolders);
+  return combinedFromCSV(text, existingFolders, existingJitsFolders);
 }

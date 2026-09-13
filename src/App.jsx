@@ -1,23 +1,41 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, LogOut } from "lucide-react";
+import { Download, Upload, LogOut, ClipboardList, NotebookPen, BookOpen } from "lucide-react";
 import { todayISO } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
 import { subscribeToLog, saveLog } from "./lib/firestoreLog.js";
 import Shell from "./ui/Shell.jsx";
+import ModeSwitcher from "./ui/ModeSwitcher.jsx";
 import TabSwitcher from "./ui/TabSwitcher.jsx";
 import { secondaryBtnStyle } from "./ui/styles.js";
 import SessionsTab from "./tabs/SessionsTab.jsx";
 import JournalsTab from "./tabs/JournalsTab.jsx";
 import RoutinesTab from "./tabs/RoutinesTab.jsx";
+import RollsTab from "./tabs/RollsTab.jsx";
+import TechniquesTab from "./tabs/TechniquesTab.jsx";
+
+const LIFTING_TABS = [
+  { key: "sessions", label: "Sessions", Icon: ClipboardList },
+  { key: "journals", label: "Journals", Icon: NotebookPen },
+  { key: "routines", label: "Routines", Icon: BookOpen },
+];
+
+const JITS_TABS = [
+  { key: "rolls", label: "Rolls", Icon: ClipboardList },
+  { key: "techniques", label: "Techniques", Icon: BookOpen },
+];
 
 export default function App({ uid, userEmail, onLogout }) {
+  const [mode, setMode] = useState("lifting");
   const [tab, setTab] = useState("sessions");
   const [sessions, setSessions] = useState([]);
   const [folders, setFolders] = useState([]);
   const [routines, setRoutines] = useState([]);
   const [journals, setJournals] = useState([]);
+  const [rolls, setRolls] = useState([]);
+  const [techniques, setTechniques] = useState([]);
+  const [jitsFolders, setJitsFolders] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [importError, setImportError] = useState("");
@@ -41,6 +59,9 @@ export default function App({ uid, userEmail, onLogout }) {
         setFolders(Array.isArray(data.folders) ? data.folders : []);
         setRoutines(Array.isArray(data.routines) ? data.routines : []);
         setJournals(Array.isArray(data.journals) ? data.journals : []);
+        setRolls(Array.isArray(data.rolls) ? data.rolls : []);
+        setTechniques(Array.isArray(data.techniques) ? data.techniques : []);
+        setJitsFolders(Array.isArray(data.jitsFolders) ? data.jitsFolders : []);
         setSyncError("");
         setLoaded(true);
       },
@@ -61,23 +82,27 @@ export default function App({ uid, userEmail, onLogout }) {
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveLog(uid, { sessions, folders, routines, journals }).catch((e) => {
+      saveLog(uid, { sessions, folders, routines, journals, rolls, techniques, jitsFolders }).catch((e) => {
         console.error("save failed", e);
         setSyncError("Couldn't save your last change. Check your connection.");
       });
     }, 250);
     return () => clearTimeout(saveTimer.current);
-  }, [sessions, folders, routines, journals, loaded, uid]);
+  }, [sessions, folders, routines, journals, rolls, techniques, jitsFolders, loaded, uid]);
 
   const exportJSON = () =>
     downloadFile(
       `workout-data-${todayISO()}.json`,
-      JSON.stringify({ exportedAt: new Date().toISOString(), sessions, folders, routines, journals }, null, 2),
+      JSON.stringify({ exportedAt: new Date().toISOString(), sessions, folders, routines, journals, rolls, techniques, jitsFolders }, null, 2),
       "application/json"
     );
 
   const exportCSV = () =>
-    downloadFile(`workout-data-${todayISO()}.csv`, combinedToCSV(sessions, routines, journals, folders), "text/csv");
+    downloadFile(
+      `workout-data-${todayISO()}.csv`,
+      combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders),
+      "text/csv"
+    );
 
   const handleFile = async (e) => {
     const file = e.target.files[0];
@@ -85,12 +110,15 @@ export default function App({ uid, userEmail, onLogout }) {
     setImportError("");
     try {
       const text = await file.text();
-      const incoming = parseImportFile(file.name, text, folders);
+      const incoming = parseImportFile(file.name, text, folders, jitsFolders);
 
       setFolders(incoming.folders);
       setSessions((prev) => mergeById(prev, incoming.sessions));
       setJournals((prev) => mergeById(prev, incoming.journals));
       setRoutines((prev) => mergeById(prev, incoming.routines));
+      setJitsFolders(incoming.jitsFolders);
+      setRolls((prev) => mergeById(prev, incoming.rolls));
+      setTechniques((prev) => mergeById(prev, incoming.techniques));
     } catch (err) {
       setImportError("Couldn't read that file. Make sure it's a CSV or JSON export from this app.");
     }
@@ -107,13 +135,29 @@ export default function App({ uid, userEmail, onLogout }) {
     );
   }
 
+  const changeMode = (nextMode) => {
+    setMode(nextMode);
+    setTab(nextMode === "jits" ? "rolls" : "sessions");
+  };
+
   return (
     <Shell>
       <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <TabSwitcher tab={tab} setTab={setTab} />
+        <ModeSwitcher mode={mode} setMode={changeMode} />
+        {mode === "jits" ? (
+          <TabSwitcher tab={tab} setTab={setTab} items={JITS_TABS} accent="--accent4" />
+        ) : (
+          <TabSwitcher tab={tab} setTab={setTab} items={LIFTING_TABS} />
+        )}
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {tab === "sessions" ? (
+          {mode === "jits" ? (
+            tab === "rolls" ? (
+              <RollsTab rolls={rolls} setRolls={setRolls} />
+            ) : (
+              <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} />
+            )
+          ) : tab === "sessions" ? (
             <SessionsTab sessions={sessions} setSessions={setSessions} />
           ) : tab === "journals" ? (
             <JournalsTab journals={journals} setJournals={setJournals} />

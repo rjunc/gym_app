@@ -3,22 +3,22 @@ import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
 
-export default function RoutineCard({ routine, pathLabel, isOpen, onToggle, onEdit, onDelete, onJump, onTagClick, activeTags }) {
-  const isLong = (routine.text || "").length > 220;
+export default function LibraryItemCard({ item, pathLabel, isOpen, onToggle, onEdit, onDelete, onJump, onTagClick, activeTags, accent = "--accent2" }) {
+  const isLong = (item.text || "").length > 220;
   return (
     <div style={cardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ fontWeight: 700, fontSize: 13 }}>{routine.name}</div>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
           {pathLabel && (
             <button onClick={onJump} style={{ ...ghostLinkStyle, fontSize: 11 }}>
               <Folder size={11} /> {pathLabel}
             </button>
           )}
-          {routine.tags && routine.tags.length > 0 && (
+          {item.tags && item.tags.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {routine.tags.map((t) => (
-                <TagChip key={t} label={t} small accent="--accent2" onClick={() => onTagClick(t)} active={activeTags.includes(t)} />
+              {item.tags.map((t) => (
+                <TagChip key={t} label={t} small accent={accent} onClick={() => onTagClick(t)} active={activeTags.includes(t)} />
               ))}
             </div>
           )}
@@ -33,7 +33,7 @@ export default function RoutineCard({ routine, pathLabel, isOpen, onToggle, onEd
         </div>
       </div>
 
-      {routine.text && (
+      {item.text && (
         <p
           style={{
             fontFamily: "'IBM Plex Mono', monospace",
@@ -49,7 +49,7 @@ export default function RoutineCard({ routine, pathLabel, isOpen, onToggle, onEd
             overflow: isOpen || !isLong ? "visible" : "hidden",
           }}
         >
-          {routine.text}
+          {item.text}
         </p>
       )}
 

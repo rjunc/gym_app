@@ -15,6 +15,8 @@ export default function Shell({ children }) {
         "--accent2-dim": "rgba(111,168,143,0.16)",
         "--accent3": "#8C93C9",
         "--accent3-dim": "rgba(140,147,201,0.16)",
+        "--accent4": "#5B8DBA",
+        "--accent4-dim": "rgba(91,141,186,0.16)",
         "--danger": "#C2604A",
         background: "var(--bg)",
         color: "var(--text)",

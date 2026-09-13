@@ -1,11 +1,4 @@
-import { ClipboardList, NotebookPen, BookOpen } from "lucide-react";
-
-export default function TabSwitcher({ tab, setTab }) {
-  const items = [
-    { key: "sessions", label: "Sessions", Icon: ClipboardList },
-    { key: "journals", label: "Journals", Icon: NotebookPen },
-    { key: "routines", label: "Routines", Icon: BookOpen },
-  ];
+export default function TabSwitcher({ tab, setTab, items, accent = "--accent" }) {
   return (
     <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
       {items.map(({ key, label, Icon }) => {
@@ -18,7 +11,7 @@ export default function TabSwitcher({ tab, setTab }) {
               flex: 1,
               background: "none",
               border: "none",
-              borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+              borderBottom: active ? `2px solid var(${accent})` : "2px solid transparent",
               padding: "13px 0 11px",
               display: "flex",
               alignItems: "center",
