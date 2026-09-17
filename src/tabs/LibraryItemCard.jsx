@@ -1,4 +1,4 @@
-import { Folder, Pencil, Trash2, ChevronDown, ChevronUp, MoveRight } from "lucide-react";
+import { Folder, Pencil, Trash2, ChevronDown, ChevronUp, MoveRight, Shirt } from "lucide-react";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
@@ -9,7 +9,14 @@ export default function LibraryItemCard({ item, pathLabel, isOpen, onToggle, onE
     <div style={cardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+            {item.giOnly && (
+              <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, color: "var(--danger)" }}>
+                <Shirt size={11} /> GI ONLY
+              </span>
+            )}
+          </div>
           {(item.position || item.toPosition) && (
             <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: `var(${accent})` }}>
               <span>{item.position || "?"}</span>

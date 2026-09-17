@@ -7,6 +7,7 @@ import Breadcrumb from "../ui/Breadcrumb.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
+import GiModeToggle from "../ui/GiModeToggle.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
 import { inputStyle, cardStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
@@ -27,14 +28,16 @@ export default function FolderLibraryTab({
   textPlaceholder,
   accent = "--accent2",
   showPositions = false,
+  showGiOnly = false,
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
+  const [giMode, setGiMode] = useState("gi");
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "" });
+  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "", giOnly: false });
   const [tagDraft, setTagDraft] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [addingFolder, setAddingFolder] = useState(false);
@@ -44,11 +47,19 @@ export default function FolderLibraryTab({
 
   const isFiltering = search.trim() !== "" || activeTags.length > 0;
 
+  // In No-Gi mode, anything marked giOnly is hidden everywhere in this tab —
+  // browsing, folder counts, search — since it simply doesn't apply.
+  const visibleItems = useMemo(
+    () => (showGiOnly && giMode === "no-gi" ? items.filter((r) => !r.giOnly) : items),
+    [items, showGiOnly, giMode]
+  );
+  const hiddenGiOnlyCount = items.length - visibleItems.length;
+
   const allTags = useMemo(() => {
     const set = new Set();
-    items.forEach((r) => (r.tags || []).forEach((t) => set.add(t)));
+    visibleItems.forEach((r) => (r.tags || []).forEach((t) => set.add(t)));
     return Array.from(set).sort();
-  }, [items]);
+  }, [visibleItems]);
 
   const subfolders = useMemo(
     () => folders.filter((f) => (f.parentId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
@@ -56,13 +67,13 @@ export default function FolderLibraryTab({
   );
 
   const itemsInFolder = useMemo(
-    () => items.filter((r) => (r.folderId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
-    [items, currentFolderId]
+    () => visibleItems.filter((r) => (r.folderId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
+    [visibleItems, currentFolderId]
   );
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items
+    return visibleItems
       .filter((r) => {
         const matchesSearch =
           q === "" ||
@@ -73,13 +84,13 @@ export default function FolderLibraryTab({
         return matchesSearch && matchesTags;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [items, search, activeTags]);
+  }, [visibleItems, search, activeTags]);
 
   const breadcrumb = folderPath(folders, currentFolderId);
 
   const folderCounts = (folderId) => {
     const subCount = folders.filter((f) => (f.parentId || null) === folderId).length;
-    const itemCount = items.filter((r) => (r.folderId || null) === folderId).length;
+    const itemCount = visibleItems.filter((r) => (r.folderId || null) === folderId).length;
     return { subCount, itemCount };
   };
 
@@ -118,7 +129,7 @@ export default function FolderLibraryTab({
   };
 
   const resetForm = () => {
-    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "" });
+    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "", giOnly: false });
     setTagDraft("");
     setEditingId(null);
   };
@@ -136,6 +147,7 @@ export default function FolderLibraryTab({
       folderId: item.folderId || null,
       position: item.position || "",
       toPosition: item.toPosition || "",
+      giOnly: !!item.giOnly,
     });
     setEditingId(item.id);
     setShowComposer(true);
@@ -193,6 +205,12 @@ export default function FolderLibraryTab({
           </button>
         </div>
 
+        {showGiOnly && (
+          <div style={{ marginBottom: 10 }}>
+            <GiModeToggle mode={giMode} setMode={setGiMode} accent={accent} />
+          </div>
+        )}
+
         <div style={{ position: "relative", marginBottom: 10 }}>
           <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
           <input
@@ -223,6 +241,12 @@ export default function FolderLibraryTab({
             {filteredItems.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "36px 10px", fontSize: 13 }}>
                 Nothing matches that search or tag filter.
+                {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    ({hiddenGiOnlyCount} gi-only {itemNoun}
+                    {hiddenGiOnlyCount !== 1 ? "s" : ""} hidden in No-Gi mode)
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -328,6 +352,12 @@ export default function FolderLibraryTab({
             {itemsInFolder.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
                 {items.length === 0 && folders.length === 0 ? emptyLabel : `No ${itemNoun}s directly in this folder.`}
+                {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    ({hiddenGiOnlyCount} gi-only {itemNoun}
+                    {hiddenGiOnlyCount !== 1 ? "s" : ""} hidden in No-Gi mode)
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -370,6 +400,7 @@ export default function FolderLibraryTab({
           folderOptions={folderOptions}
           showPositions={showPositions}
           positionOptions={positionOptions}
+          showGiOnly={showGiOnly}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : `Save ${itemNoun}`}

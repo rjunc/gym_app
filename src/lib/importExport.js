@@ -8,12 +8,12 @@ import { uid, todayISO } from "./id.js";
 // technique folder paths resolve against `jitsFolders`.
 
 export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = []) {
-  const header = ["type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position"];
+  const header = ["type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only"];
   // Sessions/journals/rolls reuse the "name" column (otherwise unused for
   // them) to carry their optional title.
-  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", ""]);
-  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", ""]);
-  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", ""]);
+  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", ""]);
+  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", ""]);
+  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", ""]);
   const routineRows = routines.map((r) => [
     "routine",
     r.id,
@@ -24,9 +24,11 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     r.text || "",
     "",
     "",
+    "",
   ]);
   // Techniques carry an optional position -> to_position pair used by the
-  // Flow tab to chain moves together.
+  // Flow tab to chain moves together, plus a gi_only flag for the Gi/No-Gi
+  // mode filter.
   const techniqueRows = techniques.map((t) => [
     "technique",
     t.id,
@@ -37,6 +39,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     t.text || "",
     t.position || "",
     t.toPosition || "",
+    t.giOnly ? "1" : "",
   ]);
   return [header, ...sessionRows, ...journalRows, ...routineRows, ...rollRows, ...techniqueRows]
     .map((row) => row.map(csvEscape).join(","))
@@ -58,6 +61,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
   const textIdx = header.indexOf("text");
   const positionIdx = header.indexOf("position");
   const toPositionIdx = header.indexOf("to_position");
+  const giOnlyIdx = header.indexOf("gi_only");
 
   let foldersAcc = existingFolders;
   let jitsFoldersAcc = existingJitsFolders;
@@ -88,6 +92,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
         text,
         position: positionIdx >= 0 ? r[positionIdx] || "" : "",
         toPosition: toPositionIdx >= 0 ? r[toPositionIdx] || "" : "",
+        giOnly: giOnlyIdx >= 0 && !!r[giOnlyIdx],
       });
     } else if (type === "journal") {
       journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
@@ -119,8 +124,9 @@ function normalizeSimpleEntries(arr) {
 
 // Routines/techniques share the same shape (id/name/folderId/tags/text), so
 // one helper normalizes either out of an imported JSON payload. Techniques
-// additionally carry an optional position -> toPosition pair for the Flow tab.
-function normalizeFolderItems(arr, defaultName, { withPositions = false } = {}) {
+// additionally carry an optional position -> toPosition pair for the Flow tab
+// and a giOnly flag for the Gi/No-Gi mode filter.
+function normalizeFolderItems(arr, defaultName, { techniqueExtras = false } = {}) {
   return Array.isArray(arr)
     ? arr.map((r) => ({
         id: r.id || uid(),
@@ -128,7 +134,7 @@ function normalizeFolderItems(arr, defaultName, { withPositions = false } = {}) 
         folderId: r.folderId || null,
         tags: Array.isArray(r.tags) ? r.tags : typeof r.tags === "string" ? r.tags.split(";").filter(Boolean) : [],
         text: r.text || "",
-        ...(withPositions ? { position: r.position || "", toPosition: r.toPosition || "" } : {}),
+        ...(techniqueExtras ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly } : {}),
       }))
     : [];
 }
@@ -159,7 +165,7 @@ export function parseImportFile(filename, text, existingFolders, existingJitsFol
       routines: normalizeFolderItems(parsed.routines, "Untitled routine"),
       folders: mergeFolders(existingFolders, parsed.folders),
       rolls: normalizeSimpleEntries(parsed.rolls),
-      techniques: normalizeFolderItems(parsed.techniques, "Untitled technique", { withPositions: true }),
+      techniques: normalizeFolderItems(parsed.techniques, "Untitled technique", { techniqueExtras: true }),
       jitsFolders: mergeFolders(existingJitsFolders, parsed.jitsFolders),
     };
   }

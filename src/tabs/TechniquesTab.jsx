@@ -17,6 +17,7 @@ export default function TechniquesTab({ folders, setFolders, techniques, setTech
       textPlaceholder="Setup, grips, step-by-step details, common mistakes, when it works best..."
       accent="--accent4"
       showPositions
+      showGiOnly
     />
   );
 }

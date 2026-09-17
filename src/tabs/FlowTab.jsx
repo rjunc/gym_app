@@ -1,14 +1,15 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, RotateCcw, Plus, Flag } from "lucide-react";
+import { ChevronRight, RotateCcw, Plus, Flag, Shirt } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { collectPositions, techniquesFrom, normalizePosition } from "../lib/positions.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
+import GiModeToggle from "../ui/GiModeToggle.jsx";
 import { inputStyle, cardStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent4";
 
-const emptyForm = (position) => ({ name: "", tags: [], text: "", position: position || "", toPosition: "" });
+const emptyForm = (position) => ({ name: "", tags: [], text: "", position: position || "", toPosition: "", giOnly: false });
 
 // Lets you navigate your Techniques library as a chain: pick where you are,
 // see the moves you've logged from there, follow one to where it leads, and
@@ -17,6 +18,7 @@ const emptyForm = (position) => ({ name: "", tags: [], text: "", position: posit
 export default function FlowTab({ techniques, setTechniques }) {
   const [path, setPath] = useState([]); // [{ position }]
   const [positionDraft, setPositionDraft] = useState("");
+  const [giMode, setGiMode] = useState("gi");
   const [openTechniqueId, setOpenTechniqueId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState(emptyForm());
@@ -24,7 +26,17 @@ export default function FlowTab({ techniques, setTechniques }) {
 
   const allPositions = useMemo(() => collectPositions(techniques), [techniques]);
   const currentPosition = path.length ? path[path.length - 1].position : null;
-  const options = useMemo(() => (currentPosition ? techniquesFrom(techniques, currentPosition) : []), [techniques, currentPosition]);
+  const optionsAtPosition = useMemo(
+    () => (currentPosition ? techniquesFrom(techniques, currentPosition) : []),
+    [techniques, currentPosition]
+  );
+  // In No-Gi mode, don't offer moves that only work with the gi — they're
+  // not a real option right now.
+  const options = useMemo(
+    () => (giMode === "no-gi" ? optionsAtPosition.filter((t) => !t.giOnly) : optionsAtPosition),
+    [optionsAtPosition, giMode]
+  );
+  const hiddenGiOnlyCount = optionsAtPosition.length - options.length;
 
   const goTo = (position) => {
     const clean = position.trim();
@@ -66,8 +78,13 @@ export default function FlowTab({ techniques, setTechniques }) {
   return (
     <>
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>Live navigation</div>
-        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2, marginBottom: 12 }}>Flow</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>Live navigation</div>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>Flow</div>
+          </div>
+          <GiModeToggle mode={giMode} setMode={setGiMode} accent={ACCENT} />
+        </div>
 
         {path.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, fontSize: 12 }}>
@@ -137,6 +154,11 @@ export default function FlowTab({ techniques, setTechniques }) {
             {options.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
                 No techniques logged starting from "{currentPosition}" yet.
+                {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
+                  <div style={{ marginTop: 6 }}>
+                    ({hiddenGiOnlyCount} gi-only technique{hiddenGiOnlyCount !== 1 ? "s" : ""} hidden in No-Gi mode)
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -149,7 +171,14 @@ export default function FlowTab({ techniques, setTechniques }) {
                         onClick={() => setOpenTechniqueId(isOpen ? null : t.id)}
                         style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, cursor: "pointer" }}
                       >
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
+                          {t.giOnly && (
+                            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, color: "var(--danger)" }}>
+                              <Shirt size={11} /> GI ONLY
+                            </span>
+                          )}
+                        </div>
                         {t.tags && t.tags.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "flex-end" }}>
                             {t.tags.slice(0, 3).map((tag) => (
@@ -219,6 +248,7 @@ export default function FlowTab({ techniques, setTechniques }) {
           namePlaceholder="Scissor sweep, cross collar choke from mount…"
           showPositions
           positionOptions={allPositions}
+          showGiOnly
           textLabel="Technique notes"
           textPlaceholder="Setup, grips, step-by-step details, common mistakes, when it works best..."
           saveLabel="Save technique"

@@ -23,6 +23,7 @@ export default function EntryComposer({
   folderOptions,
   showPositions,
   positionOptions = [],
+  showGiOnly,
   textLabel,
   textPlaceholder,
   saveLabel,
@@ -137,6 +138,18 @@ export default function EntryComposer({
               ))}
             </datalist>
           </div>
+        )}
+
+        {showGiOnly && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={!!form.giOnly}
+              onChange={(e) => setForm((f) => ({ ...f, giOnly: e.target.checked }))}
+              style={{ width: 16, height: 16, accentColor: `var(${accentVar})` }}
+            />
+            Gi only — won't work without the gi
+          </label>
         )}
 
         <div>
