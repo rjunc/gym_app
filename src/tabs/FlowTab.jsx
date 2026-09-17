@@ -87,23 +87,30 @@ export default function FlowTab({ techniques, setTechniques }) {
         </div>
 
         {path.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, fontSize: 12 }}>
-            {path.map((step, i) => (
-              <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                {i > 0 && <ChevronRight size={12} color="var(--text-dim)" />}
-                <button
-                  onClick={() => jumpToStep(i)}
-                  style={{
-                    ...ghostLinkStyle,
-                    color: i === path.length - 1 ? `var(${ACCENT})` : "var(--text-dim)",
-                    fontWeight: i === path.length - 1 ? 700 : 600,
-                  }}
-                >
-                  {step.position}
-                </button>
-              </span>
-            ))}
-            <button onClick={startOver} style={{ ...ghostLinkStyle, marginLeft: 8, color: "var(--text-dim)" }}>
+          <div>
+            {/* Capped and independently scrollable so a long chain browses
+                in place instead of growing this fixed, non-scrolling header
+                without bound and crowding out the options list below. */}
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, fontSize: 12, maxHeight: 88, overflowY: "auto" }}>
+              {path.map((step, i) => (
+                <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {i > 0 && <ChevronRight size={12} color="var(--text-dim)" />}
+                  <button
+                    onClick={() => jumpToStep(i)}
+                    style={{
+                      ...ghostLinkStyle,
+                      color: i === path.length - 1 ? `var(${ACCENT})` : "var(--text-dim)",
+                      fontWeight: i === path.length - 1 ? 700 : 600,
+                    }}
+                  >
+                    {step.position}
+                  </button>
+                </span>
+              ))}
+            </div>
+            {/* Kept outside the scrollable trail above so it's always
+                reachable no matter how long the chain gets. */}
+            <button onClick={startOver} style={{ ...ghostLinkStyle, marginTop: 4, color: "var(--text-dim)" }}>
               <RotateCcw size={11} /> Start over
             </button>
           </div>
