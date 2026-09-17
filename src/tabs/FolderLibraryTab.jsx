@@ -8,6 +8,7 @@ import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
+import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
 import { inputStyle, cardStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
@@ -33,6 +34,7 @@ export default function FolderLibraryTab({
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
+  const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [giMode, setGiMode] = useState("gi");
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -80,11 +82,15 @@ export default function FolderLibraryTab({
           r.name.toLowerCase().includes(q) ||
           (r.text || "").toLowerCase().includes(q) ||
           (r.tags || []).some((t) => t.toLowerCase().includes(q));
-        const matchesTags = activeTags.length === 0 || activeTags.every((t) => (r.tags || []).includes(t));
+        const matchesTags =
+          activeTags.length === 0 ||
+          (tagMatchMode === "any"
+            ? activeTags.some((t) => (r.tags || []).includes(t))
+            : activeTags.every((t) => (r.tags || []).includes(t)));
         return matchesSearch && matchesTags;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [visibleItems, search, activeTags]);
+  }, [visibleItems, search, activeTags, tagMatchMode]);
 
   const breadcrumb = folderPath(folders, currentFolderId);
 
@@ -222,10 +228,30 @@ export default function FolderLibraryTab({
         </div>
 
         {allTags.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          // Capped and independently scrollable so a large tag vocabulary
+          // browses its own list instead of pushing folders/items below out
+          // of view — this container sits in a fixed-height shell with no
+          // page-level scroll, so an unbounded chip cloud would strand
+          // everything under it.
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 88, overflowY: "auto" }}>
             {allTags.map((t) => (
               <TagChip key={t} label={t} accent={accent} active={activeTags.includes(t)} onClick={() => toggleTagFilter(t)} />
             ))}
+          </div>
+        )}
+
+        {activeTags.length > 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
+            <SegmentedToggle
+              options={[
+                { key: "all", label: "All tags" },
+                { key: "any", label: "Any tag" },
+              ]}
+              value={tagMatchMode}
+              setValue={setTagMatchMode}
+              accent={accent}
+            />
           </div>
         )}
       </div>

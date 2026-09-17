@@ -2,6 +2,15 @@ import { csvEscape, parseCSV } from "./csv.js";
 import { folderPath, resolveFolderPath } from "./folders.js";
 import { uid, todayISO } from "./id.js";
 
+// The composer always lowercases tags on save, so the tag list (sorted with
+// a plain, case-sensitive .sort()) is naturally alphabetical. Imported data
+// doesn't go through the composer, so normalize casing here too — otherwise
+// an imported "Zebra" would sort ahead of every lowercase tag.
+function normalizeTags(raw) {
+  const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(";") : [];
+  return list.map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+}
+
 /* ============================== COMBINED CSV ============================== */
 // Unified CSV: one file, one 'type' column distinguishing session/journal/routine/
 // roll/technique rows. Routine folder paths resolve against `folders` (lifting);
@@ -73,7 +82,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
 
   rows.slice(1).forEach((r) => {
     const type = typeIdx >= 0 ? (r[typeIdx] || "").trim().toLowerCase() : "session";
-    const tags = tagsIdx >= 0 && r[tagsIdx] ? r[tagsIdx].split(";").map((t) => t.trim()).filter(Boolean) : [];
+    const tags = normalizeTags(tagsIdx >= 0 ? r[tagsIdx] : "");
     const text = textIdx >= 0 ? r[textIdx] : "";
     const title = nameIdx >= 0 ? r[nameIdx] || "" : "";
     const id = idIdx >= 0 && r[idIdx] ? r[idIdx] : uid();
@@ -116,7 +125,7 @@ function normalizeSimpleEntries(arr) {
         id: s.id || uid(),
         date: s.date || todayISO(),
         title: s.title || "",
-        tags: Array.isArray(s.tags) ? s.tags : typeof s.tags === "string" ? s.tags.split(";").filter(Boolean) : [],
+        tags: normalizeTags(s.tags),
         text: s.text || "",
       }))
     : [];
@@ -132,7 +141,7 @@ function normalizeFolderItems(arr, defaultName, { techniqueExtras = false } = {}
         id: r.id || uid(),
         name: r.name || defaultName,
         folderId: r.folderId || null,
-        tags: Array.isArray(r.tags) ? r.tags : typeof r.tags === "string" ? r.tags.split(";").filter(Boolean) : [],
+        tags: normalizeTags(r.tags),
         text: r.text || "",
         ...(techniqueExtras ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly } : {}),
       }))

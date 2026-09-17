@@ -4,6 +4,7 @@ import { uid, todayISO, formatDate } from "../lib/id.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
+import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { inputStyle, cardStyle, primaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
 // Sessions and journals are both just a flat, most-recent-first list of dated
@@ -21,6 +22,7 @@ export default function SimpleEntryTab({
 }) {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
+  const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
@@ -42,12 +44,16 @@ export default function SimpleEntryTab({
           (s.title || "").toLowerCase().includes(q) ||
           (s.text || "").toLowerCase().includes(q) ||
           (s.tags || []).some((t) => t.toLowerCase().includes(q));
-        const matchesTags = activeTags.length === 0 || activeTags.every((t) => (s.tags || []).includes(t));
+        const matchesTags =
+          activeTags.length === 0 ||
+          (tagMatchMode === "any"
+            ? activeTags.some((t) => (s.tags || []).includes(t))
+            : activeTags.every((t) => (s.tags || []).includes(t)));
         return matchesSearch && matchesTags;
       })
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [entries, search, activeTags]);
+  }, [entries, search, activeTags, tagMatchMode]);
 
   const resetForm = () => {
     setForm({ date: todayISO(), title: "", tags: [], text: "" });
@@ -117,10 +123,30 @@ export default function SimpleEntryTab({
         </div>
 
         {allTags.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          // Capped and independently scrollable so a large tag vocabulary
+          // browses its own list instead of pushing the entries below out of
+          // view — this container sits in a fixed-height shell with no
+          // page-level scroll, so an unbounded chip cloud would strand
+          // everything under it.
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 88, overflowY: "auto" }}>
             {allTags.map((t) => (
               <TagChip key={t} label={t} accent={accent} active={activeTags.includes(t)} onClick={() => toggleTagFilter(t)} />
             ))}
+          </div>
+        )}
+
+        {activeTags.length > 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
+            <SegmentedToggle
+              options={[
+                { key: "all", label: "All tags" },
+                { key: "any", label: "Any tag" },
+              ]}
+              value={tagMatchMode}
+              setValue={setTagMatchMode}
+              accent={accent}
+            />
           </div>
         )}
       </div>
