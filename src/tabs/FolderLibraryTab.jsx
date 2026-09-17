@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, Plus, Pencil, Trash2, ChevronRight, Folder, FolderPlus, X } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { folderPath } from "../lib/folders.js";
+import { collectPositions } from "../lib/positions.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
@@ -25,6 +26,7 @@ export default function FolderLibraryTab({
   textLabel,
   textPlaceholder,
   accent = "--accent2",
+  showPositions = false,
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
@@ -32,7 +34,7 @@ export default function FolderLibraryTab({
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null });
+  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "" });
   const [tagDraft, setTagDraft] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [addingFolder, setAddingFolder] = useState(false);
@@ -116,7 +118,7 @@ export default function FolderLibraryTab({
   };
 
   const resetForm = () => {
-    setForm({ name: "", tags: [], text: "", folderId: currentFolderId });
+    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "" });
     setTagDraft("");
     setEditingId(null);
   };
@@ -127,7 +129,14 @@ export default function FolderLibraryTab({
   };
 
   const openEdit = (item) => {
-    setForm({ name: item.name, tags: [...(item.tags || [])], text: item.text || "", folderId: item.folderId || null });
+    setForm({
+      name: item.name,
+      tags: [...(item.tags || [])],
+      text: item.text || "",
+      folderId: item.folderId || null,
+      position: item.position || "",
+      toPosition: item.toPosition || "",
+    });
     setEditingId(item.id);
     setShowComposer(true);
     setTagDraft("");
@@ -156,6 +165,8 @@ export default function FolderLibraryTab({
     if (!window.confirm(`Delete this ${itemNoun}? This can't be undone.`)) return;
     setItems((prev) => prev.filter((r) => r.id !== id));
   };
+
+  const positionOptions = useMemo(() => (showPositions ? collectPositions(items) : []), [items, showPositions]);
 
   const folderOptions = useMemo(() => {
     const opts = [{ id: null, label: "No folder (top level)" }];
@@ -357,6 +368,8 @@ export default function FolderLibraryTab({
           namePlaceholder={namePlaceholder}
           showFolder
           folderOptions={folderOptions}
+          showPositions={showPositions}
+          positionOptions={positionOptions}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : `Save ${itemNoun}`}

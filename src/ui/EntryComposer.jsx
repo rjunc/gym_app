@@ -21,6 +21,8 @@ export default function EntryComposer({
   namePlaceholder = "",
   showFolder,
   folderOptions,
+  showPositions,
+  positionOptions = [],
   textLabel,
   textPlaceholder,
   saveLabel,
@@ -104,6 +106,36 @@ export default function EntryComposer({
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {showPositions && (
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label style={labelStyle}>From position</label>
+              <input
+                list="position-options"
+                value={form.position || ""}
+                onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))}
+                placeholder="Bottom closed guard…"
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label style={labelStyle}>Leads to</label>
+              <input
+                list="position-options"
+                value={form.toPosition || ""}
+                onChange={(e) => setForm((f) => ({ ...f, toPosition: e.target.value }))}
+                placeholder="Top side control…"
+                style={inputStyle}
+              />
+            </div>
+            <datalist id="position-options">
+              {positionOptions.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
           </div>
         )}
 

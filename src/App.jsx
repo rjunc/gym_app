@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, LogOut, ClipboardList, NotebookPen, BookOpen } from "lucide-react";
+import { Download, Upload, LogOut, ClipboardList, NotebookPen, BookOpen, Route } from "lucide-react";
 import { todayISO } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
@@ -14,6 +14,7 @@ import JournalsTab from "./tabs/JournalsTab.jsx";
 import RoutinesTab from "./tabs/RoutinesTab.jsx";
 import RollsTab from "./tabs/RollsTab.jsx";
 import TechniquesTab from "./tabs/TechniquesTab.jsx";
+import FlowTab from "./tabs/FlowTab.jsx";
 
 const LIFTING_TABS = [
   { key: "sessions", label: "Sessions", Icon: ClipboardList },
@@ -24,6 +25,7 @@ const LIFTING_TABS = [
 const JITS_TABS = [
   { key: "rolls", label: "Rolls", Icon: ClipboardList },
   { key: "techniques", label: "Techniques", Icon: BookOpen },
+  { key: "flow", label: "Flow", Icon: Route },
 ];
 
 export default function App({ uid, userEmail, onLogout }) {
@@ -154,8 +156,10 @@ export default function App({ uid, userEmail, onLogout }) {
           {mode === "jits" ? (
             tab === "rolls" ? (
               <RollsTab rolls={rolls} setRolls={setRolls} />
-            ) : (
+            ) : tab === "techniques" ? (
               <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} />
+            ) : (
+              <FlowTab techniques={techniques} setTechniques={setTechniques} />
             )
           ) : tab === "sessions" ? (
             <SessionsTab sessions={sessions} setSessions={setSessions} />
