@@ -115,7 +115,10 @@ export default function FlowTab({ techniques, setTechniques }) {
           <>
             <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 12 }}>Where are you starting from?</div>
             {allPositions.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+              // Capped and independently scrollable so a large position
+              // vocabulary browses in place instead of pushing the manual
+              // input/Go button further down every time you add one.
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14, maxHeight: 88, overflowY: "auto" }}>
                 {allPositions.map((p) => (
                   <TagChip key={p} label={p} accent={ACCENT} onClick={() => goTo(p)} />
                 ))}
