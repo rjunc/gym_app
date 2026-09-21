@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { uid, todayISO, formatDate } from "../lib/id.js";
 import { matchesTags } from "../lib/activity.js";
+import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
@@ -29,6 +30,8 @@ export default function SimpleEntryTab({
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState({ date: todayISO(), title: "", tags: [], text: "" });
   const [tagDraft, setTagDraft] = useState("");
+
+  const tagSuggestions = useMemo(() => tagCounts(entries), [entries]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -64,8 +67,7 @@ export default function SimpleEntryTab({
   };
 
   const addTagFromDraft = () => {
-    const t = tagDraft.trim().toLowerCase();
-    if (t && !form.tags.includes(t)) setForm((f) => ({ ...f, tags: [...f.tags, t] }));
+    setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tagDraft) }));
     setTagDraft("");
   };
 
@@ -222,6 +224,7 @@ export default function SimpleEntryTab({
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : "Save entry"}
+          tagSuggestions={tagSuggestions}
           accent={accent}
         />
       )}

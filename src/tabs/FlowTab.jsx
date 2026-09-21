@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { ChevronRight, RotateCcw, Plus, Flag, Shirt } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { collectPositions, techniquesFrom, normalizePosition } from "../lib/positions.js";
+import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
@@ -25,6 +26,7 @@ export default function FlowTab({ techniques, setTechniques }) {
   const [tagDraft, setTagDraft] = useState("");
 
   const allPositions = useMemo(() => collectPositions(techniques), [techniques]);
+  const tagSuggestions = useMemo(() => tagCounts(techniques), [techniques]);
   const currentPosition = path.length ? path[path.length - 1].position : null;
   const optionsAtPosition = useMemo(
     () => (currentPosition ? techniquesFrom(techniques, currentPosition) : []),
@@ -63,8 +65,7 @@ export default function FlowTab({ techniques, setTechniques }) {
   };
 
   const addTagFromDraft = () => {
-    const t = tagDraft.trim().toLowerCase();
-    if (t && !form.tags.includes(t)) setForm((f) => ({ ...f, tags: [...f.tags, t] }));
+    setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tagDraft) }));
     setTagDraft("");
   };
   const removeFormTag = (t) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }));
@@ -259,6 +260,7 @@ export default function FlowTab({ techniques, setTechniques }) {
           showPositions
           positionOptions={allPositions}
           showGiOnly
+          tagSuggestions={tagSuggestions}
           textLabel="Technique notes"
           textPlaceholder="Setup, grips, step-by-step details, common mistakes, when it works best..."
           saveLabel="Save technique"

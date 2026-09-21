@@ -1,4 +1,6 @@
 import { X } from "lucide-react";
+import { searchTags, addTagsFromDraft } from "../lib/tags.js";
+import TagChip from "./TagChip.jsx";
 import { labelStyle, inputStyle, tagPillStyle, primaryBtnStyle, secondaryBtnStyle } from "./styles.js";
 
 export default function EntryComposer({
@@ -29,12 +31,28 @@ export default function EntryComposer({
   saveLabel,
   // Dims and disables the save button until the form is complete.
   saveDisabled,
-  // Optional control rendered under the title, for composers that can create
-  // more than one kind of entry (e.g. Home's Session / Roll switch).
-  typeToggle,
+  // Optional content rendered under the title, above the fields, for composers
+  // with extra top-level controls (e.g. Home's Session / Roll switch).
+  topContent,
+  // Existing tags as [{ tag, count }] (most-used first, see tagCounts) to offer
+  // as one-tap suggestions, so tags get reused instead of retyped in slightly
+  // different spellings.
+  tagSuggestions = [],
   accent,
 }) {
   const accentVar = accent || "--accent";
+
+  // Suggest against the tag being typed right now (after the last comma), and
+  // never suggest one that's already on the entry.
+  const draftPrefix = tagDraft.slice(0, tagDraft.lastIndexOf(",") + 1);
+  const draftQuery = tagDraft.slice(draftPrefix.length).trim();
+  const unused = tagSuggestions.filter((s) => !form.tags.includes(s.tag));
+  const suggestions = (draftQuery ? searchTags(unused, draftQuery) : unused).slice(0, 8);
+
+  const pickSuggestion = (tag) => {
+    setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tag) }));
+    setTagDraft(draftPrefix); // keep any earlier, still-unconfirmed tags in the box
+  };
   return (
     <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", zIndex: 10 }} onClick={onClose}>
       <div
@@ -59,7 +77,7 @@ export default function EntryComposer({
           </button>
         </div>
 
-        {typeToggle}
+        {topContent}
 
         {showName && (
           <div>
@@ -188,6 +206,26 @@ export default function EntryComposer({
               Add
             </button>
           </div>
+          {suggestions.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <span style={{ ...labelStyle, marginBottom: 4 }}>{draftQuery ? "Matching tags" : "Your tags"}</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {suggestions.map(({ tag, count }) => (
+                  <TagChip
+                    key={tag}
+                    small
+                    accent={accentVar}
+                    onClick={() => pickSuggestion(tag)}
+                    label={
+                      <>
+                        {tag} <span style={{ opacity: 0.6, fontWeight: 500 }}>{count}</span>
+                      </>
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>

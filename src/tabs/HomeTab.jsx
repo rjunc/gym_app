@@ -1,12 +1,13 @@
 import { useState, useMemo, useRef } from "react";
+import { Plus } from "lucide-react";
 import { todayISO, uid } from "../lib/id.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
 import TagChip from "../ui/TagChip.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
 import DayEntries from "../ui/DayEntries.jsx";
-import AddEntrySheet from "../ui/AddEntrySheet.jsx";
-import { cardStyle, labelStyle } from "../ui/styles.js";
+import EntrySheet from "../ui/EntrySheet.jsx";
+import { cardStyle, labelStyle, primaryBtnStyle } from "../ui/styles.js";
 
 // Every kind of dated log the calendar can draw from. Order here is the order
 // entries are listed within a day. Routines and techniques have no dates, so
@@ -16,6 +17,7 @@ const SOURCE_META = {
     label: "Sessions",
     singular: "Session",
     accent: "--accent",
+    canStartFromRoutine: true, // routines are lifting templates; rolls have no equivalent
     textLabel: "What did you do?",
     textPlaceholder: "Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with...",
   },
@@ -29,17 +31,19 @@ const SOURCE_META = {
 };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
 
-export default function HomeTab({ sessions, rolls, setSessions, setRolls }) {
+export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders }) {
   const today = todayISO();
   const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
   const [selected, setSelected] = useState(today);
   const [view, setView] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 }));
-  const [composerOpen, setComposerOpen] = useState(false);
+  // null when closed; { entry: null } to add, { entry } to edit that entry.
+  const [composer, setComposer] = useState(null);
   const detailRef = useRef(null);
 
-  const bySource = { sessions, rolls };
+  const bySource = useMemo(() => ({ sessions, rolls }), [sessions, rolls]);
+  const setters = { sessions: setSessions, rolls: setRolls };
 
   // Everything, regardless of filters — only used to say how much a day's
   // list is being narrowed.
@@ -85,15 +89,29 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls }) {
 
   const toggleTag = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
-  // Saves a new entry into the right log, then makes sure it's actually
-  // visible: turn its type back on if it was hidden, and jump to its day.
-  const addEntry = (type, entry) => {
-    const setEntries = type === "sessions" ? setSessions : setRolls;
-    setEntries((prev) => [{ id: uid(), ...entry }, ...prev]);
+  // Saves the composer's entry into the right log (adding it, or updating the
+  // one being edited — moving it across logs if its type was changed), then
+  // makes sure it's actually visible: turn its type back on if it was hidden,
+  // and jump to its day.
+  const saveEntry = (type, fields) => {
+    const editing = composer.entry;
+    if (!editing) {
+      setters[type]((prev) => [{ id: uid(), ...fields }, ...prev]);
+    } else if (editing.source === type) {
+      setters[type]((prev) => prev.map((e) => (e.id === editing.id ? { ...e, ...fields } : e)));
+    } else {
+      setters[editing.source]((prev) => prev.filter((e) => e.id !== editing.id));
+      setters[type]((prev) => [{ id: editing.id, ...fields }, ...prev]);
+    }
     setShown((prev) => (prev.includes(type) ? prev : [...prev, type]));
-    setView({ year: Number(entry.date.slice(0, 4)), month: Number(entry.date.slice(5, 7)) - 1 });
-    setSelected(entry.date);
-    setComposerOpen(false);
+    setView({ year: Number(fields.date.slice(0, 4)), month: Number(fields.date.slice(5, 7)) - 1 });
+    setSelected(fields.date);
+    setComposer(null);
+  };
+
+  const deleteEntry = (entry) => {
+    if (!window.confirm("Delete this entry? This can't be undone.")) return;
+    setters[entry.source]((prev) => prev.filter((e) => e.id !== entry.id));
   };
 
   const selectDay = (iso) => {
@@ -105,7 +123,13 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls }) {
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={cardStyle}>
-        <span style={labelStyle}>Show</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ ...labelStyle, marginBottom: 0 }}>Show</span>
+          {/* Logs onto whichever day is selected in the calendar below. */}
+          <button onClick={() => setComposer({ entry: null })} style={{ ...primaryBtnStyle, padding: "6px 12px" }}>
+            <Plus size={14} /> Add
+          </button>
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: hasTags ? 12 : 0 }}>
           {SOURCE_KEYS.map((k) => (
             <TagChip key={k} label={SOURCE_META[k].label} accent={SOURCE_META[k].accent} active={shown.includes(k)} onClick={() => toggleSource(k)} />
@@ -156,18 +180,23 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls }) {
           sourceMeta={SOURCE_META}
           activeTags={tagsInEffect}
           onToggleTag={toggleTag}
-          onAdd={() => setComposerOpen(true)}
+          onEdit={(entry) => setComposer({ entry })}
+          onDelete={deleteEntry}
         />
       </div>
 
-      {composerOpen && (
-        <AddEntrySheet
+      {composer && (
+        <EntrySheet
           types={SOURCE_META}
+          entriesByType={bySource}
+          routines={routines}
+          folders={folders}
+          entry={composer.entry}
           // With one type filtered on, that's almost certainly what's being logged.
           initialType={shown.length === 1 ? shown[0] : "sessions"}
           initialDate={selected}
-          onSave={addEntry}
-          onClose={() => setComposerOpen(false)}
+          onSave={saveEntry}
+          onClose={() => setComposer(null)}
         />
       )}
     </div>

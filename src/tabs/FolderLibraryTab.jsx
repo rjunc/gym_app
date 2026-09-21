@@ -3,6 +3,7 @@ import { Search, Plus, Pencil, Trash2, ChevronRight, Folder, FolderPlus, X } fro
 import { uid } from "../lib/id.js";
 import { folderPath } from "../lib/folders.js";
 import { collectPositions } from "../lib/positions.js";
+import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
@@ -41,6 +42,7 @@ export default function FolderLibraryTab({
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "", giOnly: false });
   const [tagDraft, setTagDraft] = useState("");
+  const tagSuggestions = useMemo(() => tagCounts(items), [items]);
   const [newFolderName, setNewFolderName] = useState("");
   const [addingFolder, setAddingFolder] = useState(false);
   const [folderError, setFolderError] = useState("");
@@ -161,8 +163,7 @@ export default function FolderLibraryTab({
   };
 
   const addTagFromDraft = () => {
-    const t = tagDraft.trim().toLowerCase();
-    if (t && !form.tags.includes(t)) setForm((f) => ({ ...f, tags: [...f.tags, t] }));
+    setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tagDraft) }));
     setTagDraft("");
   };
 
@@ -430,6 +431,7 @@ export default function FolderLibraryTab({
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : `Save ${itemNoun}`}
+          tagSuggestions={tagSuggestions}
           accent={accent}
         />
       )}

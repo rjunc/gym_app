@@ -1,19 +1,30 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import TagChip from "./TagChip.jsx";
-import { cardStyle, ghostLinkStyle, secondaryBtnStyle } from "./styles.js";
+import IconBtn from "./IconBtn.jsx";
+import { cardStyle, ghostLinkStyle } from "./styles.js";
 
-function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag }) {
+function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onDelete }) {
   const [open, setOpen] = useState(false);
   const isLong = (entry.text || "").length > 220;
   return (
     <div style={{ ...cardStyle, borderLeft: `3px solid var(${accent})` }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: `var(${accent})` }}>
-          {sourceLabel}
-        </span>
-        {entry.title && <span style={{ fontWeight: 700, fontSize: 13 }}>{entry.title}</span>}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: `var(${accent})` }}>
+            {sourceLabel}
+          </span>
+          {entry.title && <span style={{ fontWeight: 700, fontSize: 13 }}>{entry.title}</span>}
+        </div>
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          <IconBtn onClick={() => onEdit(entry)}>
+            <Pencil size={14} />
+          </IconBtn>
+          <IconBtn onClick={() => onDelete(entry)} danger>
+            <Trash2 size={14} />
+          </IconBtn>
+        </div>
       </div>
 
       {entry.tags && entry.tags.length > 0 && (
@@ -59,15 +70,10 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag }) {
 
 // The entries logged on one day. `hiddenCount` is how many more exist that the
 // current filters are hiding, so a filtered view never quietly lies about a day.
-export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onAdd }) {
+export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onDelete }) {
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>{formatDate(iso)}</div>
-        <button onClick={onAdd} style={{ ...secondaryBtnStyle, color: "var(--accent)" }}>
-          <Plus size={14} /> Add
-        </button>
-      </div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{formatDate(iso)}</div>
 
       {entries.length === 0 ? (
         <div style={{ color: "var(--text-dim)", fontSize: 13, padding: "14px 0" }}>
@@ -83,6 +89,8 @@ export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, acti
               accent={sourceMeta[e.source].accent}
               activeTags={activeTags}
               onToggleTag={onToggleTag}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))}
         </div>
