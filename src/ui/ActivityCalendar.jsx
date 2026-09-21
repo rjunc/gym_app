@@ -1,10 +1,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { monthCells, intensityLevel } from "../lib/activity.js";
+import { monthCells } from "../lib/activity.js";
 
 const WEEK_START = 0; // 0 = Sunday, 1 = Monday
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
-// How strongly the accent fills a day, by intensityLevel (index 0 = no fill).
-const FILL_OPACITY = [0, 0.3, 0.6, 0.9];
 
 const navBtnStyle = {
   background: "var(--surface-2)",
@@ -16,10 +14,25 @@ const navBtnStyle = {
   padding: 6,
 };
 
-// A month grid where each day is shaded by how many entries it has and marked
-// with a dot per entry type. Purely presentational: the parent owns which
-// month is showing, which day is selected, and which entries count.
-export default function ActivityCalendar({ year, month, byDate, sourceAccent, todayISO, selected, onSelect, onShift, onToday }) {
+// One solid colour per type. A day with several types is split into equal
+// hard-edged diagonal bands, one per type, so each colour stays pure and you
+// can read exactly which types were logged.
+function fillFor(accents) {
+  if (accents.length === 1) return `var(${accents[0]})`;
+  const step = 100 / accents.length;
+  const stops = accents.map((a, i) => `var(${a}) ${i * step}% ${(i + 1) * step}%`);
+  return `linear-gradient(135deg, ${stops.join(", ")})`;
+}
+
+function Swatch({ background }) {
+  return <span style={{ width: 10, height: 10, borderRadius: 3, background, display: "inline-block" }} />;
+}
+
+// A month grid where each logged day is coloured by what was logged on it.
+// Purely presentational: the parent owns which month is showing, which day is
+// selected, and which entries count. `sources` is the list of types currently
+// in play ({ key, label, accent }), in the order their colours are banded.
+export default function ActivityCalendar({ year, month, byDate, sources, todayISO, selected, onSelect, onShift, onToday }) {
   const cells = monthCells(year, month, WEEK_START);
   const label = new Date(year, month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const isCurrentMonth = todayISO.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`);
@@ -56,68 +69,52 @@ export default function ActivityCalendar({ year, month, byDate, sourceAccent, to
         {cells.map((cell, i) => {
           if (!cell) return <div key={`pad-${i}`} />;
           const entries = byDate.get(cell.iso) || [];
-          const level = intensityLevel(entries.length);
+          const logged = sources.filter((s) => entries.some((e) => e.source === s.key));
           const isSelected = selected === cell.iso;
           const isToday = todayISO === cell.iso;
-          const sources = [...new Set(entries.map((e) => e.source))];
           return (
             <button
               key={cell.iso}
               onClick={() => onSelect(cell.iso)}
               aria-pressed={isSelected}
-              aria-label={`${cell.iso}, ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
+              aria-label={`${cell.iso}, ${logged.length ? logged.map((s) => s.label).join(" and ") : "nothing logged"}`}
               style={{
-                position: "relative",
                 aspectRatio: "1 / 1",
                 minWidth: 0,
                 padding: 0,
                 borderRadius: 8,
                 cursor: "pointer",
-                background: "var(--surface-2)",
-                border: isSelected ? "2px solid var(--text)" : `1px solid ${isToday ? "var(--text-dim)" : "var(--border)"}`,
-                color: level >= 2 ? "#15160F" : "var(--text)",
-                overflow: "hidden",
+                background: logged.length ? fillFor(logged.map((s) => s.accent)) : "var(--surface-2)",
+                border: isSelected ? "2px solid var(--text)" : "1px solid var(--border)",
+                color: logged.length ? "#15160F" : "var(--text)",
+                fontSize: 13,
+                fontWeight: logged.length || isToday ? 700 : 500,
+                // Today is underlined rather than outlined so the mark reads on
+                // both a plain day and a coloured one.
+                textDecoration: isToday ? "underline" : "none",
+                textUnderlineOffset: 3,
               }}
             >
-              {level > 0 && (
-                <span style={{ position: "absolute", inset: 0, background: "var(--accent)", opacity: FILL_OPACITY[level] }} />
-              )}
-              <span
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  left: 0,
-                  right: 0,
-                  textAlign: "center",
-                  fontSize: 12,
-                  fontWeight: isToday || level > 0 ? 700 : 500,
-                }}
-              >
-                {cell.day}
-              </span>
-              {sources.length > 0 && (
-                <span
-                  style={{ position: "absolute", bottom: 4, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 3 }}
-                >
-                  {sources.map((s) => (
-                    <span
-                      key={s}
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: `var(${sourceAccent[s]})`,
-                        // Keeps a dot visible when it sits on a fill of its own colour.
-                        boxShadow: "0 0 0 1px rgba(21,22,15,0.7)",
-                      }}
-                    />
-                  ))}
-                </span>
-              )}
+              {cell.day}
             </button>
           );
         })}
       </div>
+
+      {sources.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 14px", marginTop: 12, fontSize: 11, color: "var(--text-dim)" }}>
+          {sources.map((s) => (
+            <span key={s.key} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <Swatch background={`var(${s.accent})`} /> {s.label}
+            </span>
+          ))}
+          {sources.length === 2 && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <Swatch background={fillFor(sources.map((s) => s.accent))} /> Both
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -13,32 +13,30 @@ import { cardStyle, labelStyle } from "../ui/styles.js";
 const SOURCE_META = {
   sessions: { label: "Sessions", singular: "Session", accent: "--accent" },
   rolls: { label: "Rolls", singular: "Roll", accent: "--accent4" },
-  journals: { label: "Journals", singular: "Journal", accent: "--accent3" },
 };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
-const SOURCE_ACCENT = Object.fromEntries(SOURCE_KEYS.map((k) => [k, SOURCE_META[k].accent]));
 
-export default function HomeTab({ sessions, rolls, journals }) {
+export default function HomeTab({ sessions, rolls }) {
   const today = todayISO();
-  const [shown, setShown] = useState(["sessions", "rolls"]); // journals are opt-in: they aren't training
+  const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
   const [selected, setSelected] = useState(today);
   const [view, setView] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 }));
   const detailRef = useRef(null);
 
-  const bySource = { sessions, rolls, journals };
+  const bySource = { sessions, rolls };
 
   // Everything, regardless of filters — only used to say how much a day's
   // list is being narrowed.
   const unfilteredByDate = useMemo(
     () => groupByDate(SOURCE_KEYS.flatMap((k) => bySource[k].map((e) => ({ ...e, source: k })))),
-    [sessions, rolls, journals]
+    [sessions, rolls]
   );
 
   const inScope = useMemo(
     () => SOURCE_KEYS.filter((k) => shown.includes(k)).flatMap((k) => bySource[k].map((e) => ({ ...e, source: k }))),
-    [sessions, rolls, journals, shown]
+    [sessions, rolls, shown]
   );
 
   const hasTags = useMemo(() => inScope.some((e) => (e.tags || []).length > 0), [inScope]);
@@ -108,7 +106,7 @@ export default function HomeTab({ sessions, rolls, journals }) {
           year={view.year}
           month={view.month}
           byDate={byDate}
-          sourceAccent={SOURCE_ACCENT}
+          sources={SOURCE_KEYS.filter((k) => shown.includes(k)).map((k) => ({ key: k, ...SOURCE_META[k] }))}
           todayISO={today}
           selected={selected}
           onSelect={selectDay}

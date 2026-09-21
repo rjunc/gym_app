@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toISO, matchesTags, groupByDate, intensityLevel, monthCells, shiftMonth } from "./activity.js";
+import { toISO, matchesTags, groupByDate, monthCells, shiftMonth } from "./activity.js";
 
 test("toISO zero-pads and treats month as 0-based", () => {
   assert.equal(toISO(2026, 0, 5), "2026-01-05");
@@ -31,10 +31,6 @@ test("groupByDate buckets by date and skips undated or malformed entries", () =>
   const grouped = groupByDate([a, b, c, { id: "d" }, { id: "e", date: "9/3/2026" }, { id: "f", date: null }]);
   assert.deepEqual([...grouped.keys()], ["2026-09-01", "2026-09-02"]);
   assert.deepEqual(grouped.get("2026-09-01"), [a, b]);
-});
-
-test("intensityLevel caps at 3", () => {
-  assert.deepEqual([0, 1, 2, 3, 4, 10].map(intensityLevel), [0, 1, 2, 3, 3, 3]);
 });
 
 test("monthCells pads the lead so day 1 lands on its weekday (Sunday start)", () => {

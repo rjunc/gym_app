@@ -30,9 +30,6 @@ export function groupByDate(entries) {
   return byDate;
 }
 
-// 0 = nothing logged, 1..3 = increasingly busy (3 means "3 or more").
-export const intensityLevel = (count) => Math.min(Math.max(count, 0), 3);
-
 // One month as a flat list of cells, padded with nulls so the first day lands
 // under the right weekday column. `weekStart` is 0 for Sunday, 1 for Monday.
 export function monthCells(year, month, weekStart = 0) {
