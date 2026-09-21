@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Repeat, ChevronDown, ChevronUp } from "lucide-react";
 import { uid, todayISO, formatDate } from "../lib/id.js";
-import { matchesTags } from "../lib/activity.js";
+import { matchesTags, redoFields } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
@@ -21,12 +21,15 @@ export default function SimpleEntryTab({
   textLabel,
   textPlaceholder,
   accent = "--accent",
+  // Adds a "Redo" button to each entry that starts a new one from it, dated today.
+  canRedo = false,
 }) {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [isRedo, setIsRedo] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState({ date: todayISO(), title: "", tags: [], text: "" });
   const [tagDraft, setTagDraft] = useState("");
@@ -52,6 +55,7 @@ export default function SimpleEntryTab({
     setForm({ date: todayISO(), title: "", tags: [], text: "" });
     setTagDraft("");
     setEditingId(null);
+    setIsRedo(false);
   };
 
   const openNewComposer = () => {
@@ -62,6 +66,14 @@ export default function SimpleEntryTab({
   const openEdit = (entry) => {
     setForm({ date: entry.date, title: entry.title || "", tags: [...(entry.tags || [])], text: entry.text || "" });
     setEditingId(entry.id);
+    setShowComposer(true);
+    setTagDraft("");
+  };
+
+  const openRedo = (entry) => {
+    setForm(redoFields(entry, todayISO()));
+    setEditingId(null);
+    setIsRedo(true);
     setShowComposer(true);
     setTagDraft("");
   };
@@ -155,10 +167,15 @@ export default function SimpleEntryTab({
                       )}
                     </div>
                     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                      <IconBtn onClick={() => openEdit(s)}>
+                      {canRedo && (
+                        <IconBtn onClick={() => openRedo(s)} label="Redo">
+                          <Repeat size={14} />
+                        </IconBtn>
+                      )}
+                      <IconBtn onClick={() => openEdit(s)} label="Edit">
                         <Pencil size={14} />
                       </IconBtn>
-                      <IconBtn onClick={() => deleteEntry(s.id)} danger>
+                      <IconBtn onClick={() => deleteEntry(s.id)} danger label="Delete">
                         <Trash2 size={14} />
                       </IconBtn>
                     </div>
@@ -204,7 +221,7 @@ export default function SimpleEntryTab({
 
       {showComposer && (
         <EntryComposer
-          title={editingId ? "Edit entry" : "New entry"}
+          title={editingId ? "Edit entry" : isRedo ? "Redo entry" : "New entry"}
           form={form}
           setForm={setForm}
           tagDraft={tagDraft}

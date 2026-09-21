@@ -10,6 +10,7 @@ export default function SessionsTab({ sessions, setSessions }) {
       searchPlaceholder="Search entries or tags…"
       emptyLabel='No sessions logged yet. Tap "New entry" to write your first one.'
       textLabel="What did you do?"
+      canRedo
       textPlaceholder="Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with..."
     />
   );

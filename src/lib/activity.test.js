@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toISO, matchesTags, groupByDate, monthCells, shiftMonth } from "./activity.js";
+import { toISO, matchesTags, groupByDate, monthCells, shiftMonth, redoFields } from "./activity.js";
 
 test("toISO zero-pads and treats month as 0-based", () => {
   assert.equal(toISO(2026, 0, 5), "2026-01-05");
@@ -52,6 +52,21 @@ test("monthCells honours a Monday week start", () => {
 test("monthCells handles leap-year February", () => {
   assert.equal(monthCells(2028, 1, 0).filter(Boolean).length, 29);
   assert.equal(monthCells(2026, 1, 0).filter(Boolean).length, 28);
+});
+
+test("redoFields copies title/tags/text and re-dates to today", () => {
+  const entry = { id: "s1", date: "2026-08-01", title: "Leg day", tags: ["legs"], text: "Squats" };
+  assert.deepEqual(redoFields(entry, "2026-09-21"), { date: "2026-09-21", title: "Leg day", tags: ["legs"], text: "Squats" });
+});
+
+test("redoFields doesn't carry over the id, copies tags, and tolerates missing fields", () => {
+  const entry = { id: "s1", date: "2026-08-01", tags: ["a"] };
+  const out = redoFields(entry, "2026-09-21");
+  assert.equal("id" in out, false);
+  assert.deepEqual(out, { date: "2026-09-21", title: "", tags: ["a"], text: "" });
+  out.tags.push("b");
+  assert.deepEqual(entry.tags, ["a"]);
+  assert.deepEqual(redoFields({}, "2026-09-21").tags, []);
 });
 
 test("shiftMonth rolls the year in both directions", () => {

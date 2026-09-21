@@ -12,6 +12,7 @@ export default function RollsTab({ rolls, setRolls }) {
       textLabel="What did you work on?"
       textPlaceholder="Gi class, drilled scissor sweep to knee-on-belly, rolled 5 rounds, caught a triangle from closed guard..."
       accent="--accent4"
+      canRedo
     />
   );
 }

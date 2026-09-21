@@ -40,6 +40,15 @@ export function monthCells(year, month, weekStart = 0) {
   return cells;
 }
 
+// The fields for redoing an entry: a copy of its title, tags and text, dated
+// today. Tags are copied so editing the draft can't touch the original.
+export const redoFields = (entry, today) => ({
+  date: today,
+  title: entry.title || "",
+  tags: [...(entry.tags || [])],
+  text: entry.text || "",
+});
+
 // Shifts a { year, month } pair by `delta` months, rolling the year over.
 export function shiftMonth({ year, month }, delta) {
   const d = new Date(year, month + delta, 1);

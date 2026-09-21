@@ -38,7 +38,8 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   const [tagMatchMode, setTagMatchMode] = useState("all");
   const [selected, setSelected] = useState(today);
   const [view, setView] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 }));
-  // null when closed; { entry: null } to add, { entry } to edit that entry.
+  // null when closed; { entry: null } to add, { entry } to edit that entry, or
+  // { entry: null, redo } to add a new one copied from `redo`.
   const [composer, setComposer] = useState(null);
   const detailRef = useRef(null);
 
@@ -181,6 +182,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           activeTags={tagsInEffect}
           onToggleTag={toggleTag}
           onEdit={(entry) => setComposer({ entry })}
+          onRedo={(redo) => setComposer({ entry: null, redo })}
           onDelete={deleteEntry}
         />
       </div>
@@ -192,9 +194,11 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           routines={routines}
           folders={folders}
           entry={composer.entry}
+          redo={composer.redo}
           // With one type filtered on, that's almost certainly what's being logged.
           initialType={shown.length === 1 ? shown[0] : "sessions"}
-          initialDate={selected}
+          // A redo is dated today; a fresh add goes on whichever day is selected.
+          initialDate={composer.redo ? today : selected}
           onSave={saveEntry}
           onClose={() => setComposer(null)}
         />

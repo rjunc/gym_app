@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil, Repeat, Trash2 } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import TagChip from "./TagChip.jsx";
 import IconBtn from "./IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "./styles.js";
 
-function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onDelete }) {
+function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete }) {
   const [open, setOpen] = useState(false);
   const isLong = (entry.text || "").length > 220;
   return (
@@ -18,10 +18,13 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, on
           {entry.title && <span style={{ fontWeight: 700, fontSize: 13 }}>{entry.title}</span>}
         </div>
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-          <IconBtn onClick={() => onEdit(entry)}>
+          <IconBtn onClick={() => onRedo(entry)} label="Redo">
+            <Repeat size={14} />
+          </IconBtn>
+          <IconBtn onClick={() => onEdit(entry)} label="Edit">
             <Pencil size={14} />
           </IconBtn>
-          <IconBtn onClick={() => onDelete(entry)} danger>
+          <IconBtn onClick={() => onDelete(entry)} danger label="Delete">
             <Trash2 size={14} />
           </IconBtn>
         </div>
@@ -70,7 +73,7 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, on
 
 // The entries logged on one day. `hiddenCount` is how many more exist that the
 // current filters are hiding, so a filtered view never quietly lies about a day.
-export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onDelete }) {
+export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete }) {
   return (
     <div>
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{formatDate(iso)}</div>
@@ -90,6 +93,7 @@ export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, acti
               activeTags={activeTags}
               onToggleTag={onToggleTag}
               onEdit={onEdit}
+              onRedo={onRedo}
               onDelete={onDelete}
             />
           ))}
