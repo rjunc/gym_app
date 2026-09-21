@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, LogOut, ClipboardList, NotebookPen, BookOpen, Route } from "lucide-react";
+import { Menu } from "lucide-react";
 import { todayISO } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
 import { subscribeToLog, saveLog } from "./lib/firestoreLog.js";
 import Shell from "./ui/Shell.jsx";
-import ModeSwitcher from "./ui/ModeSwitcher.jsx";
-import TabSwitcher from "./ui/TabSwitcher.jsx";
-import { secondaryBtnStyle } from "./ui/styles.js";
+import Sidebar from "./ui/Sidebar.jsx";
+import HomeTab from "./tabs/HomeTab.jsx";
 import SessionsTab from "./tabs/SessionsTab.jsx";
 import JournalsTab from "./tabs/JournalsTab.jsx";
 import RoutinesTab from "./tabs/RoutinesTab.jsx";
@@ -16,21 +15,19 @@ import RollsTab from "./tabs/RollsTab.jsx";
 import TechniquesTab from "./tabs/TechniquesTab.jsx";
 import FlowTab from "./tabs/FlowTab.jsx";
 
-const LIFTING_TABS = [
-  { key: "sessions", label: "Sessions", Icon: ClipboardList },
-  { key: "journals", label: "Journals", Icon: NotebookPen },
-  { key: "routines", label: "Routines", Icon: BookOpen },
-];
-
-const JITS_TABS = [
-  { key: "rolls", label: "Rolls", Icon: ClipboardList },
-  { key: "techniques", label: "Techniques", Icon: BookOpen },
-  { key: "flow", label: "Flow", Icon: Route },
-];
+const PAGE_TITLES = {
+  home: "Home",
+  sessions: "Sessions",
+  journals: "Journals",
+  routines: "Routines",
+  rolls: "Rolls",
+  techniques: "Techniques",
+  flow: "Flow",
+};
 
 export default function App({ uid, userEmail, onLogout }) {
-  const [mode, setMode] = useState("lifting");
-  const [tab, setTab] = useState("sessions");
+  const [page, setPage] = useState("home");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [folders, setFolders] = useState([]);
   const [routines, setRoutines] = useState([]);
@@ -137,61 +134,57 @@ export default function App({ uid, userEmail, onLogout }) {
     );
   }
 
-  const changeMode = (nextMode) => {
-    setMode(nextMode);
-    setTab(nextMode === "jits" ? "rolls" : "sessions");
+  const navigate = (nextPage) => {
+    setPage(nextPage);
+    setSidebarOpen(false);
   };
 
   return (
     <Shell>
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <ModeSwitcher mode={mode} setMode={changeMode} />
-        {mode === "jits" ? (
-          <TabSwitcher tab={tab} setTab={setTab} items={JITS_TABS} accent="--accent4" />
-        ) : (
-          <TabSwitcher tab={tab} setTab={setTab} items={LIFTING_TABS} />
-        )}
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{ background: "none", border: "none", color: "var(--text)", cursor: "pointer", display: "flex" }}
+          >
+            <Menu size={20} />
+          </button>
+          <span style={{ fontWeight: 700, fontSize: 15 }}>{PAGE_TITLES[page]}</span>
+        </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {mode === "jits" ? (
-            tab === "rolls" ? (
-              <RollsTab rolls={rolls} setRolls={setRolls} />
-            ) : tab === "techniques" ? (
-              <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} />
-            ) : (
-              <FlowTab techniques={techniques} setTechniques={setTechniques} />
-            )
-          ) : tab === "sessions" ? (
+          {page === "home" ? (
+            <HomeTab />
+          ) : page === "sessions" ? (
             <SessionsTab sessions={sessions} setSessions={setSessions} />
-          ) : tab === "journals" ? (
+          ) : page === "journals" ? (
             <JournalsTab journals={journals} setJournals={setJournals} />
-          ) : (
+          ) : page === "routines" ? (
             <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} />
+          ) : page === "rolls" ? (
+            <RollsTab rolls={rolls} setRolls={setRolls} />
+          ) : page === "techniques" ? (
+            <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} />
+          ) : (
+            <FlowTab techniques={techniques} setTechniques={setTechniques} />
           )}
         </div>
 
-        <div style={{ borderTop: "1px solid var(--border)", padding: "12px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
-          {syncError && <div style={{ color: "var(--danger)", fontSize: 12 }}>{syncError}</div>}
-          {importError && <div style={{ color: "var(--danger)", fontSize: 12 }}>{importError}</div>}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 10, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {userEmail}
-            </span>
-            <button onClick={onLogout} style={{ ...secondaryBtnStyle, marginLeft: "auto" }} title="Log out">
-              <LogOut size={14} />
-            </button>
-            <button onClick={exportCSV} style={secondaryBtnStyle}>
-              <Download size={14} /> CSV
-            </button>
-            <button onClick={exportJSON} style={secondaryBtnStyle}>
-              <Download size={14} /> JSON
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} style={secondaryBtnStyle}>
-              <Upload size={14} /> Import
-            </button>
-            <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" style={{ display: "none" }} onChange={handleFile} />
-          </div>
-        </div>
+        <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" style={{ display: "none" }} onChange={handleFile} />
+
+        <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          page={page}
+          onNavigate={navigate}
+          userEmail={userEmail}
+          syncError={syncError}
+          importError={importError}
+          onExportCSV={exportCSV}
+          onExportJSON={exportJSON}
+          onImportClick={() => fileInputRef.current?.click()}
+          onLogout={onLogout}
+        />
       </div>
     </Shell>
   );
