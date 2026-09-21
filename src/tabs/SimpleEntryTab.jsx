@@ -5,7 +5,7 @@ import { matchesTags } from "../lib/activity.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
-import SegmentedToggle from "../ui/SegmentedToggle.jsx";
+import TagFilter from "../ui/TagFilter.jsx";
 import { inputStyle, cardStyle, primaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
 // Sessions and journals are both just a flat, most-recent-first list of dated
@@ -29,12 +29,6 @@ export default function SimpleEntryTab({
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState({ date: todayISO(), title: "", tags: [], text: "" });
   const [tagDraft, setTagDraft] = useState("");
-
-  const allTags = useMemo(() => {
-    const set = new Set();
-    entries.forEach((s) => (s.tags || []).forEach((t) => set.add(t)));
-    return Array.from(set).sort();
-  }, [entries]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -118,33 +112,14 @@ export default function SimpleEntryTab({
           />
         </div>
 
-        {allTags.length > 0 && (
-          // Capped and independently scrollable so a large tag vocabulary
-          // browses its own list instead of pushing the entries below out of
-          // view — this container sits in a fixed-height shell with no
-          // page-level scroll, so an unbounded chip cloud would strand
-          // everything under it.
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 88, overflowY: "auto" }}>
-            {allTags.map((t) => (
-              <TagChip key={t} label={t} accent={accent} active={activeTags.includes(t)} onClick={() => toggleTagFilter(t)} />
-            ))}
-          </div>
-        )}
-
-        {activeTags.length > 1 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
-            <SegmentedToggle
-              options={[
-                { key: "all", label: "All tags" },
-                { key: "any", label: "Any tag" },
-              ]}
-              value={tagMatchMode}
-              setValue={setTagMatchMode}
-              accent={accent}
-            />
-          </div>
-        )}
+        <TagFilter
+          entries={entries}
+          activeTags={activeTags}
+          onToggle={toggleTagFilter}
+          matchMode={tagMatchMode}
+          setMatchMode={setTagMatchMode}
+          accent={accent}
+        />
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>

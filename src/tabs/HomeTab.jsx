@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { todayISO } from "../lib/id.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
 import TagChip from "../ui/TagChip.jsx";
-import SegmentedToggle from "../ui/SegmentedToggle.jsx";
+import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
 import DayEntries from "../ui/DayEntries.jsx";
 import { cardStyle, labelStyle } from "../ui/styles.js";
@@ -41,15 +41,11 @@ export default function HomeTab({ sessions, rolls, journals }) {
     [sessions, rolls, journals, shown]
   );
 
-  const allTags = useMemo(() => {
-    const set = new Set();
-    inScope.forEach((e) => (e.tags || []).forEach((t) => set.add(t)));
-    return Array.from(set).sort();
-  }, [inScope]);
+  const hasTags = useMemo(() => inScope.some((e) => (e.tags || []).length > 0), [inScope]);
 
-  // A selected tag can vanish from the list when its source is switched off;
-  // drop it from the filter rather than let an invisible chip empty the calendar.
-  const tagsInEffect = activeTags.filter((t) => allTags.includes(t));
+  // A selected tag can vanish from the vocabulary when its source is switched
+  // off; drop it from the filter rather than let a stale tag empty the calendar.
+  const tagsInEffect = activeTags.filter((t) => inScope.some((e) => (e.tags || []).includes(t)));
 
   const byDate = useMemo(
     () => groupByDate(inScope.filter((e) => matchesTags(e.tags, tagsInEffect, tagMatchMode))),
@@ -87,37 +83,23 @@ export default function HomeTab({ sessions, rolls, journals }) {
     <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={cardStyle}>
         <span style={labelStyle}>Show</span>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: allTags.length > 0 ? 12 : 0 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: hasTags ? 12 : 0 }}>
           {SOURCE_KEYS.map((k) => (
             <TagChip key={k} label={SOURCE_META[k].label} accent={SOURCE_META[k].accent} active={shown.includes(k)} onClick={() => toggleSource(k)} />
           ))}
         </div>
 
-        {allTags.length > 0 && (
+        {hasTags && (
           <>
             <span style={labelStyle}>Tags</span>
-            {/* Capped and independently scrollable, same as the list tabs, so a
-                big tag vocabulary can't push the calendar off screen. */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 88, overflowY: "auto" }}>
-              {allTags.map((t) => (
-                <TagChip key={t} label={t} active={tagsInEffect.includes(t)} onClick={() => toggleTag(t)} />
-              ))}
-            </div>
-          </>
-        )}
-
-        {tagsInEffect.length > 1 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
-            <SegmentedToggle
-              options={[
-                { key: "all", label: "All tags" },
-                { key: "any", label: "Any tag" },
-              ]}
-              value={tagMatchMode}
-              setValue={setTagMatchMode}
+            <TagFilter
+              entries={inScope}
+              activeTags={tagsInEffect}
+              onToggle={toggleTag}
+              matchMode={tagMatchMode}
+              setMatchMode={setTagMatchMode}
             />
-          </div>
+          </>
         )}
       </div>
 
