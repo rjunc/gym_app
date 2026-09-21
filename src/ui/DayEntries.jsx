@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import TagChip from "./TagChip.jsx";
-import { cardStyle, ghostLinkStyle } from "./styles.js";
+import { cardStyle, ghostLinkStyle, secondaryBtnStyle } from "./styles.js";
 
 function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag }) {
   const [open, setOpen] = useState(false);
@@ -59,10 +59,15 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag }) {
 
 // The entries logged on one day. `hiddenCount` is how many more exist that the
 // current filters are hiding, so a filtered view never quietly lies about a day.
-export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag }) {
+export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onAdd }) {
   return (
     <div>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{formatDate(iso)}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{formatDate(iso)}</div>
+        <button onClick={onAdd} style={{ ...secondaryBtnStyle, color: "var(--accent)" }}>
+          <Plus size={14} /> Add
+        </button>
+      </div>
 
       {entries.length === 0 ? (
         <div style={{ color: "var(--text-dim)", fontSize: 13, padding: "14px 0" }}>

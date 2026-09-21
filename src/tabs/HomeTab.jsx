@@ -1,28 +1,42 @@
 import { useState, useMemo, useRef } from "react";
-import { todayISO } from "../lib/id.js";
+import { todayISO, uid } from "../lib/id.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
 import TagChip from "../ui/TagChip.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
 import DayEntries from "../ui/DayEntries.jsx";
+import AddEntrySheet from "../ui/AddEntrySheet.jsx";
 import { cardStyle, labelStyle } from "../ui/styles.js";
 
 // Every kind of dated log the calendar can draw from. Order here is the order
 // entries are listed within a day. Routines and techniques have no dates, so
 // they can't appear on a calendar.
 const SOURCE_META = {
-  sessions: { label: "Sessions", singular: "Session", accent: "--accent" },
-  rolls: { label: "Rolls", singular: "Roll", accent: "--accent4" },
+  sessions: {
+    label: "Sessions",
+    singular: "Session",
+    accent: "--accent",
+    textLabel: "What did you do?",
+    textPlaceholder: "Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with...",
+  },
+  rolls: {
+    label: "Rolls",
+    singular: "Roll",
+    accent: "--accent4",
+    textLabel: "What did you work on?",
+    textPlaceholder: "Gi class, drilled scissor sweep to knee-on-belly, rolled 5 rounds, caught a triangle from closed guard...",
+  },
 };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
 
-export default function HomeTab({ sessions, rolls }) {
+export default function HomeTab({ sessions, rolls, setSessions, setRolls }) {
   const today = todayISO();
   const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
   const [selected, setSelected] = useState(today);
   const [view, setView] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 }));
+  const [composerOpen, setComposerOpen] = useState(false);
   const detailRef = useRef(null);
 
   const bySource = { sessions, rolls };
@@ -70,6 +84,17 @@ export default function HomeTab({ sessions, rolls }) {
     });
 
   const toggleTag = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+
+  // Saves a new entry into the right log, then makes sure it's actually
+  // visible: turn its type back on if it was hidden, and jump to its day.
+  const addEntry = (type, entry) => {
+    const setEntries = type === "sessions" ? setSessions : setRolls;
+    setEntries((prev) => [{ id: uid(), ...entry }, ...prev]);
+    setShown((prev) => (prev.includes(type) ? prev : [...prev, type]));
+    setView({ year: Number(entry.date.slice(0, 4)), month: Number(entry.date.slice(5, 7)) - 1 });
+    setSelected(entry.date);
+    setComposerOpen(false);
+  };
 
   const selectDay = (iso) => {
     setSelected(iso);
@@ -131,8 +156,20 @@ export default function HomeTab({ sessions, rolls }) {
           sourceMeta={SOURCE_META}
           activeTags={tagsInEffect}
           onToggleTag={toggleTag}
+          onAdd={() => setComposerOpen(true)}
         />
       </div>
+
+      {composerOpen && (
+        <AddEntrySheet
+          types={SOURCE_META}
+          // With one type filtered on, that's almost certainly what's being logged.
+          initialType={shown.length === 1 ? shown[0] : "sessions"}
+          initialDate={selected}
+          onSave={addEntry}
+          onClose={() => setComposerOpen(false)}
+        />
+      )}
     </div>
   );
 }

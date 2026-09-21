@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tagCounts, searchTags } from "./tags.js";
+import { tagCounts, searchTags, addTagsFromDraft } from "./tags.js";
 
 test("tagCounts sorts by usage, then alphabetically", () => {
   const entries = [{ tags: ["legs", "cardio"] }, { tags: ["cardio"] }, { tags: ["push"] }, { tags: ["cardio", "legs"] }];
@@ -36,4 +36,19 @@ test("searchTags: prefix matches come before mid-word matches, each keeping usag
 test("searchTags is case-insensitive and trims the query", () => {
   assert.deepEqual(searchTags(counts, "  LEG ").map((c) => c.tag), ["legs"]);
   assert.deepEqual(searchTags(counts, "zzz"), []);
+});
+
+test("addTagsFromDraft splits on commas, trims, lowercases, and appends", () => {
+  assert.deepEqual(addTagsFromDraft(["legs"], " Push , CARDIO "), ["legs", "push", "cardio"]);
+});
+
+test("addTagsFromDraft drops blanks and tags already present, including repeats within the draft", () => {
+  assert.deepEqual(addTagsFromDraft(["legs"], "legs, , push,push,"), ["legs", "push"]);
+  assert.deepEqual(addTagsFromDraft(["a"], ""), ["a"]);
+});
+
+test("addTagsFromDraft does not mutate the existing array", () => {
+  const existing = ["a"];
+  addTagsFromDraft(existing, "b");
+  assert.deepEqual(existing, ["a"]);
 });

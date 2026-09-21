@@ -27,6 +27,11 @@ export default function EntryComposer({
   textLabel,
   textPlaceholder,
   saveLabel,
+  // Dims and disables the save button until the form is complete.
+  saveDisabled,
+  // Optional control rendered under the title, for composers that can create
+  // more than one kind of entry (e.g. Home's Session / Roll switch).
+  typeToggle,
   accent,
 }) {
   const accentVar = accent || "--accent";
@@ -53,6 +58,8 @@ export default function EntryComposer({
             <X size={18} />
           </button>
         </div>
+
+        {typeToggle}
 
         {showName && (
           <div>
@@ -193,7 +200,18 @@ export default function EntryComposer({
           />
         </div>
 
-        <button onClick={onSave} style={{ ...primaryBtnStyle, background: `var(${accentVar})`, justifyContent: "center", padding: "12px 0" }}>
+        <button
+          onClick={onSave}
+          disabled={saveDisabled}
+          style={{
+            ...primaryBtnStyle,
+            background: `var(${accentVar})`,
+            justifyContent: "center",
+            padding: "12px 0",
+            opacity: saveDisabled ? 0.45 : 1,
+            cursor: saveDisabled ? "not-allowed" : "pointer",
+          }}
+        >
           {saveLabel}
         </button>
       </div>

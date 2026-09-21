@@ -17,3 +17,15 @@ export function searchTags(counts, query) {
   const contains = counts.filter((c) => c.tag.toLowerCase().includes(q));
   return [...contains.filter((c) => c.tag.toLowerCase().startsWith(q)), ...contains.filter((c) => !c.tag.toLowerCase().startsWith(q))];
 }
+
+// Adds the tags typed into a draft box to `existing`. The draft may hold
+// several comma-separated tags ("push, legs"); each is trimmed and lowercased
+// like every other tag in the app, and blanks and duplicates are dropped.
+export function addTagsFromDraft(existing, draft) {
+  const next = [...existing];
+  draft.split(",").forEach((raw) => {
+    const t = raw.trim().toLowerCase();
+    if (t && !next.includes(t)) next.push(t);
+  });
+  return next;
+}
