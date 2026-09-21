@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Search, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { uid, todayISO, formatDate } from "../lib/id.js";
+import { matchesTags } from "../lib/activity.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
@@ -44,12 +45,7 @@ export default function SimpleEntryTab({
           (s.title || "").toLowerCase().includes(q) ||
           (s.text || "").toLowerCase().includes(q) ||
           (s.tags || []).some((t) => t.toLowerCase().includes(q));
-        const matchesTags =
-          activeTags.length === 0 ||
-          (tagMatchMode === "any"
-            ? activeTags.some((t) => (s.tags || []).includes(t))
-            : activeTags.every((t) => (s.tags || []).includes(t)));
-        return matchesSearch && matchesTags;
+        return matchesSearch && matchesTags(s.tags, activeTags, tagMatchMode);
       })
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));

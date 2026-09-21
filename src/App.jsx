@@ -154,7 +154,7 @@ export default function App({ uid, userEmail, onLogout }) {
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {page === "home" ? (
-            <HomeTab />
+            <HomeTab sessions={sessions} rolls={rolls} journals={journals} />
           ) : page === "sessions" ? (
             <SessionsTab sessions={sessions} setSessions={setSessions} />
           ) : page === "journals" ? (
