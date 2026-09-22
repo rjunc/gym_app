@@ -1,17 +1,18 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, RotateCcw, Plus, Flag, Shirt } from "lucide-react";
+import { ChevronRight, RotateCcw, Plus, Flag, Shirt, Star } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { collectPositions, techniquesFrom, normalizePosition } from "../lib/positions.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
+import IconBtn from "../ui/IconBtn.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { inputStyle, cardStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent4";
 
-const emptyForm = (position) => ({ name: "", tags: [], text: "", position: position || "", toPosition: "", giOnly: false });
+const emptyForm = (position) => ({ name: "", tags: [], text: "", position: position || "", toPosition: "", starred: false, giOnly: false });
 
 // Lets you navigate your Techniques library as a chain: pick where you are,
 // see the moves you've logged from there, follow one to where it leads, and
@@ -36,12 +37,15 @@ export default function FlowTab({ techniques, setTechniques }) {
     [techniques, currentPosition]
   );
   // In No-Gi mode, don't offer moves that only work with the gi — they're
-  // not a real option right now.
-  const options = useMemo(
-    () => (giMode === "no-gi" ? optionsAtPosition.filter((t) => !t.giOnly) : optionsAtPosition),
-    [optionsAtPosition, giMode]
-  );
+  // not a real option right now. Starred (go-to) techniques sort first so
+  // your trusted answer is the one you see without scrolling.
+  const options = useMemo(() => {
+    const visible = giMode === "no-gi" ? optionsAtPosition.filter((t) => !t.giOnly) : optionsAtPosition;
+    return [...visible].sort((a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0));
+  }, [optionsAtPosition, giMode]);
   const hiddenGiOnlyCount = optionsAtPosition.length - options.length;
+
+  const toggleStar = (id) => setTechniques((prev) => prev.map((t) => (t.id === id ? { ...t, starred: !t.starred } : t)));
 
   // Which tags are actually in play at this position (post gi-filter), so
   // "just show me the escapes" (or whatever tag you use for that) only
@@ -248,26 +252,38 @@ export default function FlowTab({ techniques, setTechniques }) {
                             </span>
                           )}
                         </div>
-                        {t.tags && t.tags.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "flex-end" }}>
-                            {t.tags.slice(0, 3).map((tag) => (
-                              <TagChip
-                                key={tag}
-                                label={tag}
-                                small
-                                accent={ACCENT}
-                                active={activeTags.includes(tag)}
-                                // Stop the click from bubbling to the card
-                                // header's onClick, which would also toggle
-                                // this card open/closed at the same time.
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleTagFilter(tag);
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                          {t.tags && t.tags.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "flex-end" }}>
+                              {t.tags.slice(0, 3).map((tag) => (
+                                <TagChip
+                                  key={tag}
+                                  label={tag}
+                                  small
+                                  accent={ACCENT}
+                                  active={activeTags.includes(tag)}
+                                  // Stop the click from bubbling to the card
+                                  // header's onClick, which would also toggle
+                                  // this card open/closed at the same time.
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleTagFilter(tag);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          <IconBtn
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleStar(t.id);
+                            }}
+                            active={!!t.starred}
+                            label={t.starred ? "Unstar" : "Star as go-to"}
+                          >
+                            <Star size={13} fill={t.starred ? "currentColor" : "none"} />
+                          </IconBtn>
+                        </div>
                       </div>
 
                       {isOpen && t.text && (
@@ -330,6 +346,7 @@ export default function FlowTab({ techniques, setTechniques }) {
           namePlaceholder="Scissor sweep, cross collar choke from mount…"
           showPositions
           positionOptions={allPositions}
+          showStar
           showGiOnly
           tagSuggestions={tagSuggestions}
           textLabel="Technique notes"

@@ -1,9 +1,21 @@
-import { Folder, Pencil, Trash2, ChevronDown, ChevronUp, MoveRight, Shirt } from "lucide-react";
+import { Folder, Pencil, Trash2, ChevronDown, ChevronUp, MoveRight, Shirt, Star } from "lucide-react";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
 
-export default function LibraryItemCard({ item, pathLabel, isOpen, onToggle, onEdit, onDelete, onJump, onTagClick, activeTags, accent = "--accent2" }) {
+export default function LibraryItemCard({
+  item,
+  pathLabel,
+  isOpen,
+  onToggle,
+  onEdit,
+  onDelete,
+  onJump,
+  onTagClick,
+  activeTags,
+  onToggleStar,
+  accent = "--accent2",
+}) {
   const isLong = (item.text || "").length > 220;
   return (
     <div style={cardStyle}>
@@ -38,6 +50,11 @@ export default function LibraryItemCard({ item, pathLabel, isOpen, onToggle, onE
           )}
         </div>
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {onToggleStar && (
+            <IconBtn onClick={onToggleStar} active={!!item.starred} label={item.starred ? "Unstar" : "Star as go-to"}>
+              <Star size={14} fill={item.starred ? "currentColor" : "none"} />
+            </IconBtn>
+          )}
           <IconBtn onClick={onEdit}>
             <Pencil size={14} />
           </IconBtn>

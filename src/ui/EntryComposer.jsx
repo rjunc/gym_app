@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Star } from "lucide-react";
 import { searchTags, addTagsFromDraft } from "../lib/tags.js";
 import TagChip from "./TagChip.jsx";
 import { labelStyle, inputStyle, tagPillStyle, primaryBtnStyle, secondaryBtnStyle } from "./styles.js";
@@ -25,6 +25,7 @@ export default function EntryComposer({
   folderOptions,
   showPositions,
   positionOptions = [],
+  showStar,
   showGiOnly,
   // A free-text "how much" field (sets/reps/duration) for library exercises.
   showPrescription,
@@ -169,6 +170,19 @@ export default function EntryComposer({
               ))}
             </datalist>
           </div>
+        )}
+
+        {showStar && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={!!form.starred}
+              onChange={(e) => setForm((f) => ({ ...f, starred: e.target.checked }))}
+              style={{ width: 16, height: 16, accentColor: "var(--accent)" }}
+            />
+            <Star size={14} color="var(--accent)" fill={form.starred ? "var(--accent)" : "none"} />
+            Go-to — sorts to the top of its position/list
+          </label>
         )}
 
         {showGiOnly && (

@@ -26,6 +26,7 @@ const techniques = [
     position: "bottom closed guard",
     toPosition: "top side control",
     giOnly: false,
+    starred: true,
   },
   {
     id: "t2",
@@ -36,6 +37,7 @@ const techniques = [
     position: "top mount",
     toPosition: "",
     giOnly: true,
+    starred: false,
   },
 ];
 
@@ -154,6 +156,26 @@ test("CSV missing the position/to_position/gi_only columns (pre-Flow export) sti
   assert.equal(result.techniques[0].position, "");
   assert.equal(result.techniques[0].toPosition, "");
   assert.equal(result.techniques[0].giOnly, false);
+  assert.equal(result.techniques[0].starred, false);
+});
+
+test("CSV missing the starred column (pre-star export) still parses, defaulting to unstarred", () => {
+  const oldStyleCsv = [
+    "type,id,date,name,folder_path,tags,text,position,to_position,gi_only",
+    "technique,t1,,Armbar escape,,,notes,bottom mount,,",
+  ].join("\r\n");
+  const result = combinedFromCSV(oldStyleCsv, [], []);
+  assert.equal(result.techniques[0].starred, false);
+});
+
+test("starred column: '1' becomes true, empty becomes false", () => {
+  const csv = combinedToCSV([], [], [], [], [], [
+    { id: "t1", name: "A", folderId: null, tags: [], text: "", position: "", toPosition: "", giOnly: false, starred: true },
+    { id: "t2", name: "B", folderId: null, tags: [], text: "", position: "", toPosition: "", giOnly: false, starred: false },
+  ]);
+  const result = combinedFromCSV(csv, [], []);
+  assert.equal(result.techniques.find((t) => t.id === "t1").starred, true);
+  assert.equal(result.techniques.find((t) => t.id === "t2").starred, false);
 });
 
 test("CSV missing the prescription/active columns (pre-Library export) still parses, defaulting active to true", () => {

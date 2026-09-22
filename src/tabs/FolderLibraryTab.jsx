@@ -30,6 +30,7 @@ export default function FolderLibraryTab({
   textPlaceholder,
   accent = "--accent2",
   showPositions = false,
+  showStar = false,
   showGiOnly = false,
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
@@ -40,7 +41,7 @@ export default function FolderLibraryTab({
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "", giOnly: false });
+  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "", starred: false, giOnly: false });
   const [tagDraft, setTagDraft] = useState("");
   const tagSuggestions = useMemo(() => tagCounts(items), [items]);
   const [newFolderName, setNewFolderName] = useState("");
@@ -59,6 +60,10 @@ export default function FolderLibraryTab({
   );
   const hiddenGiOnlyCount = items.length - visibleItems.length;
 
+  // Starred items always sort first; everything else keeps alphabetical
+  // order below them.
+  const byStarThenName = (a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0) || a.name.localeCompare(b.name);
+
   const allTags = useMemo(() => {
     const set = new Set();
     visibleItems.forEach((r) => (r.tags || []).forEach((t) => set.add(t)));
@@ -71,7 +76,7 @@ export default function FolderLibraryTab({
   );
 
   const itemsInFolder = useMemo(
-    () => visibleItems.filter((r) => (r.folderId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
+    () => visibleItems.filter((r) => (r.folderId || null) === currentFolderId).sort(byStarThenName),
     [visibleItems, currentFolderId]
   );
 
@@ -91,7 +96,7 @@ export default function FolderLibraryTab({
             : activeTags.every((t) => (r.tags || []).includes(t)));
         return matchesSearch && matchesTags;
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(byStarThenName);
   }, [visibleItems, search, activeTags, tagMatchMode]);
 
   const breadcrumb = folderPath(folders, currentFolderId);
@@ -137,7 +142,7 @@ export default function FolderLibraryTab({
   };
 
   const resetForm = () => {
-    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "", giOnly: false });
+    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "", starred: false, giOnly: false });
     setTagDraft("");
     setEditingId(null);
   };
@@ -155,6 +160,7 @@ export default function FolderLibraryTab({
       folderId: item.folderId || null,
       position: item.position || "",
       toPosition: item.toPosition || "",
+      starred: !!item.starred,
       giOnly: !!item.giOnly,
     });
     setEditingId(item.id);
@@ -184,6 +190,8 @@ export default function FolderLibraryTab({
     if (!window.confirm(`Delete this ${itemNoun}? This can't be undone.`)) return;
     setItems((prev) => prev.filter((r) => r.id !== id));
   };
+
+  const toggleStar = (id) => setItems((prev) => prev.map((r) => (r.id === id ? { ...r, starred: !r.starred } : r)));
 
   const positionOptions = useMemo(() => (showPositions ? collectPositions(items) : []), [items, showPositions]);
 
@@ -294,6 +302,7 @@ export default function FolderLibraryTab({
                     }}
                     onTagClick={toggleTagFilter}
                     activeTags={activeTags}
+                    onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                   />
                 ))}
               </div>
@@ -399,6 +408,7 @@ export default function FolderLibraryTab({
                     onDelete={() => deleteItem(r.id)}
                     onTagClick={toggleTagFilter}
                     activeTags={activeTags}
+                    onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                   />
                 ))}
               </div>
@@ -427,6 +437,7 @@ export default function FolderLibraryTab({
           folderOptions={folderOptions}
           showPositions={showPositions}
           positionOptions={positionOptions}
+          showStar={showStar}
           showGiOnly={showGiOnly}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}

@@ -17,12 +17,12 @@ function normalizeTags(raw) {
 // (lifting); technique folder paths resolve against `jitsFolders`.
 
 export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = [], exercises = []) {
-  const header = ["type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "prescription", "active"];
+  const header = ["type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "starred", "prescription", "active"];
   // Sessions/journals/rolls reuse the "name" column (otherwise unused for
   // them) to carry their optional title.
-  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", ""]);
-  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", "", "", ""]);
-  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", ""]);
+  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", ""]);
+  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", "", "", "", ""]);
+  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", ""]);
   const routineRows = routines.map((r) => [
     "routine",
     r.id,
@@ -36,10 +36,11 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     "",
     "",
     "",
+    "",
   ]);
   // Techniques carry an optional position -> to_position pair used by the
-  // Flow tab to chain moves together, plus a gi_only flag for the Gi/No-Gi
-  // mode filter.
+  // Flow tab to chain moves together, a gi_only flag for the Gi/No-Gi mode
+  // filter, and a starred flag marking a go-to that sorts to the top.
   const techniqueRows = techniques.map((t) => [
     "technique",
     t.id,
@@ -51,6 +52,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     t.position || "",
     t.toPosition || "",
     t.giOnly ? "1" : "",
+    t.starred ? "1" : "",
     "",
     "",
   ]);
@@ -64,6 +66,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     "",
     (e.tags || []).join(";"),
     e.text || "",
+    "",
     "",
     "",
     "",
@@ -100,6 +103,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
   const positionIdx = header.indexOf("position");
   const toPositionIdx = header.indexOf("to_position");
   const giOnlyIdx = header.indexOf("gi_only");
+  const starredIdx = header.indexOf("starred");
   const prescriptionIdx = header.indexOf("prescription");
   const activeIdx = header.indexOf("active");
 
@@ -143,6 +147,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
         position: positionIdx >= 0 ? r[positionIdx] || "" : "",
         toPosition: toPositionIdx >= 0 ? r[toPositionIdx] || "" : "",
         giOnly: giOnlyIdx >= 0 && !!r[giOnlyIdx],
+        starred: starredIdx >= 0 && !!r[starredIdx],
       });
     } else if (type === "journal") {
       journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
@@ -174,8 +179,9 @@ function normalizeSimpleEntries(arr) {
 
 // Routines/techniques share the same shape (id/name/folderId/tags/text), so
 // one helper normalizes either out of an imported JSON payload. Techniques
-// additionally carry an optional position -> toPosition pair for the Flow tab
-// and a giOnly flag for the Gi/No-Gi mode filter.
+// additionally carry an optional position -> toPosition pair for the Flow tab,
+// a giOnly flag for the Gi/No-Gi mode filter, and a starred flag marking a
+// go-to that sorts to the top.
 function normalizeFolderItems(arr, defaultName, { techniqueExtras = false } = {}) {
   return Array.isArray(arr)
     ? arr.map((r) => ({
@@ -184,7 +190,9 @@ function normalizeFolderItems(arr, defaultName, { techniqueExtras = false } = {}
         folderId: r.folderId || null,
         tags: normalizeTags(r.tags),
         text: r.text || "",
-        ...(techniqueExtras ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly } : {}),
+        ...(techniqueExtras
+          ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly, starred: !!r.starred }
+          : {}),
       }))
     : [];
 }

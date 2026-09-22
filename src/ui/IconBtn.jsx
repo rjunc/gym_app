@@ -1,16 +1,18 @@
 // `label` names the button for screen readers and as a hover tooltip.
-export default function IconBtn({ children, onClick, danger, label }) {
+// `active` gives it a persistent highlighted state (e.g. a toggled-on star)
+// instead of danger's "this action is destructive" red.
+export default function IconBtn({ children, onClick, danger, active, label }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
       title={label}
       style={{
-        background: "var(--surface-2)",
-        border: "1px solid var(--border)",
+        background: active ? "var(--accent-dim)" : "var(--surface-2)",
+        border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
         borderRadius: 7,
         padding: 6,
-        color: danger ? "var(--danger)" : "var(--text-dim)",
+        color: danger ? "var(--danger)" : active ? "var(--accent)" : "var(--text-dim)",
         cursor: "pointer",
         display: "flex",
       }}
