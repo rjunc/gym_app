@@ -39,8 +39,10 @@ in **Settings → Environment Variables**.
 Each user's entire log (sessions, routines, folders) lives in one Firestore
 document at `users/{uid}/data/log`. That mirrors the old single-blob
 `localStorage` shape, keeps reads/writes to one round trip, and is well
-within the free-tier limits for personal use. CSV/JSON export and import
-(bottom toolbar) still work exactly as before, independent of Firestore.
+within the free-tier limits for personal use — see the single-document size
+cap under Open considerations below for the one real ceiling this design
+has. CSV/JSON export and import (bottom toolbar) still work exactly as
+before, independent of Firestore.
 
 ## Managing accounts
 
@@ -76,3 +78,30 @@ Data** if you want to fully remove a test account's footprint.
   comes from the Firebase SDK. Harmless for a personal app at this scale;
   only worth addressing (via code-splitting) if load time ever becomes
   noticeable.
+- **The real storage ceiling is Firestore's 1 MiB per-document limit, not the
+  1 GB free-tier quota.** Every field lives in one document, so that
+  document — not the account-wide 1 GB pool — is what could eventually fill
+  up; with a single user you'll never come close to 1 GB itself. Rough math
+  at ~6 training days/week: short one-line entries would take roughly
+  9-10 years to approach 1 MiB, detailed paragraph-per-session entries
+  roughly 3-4 years. The library/routine/technique data is comparatively
+  small and plateaus once it's populated, since it doesn't grow daily.
+  Not urgent — worth a rough size check every year or so. If it ever gets
+  close, the fix is splitting the ever-growing dated entries (sessions/
+  rolls/journals) out of the single document, e.g. into a subcollection,
+  rather than anything drastic.
+
+## Feature ideas (not urgent)
+
+- **Journals aren't on the Home calendar.** They were left out when Home's
+  calendar was built, since a journal entry isn't training. The Sessions/
+  Rolls/Journals tabs remain the only way to browse and search entries by
+  text — Home was deliberately kept to date/tag filtering only, to avoid
+  cluttering the page with a search box. Revisit whether journals belong on
+  Home too, e.g. as a third opt-in type alongside Sessions/Rolls.
+- **A random routine builder, drawing from the Library.** Idea: pick one
+  random exercise per tag/category (a `mobility` one, a `strength` one, a
+  `cardio` one, ...) to assemble a day's routine automatically. The Library
+  page's tag-based (no folders) organization, optional `prescription`
+  field, and `active` flag were designed with this in mind, but the builder
+  itself hasn't been started.
