@@ -1,6 +1,5 @@
 import { X } from "lucide-react";
 import { searchTags, addTagsFromDraft } from "../lib/tags.js";
-import { TECHNIQUE_ROLES } from "../lib/roles.js";
 import TagChip from "./TagChip.jsx";
 import { labelStyle, inputStyle, tagPillStyle, primaryBtnStyle, secondaryBtnStyle } from "./styles.js";
 
@@ -26,7 +25,6 @@ export default function EntryComposer({
   folderOptions,
   showPositions,
   positionOptions = [],
-  showRole,
   showGiOnly,
   // A free-text "how much" field (sets/reps/duration) for library exercises.
   showPrescription,
@@ -170,25 +168,6 @@ export default function EntryComposer({
                 <option key={p} value={p} />
               ))}
             </datalist>
-          </div>
-        )}
-
-        {showRole && (
-          <div>
-            <label style={labelStyle}>Type (optional)</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {TECHNIQUE_ROLES.map((r) => (
-                <TagChip
-                  key={r}
-                  label={r}
-                  accent={accentVar}
-                  active={form.role === r}
-                  // Click again to clear — a technique doesn't have to carry
-                  // a role, only positions/gi-only do.
-                  onClick={() => setForm((f) => ({ ...f, role: f.role === r ? "" : r }))}
-                />
-              ))}
-            </div>
           </div>
         )}
 
