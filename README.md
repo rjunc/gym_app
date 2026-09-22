@@ -86,10 +86,35 @@ Data** if you want to fully remove a test account's footprint.
   9-10 years to approach 1 MiB, detailed paragraph-per-session entries
   roughly 3-4 years. The library/routine/technique data is comparatively
   small and plateaus once it's populated, since it doesn't grow daily.
-  Not urgent — worth a rough size check every year or so. If it ever gets
-  close, the fix is splitting the ever-growing dated entries (sessions/
-  rolls/journals) out of the single document, e.g. into a subcollection,
-  rather than anything drastic.
+  Not urgent — worth a rough size check every year or so.
+- **Related: every save rewrites the entire document, not just what
+  changed.** The debounced save in `App.jsx` does one `setDoc` of the whole
+  combined object on every edit, so changing one session's text also
+  re-sends every routine, technique, and library exercise. Harmless at the
+  current size, but it's the same root cause as the size cap above, and
+  worth fixing together if either becomes annoying. In order of effort:
+  1. **Write only what changed.** Swap the single `setDoc` for `updateDoc`
+     calls scoped to just the field that changed (e.g. only `{ sessions }`
+     when a session changes). Cuts the per-edit network cost to roughly
+     "how big is this one category," with no change to the data model.
+  2. **Split the one document into a handful, by category** (e.g.
+     `users/{uid}/data/sessions`, `.../library`, `.../routines`), each still
+     an array-in-one-document like today. Multiplies the effective size
+     ceiling by however many documents you split into, and an edit to one
+     category no longer touches the others at all. Each category is still
+     capped eventually, just at its own, much slower rate.
+  3. **Move the genuinely unbounded data into real subcollections.**
+     Sessions/rolls/journals are the only things that grow forever; the
+     library/routines/techniques/folders are small and plateau. Giving just
+     the dated logs their own subcollection (one document per entry, or
+     bucketed by month/year) removes the size ceiling for the part of the
+     data that would ever hit it, and means syncing only moves the entries
+     that actually changed. The correct long-term shape, but the biggest
+     lift — it changes how every tab reads/writes, not just how saving is
+     wired up.
+
+  None of this is built. #1 is cheap and worth doing on its own; #2 and #3
+  are only worth it once the size or sync cost actually becomes noticeable.
 
 ## Feature ideas (not urgent)
 
