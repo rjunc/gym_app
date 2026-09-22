@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { combinedToCSV, combinedFromCSV, parseImportFile } from "./importExport.js";
-import { todayISO } from "./id.js";
+import { combinedToCSV, combinedFromCSV, parseImportFile } from "../../src/lib/importExport.js";
+import { todayISO } from "../../src/lib/id.js";
 
 /* ============================== fixtures ============================== */
 

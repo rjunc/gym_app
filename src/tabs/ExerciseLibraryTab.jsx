@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { matchesTags } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import TagChip from "../ui/TagChip.jsx";
-import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
-import { inputStyle, cardStyle, primaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
+import ExerciseCard from "./ExerciseCard.jsx";
+import { inputStyle, primaryBtnStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent2"; // matches Routines/Techniques, the other library-style tabs
 
@@ -169,87 +169,19 @@ export default function ExerciseLibraryTab({ exercises, setExercises }) {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filtered.map((e) => {
-              const isOpen = expanded === e.id;
-              const isLong = (e.text || "").length > 220;
-              const inactive = e.active === false;
-              return (
-                <div key={e.id} style={{ ...cardStyle, opacity: inactive ? 0.6 : 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{e.name}</div>
-                        {inactive && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              letterSpacing: 0.3,
-                              color: "var(--text-dim)",
-                              border: "1px solid var(--border)",
-                              borderRadius: 999,
-                              padding: "1px 7px",
-                            }}
-                          >
-                            INACTIVE
-                          </span>
-                        )}
-                      </div>
-                      {e.prescription && <div style={{ fontSize: 12, color: `var(${ACCENT})`, fontWeight: 600 }}>{e.prescription}</div>}
-                      {e.tags && e.tags.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                          {e.tags.map((t) => (
-                            <TagChip key={t} label={t} small accent={ACCENT} onClick={() => toggleTagFilter(t)} active={activeTags.includes(t)} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                      <IconBtn onClick={() => openEdit(e)} label="Edit">
-                        <Pencil size={14} />
-                      </IconBtn>
-                      <IconBtn onClick={() => deleteExercise(e.id)} danger label="Delete">
-                        <Trash2 size={14} />
-                      </IconBtn>
-                    </div>
-                  </div>
-
-                  {e.text && (
-                    <p
-                      style={{
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        fontSize: 13,
-                        lineHeight: 1.55,
-                        color: "var(--text)",
-                        marginTop: 8,
-                        marginBottom: 0,
-                        whiteSpace: "pre-wrap",
-                        display: "-webkit-box",
-                        WebkitLineClamp: isOpen || !isLong ? "unset" : 5,
-                        WebkitBoxOrient: "vertical",
-                        overflow: isOpen || !isLong ? "visible" : "hidden",
-                      }}
-                    >
-                      {e.text}
-                    </p>
-                  )}
-
-                  {isLong && (
-                    <button onClick={() => setExpanded(isOpen ? null : e.id)} style={{ ...ghostLinkStyle, marginTop: 6 }}>
-                      {isOpen ? (
-                        <>
-                          Show less <ChevronUp size={13} />
-                        </>
-                      ) : (
-                        <>
-                          Show more <ChevronDown size={13} />
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            {filtered.map((e) => (
+              <ExerciseCard
+                key={e.id}
+                exercise={e}
+                accent={ACCENT}
+                isOpen={expanded === e.id}
+                onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
+                onEdit={() => openEdit(e)}
+                onDelete={() => deleteExercise(e.id)}
+                activeTags={activeTags}
+                onTagClick={toggleTagFilter}
+              />
+            ))}
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { routineOptions, applyRoutine } from "./routines.js";
+import { routineOptions, applyRoutine } from "../../src/lib/routines.js";
 
 const folders = [
   { id: "f1", name: "Push day", parentId: null },

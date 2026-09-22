@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tagCounts, searchTags, addTagsFromDraft } from "./tags.js";
+import { tagCounts, searchTags, addTagsFromDraft } from "../../src/lib/tags.js";
 
 test("tagCounts sorts by usage, then alphabetically", () => {
   const entries = [{ tags: ["legs", "cardio"] }, { tags: ["cardio"] }, { tags: ["push"] }, { tags: ["cardio", "legs"] }];

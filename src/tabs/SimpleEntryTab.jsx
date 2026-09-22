@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Pencil, Trash2, Repeat, ChevronDown, ChevronUp } from "lucide-react";
-import { uid, todayISO, formatDate } from "../lib/id.js";
+import { Search, Plus } from "lucide-react";
+import { uid, todayISO } from "../lib/id.js";
 import { matchesTags, redoFields } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
-import TagChip from "../ui/TagChip.jsx";
-import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
-import { inputStyle, cardStyle, primaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
+import SimpleEntryCard from "./SimpleEntryCard.jsx";
+import { inputStyle, primaryBtnStyle } from "../ui/styles.js";
 
 // Sessions and journals are both just a flat, most-recent-first list of dated
 // entries with tags — no folders. Both tabs are thin wrappers around this.
@@ -143,78 +142,20 @@ export default function SimpleEntryTab({
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filtered.map((s) => {
-              const isOpen = expanded === s.id;
-              const isLong = (s.text || "").length > 220;
-              return (
-                <div key={s.id} style={cardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {s.title ? (
-                        <>
-                          <div style={{ fontWeight: 700, fontSize: 13 }}>{s.title}</div>
-                          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{formatDate(s.date)}</div>
-                        </>
-                      ) : (
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{formatDate(s.date)}</div>
-                      )}
-                      {s.tags && s.tags.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                          {s.tags.map((t) => (
-                            <TagChip key={t} label={t} small accent={accent} onClick={() => toggleTagFilter(t)} active={activeTags.includes(t)} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                      {canRedo && (
-                        <IconBtn onClick={() => openRedo(s)} label="Redo">
-                          <Repeat size={14} />
-                        </IconBtn>
-                      )}
-                      <IconBtn onClick={() => openEdit(s)} label="Edit">
-                        <Pencil size={14} />
-                      </IconBtn>
-                      <IconBtn onClick={() => deleteEntry(s.id)} danger label="Delete">
-                        <Trash2 size={14} />
-                      </IconBtn>
-                    </div>
-                  </div>
-
-                  <p
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: 13,
-                      lineHeight: 1.55,
-                      color: "var(--text)",
-                      marginTop: 8,
-                      marginBottom: 0,
-                      whiteSpace: "pre-wrap",
-                      display: "-webkit-box",
-                      WebkitLineClamp: isOpen || !isLong ? "unset" : 5,
-                      WebkitBoxOrient: "vertical",
-                      overflow: isOpen || !isLong ? "visible" : "hidden",
-                    }}
-                  >
-                    {s.text}
-                  </p>
-
-                  {isLong && (
-                    <button onClick={() => setExpanded(isOpen ? null : s.id)} style={{ ...ghostLinkStyle, marginTop: 6 }}>
-                      {isOpen ? (
-                        <>
-                          Show less <ChevronUp size={13} />
-                        </>
-                      ) : (
-                        <>
-                          Show more <ChevronDown size={13} />
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            {filtered.map((s) => (
+              <SimpleEntryCard
+                key={s.id}
+                entry={s}
+                accent={accent}
+                isOpen={expanded === s.id}
+                onToggle={() => setExpanded(expanded === s.id ? null : s.id)}
+                onEdit={() => openEdit(s)}
+                onDelete={() => deleteEntry(s.id)}
+                onRedo={canRedo ? () => openRedo(s) : undefined}
+                activeTags={activeTags}
+                onTagClick={toggleTagFilter}
+              />
+            ))}
           </div>
         )}
       </div>

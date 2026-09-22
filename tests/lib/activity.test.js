@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toISO, matchesTags, groupByDate, monthCells, shiftMonth, redoFields } from "./activity.js";
+import { toISO, matchesTags, groupByDate, monthCells, shiftMonth, redoFields } from "../../src/lib/activity.js";
 
 test("toISO zero-pads and treats month as 0-based", () => {
   assert.equal(toISO(2026, 0, 5), "2026-01-05");

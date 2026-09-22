@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Pencil, Trash2, ChevronRight, Folder, FolderPlus, X } from "lucide-react";
+import { Search, Plus, FolderPlus, X } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { folderPath } from "../lib/folders.js";
 import { collectPositions } from "../lib/positions.js";
@@ -11,7 +11,8 @@ import EntryComposer from "../ui/EntryComposer.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
-import { inputStyle, cardStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
+import FolderRow from "./FolderRow.jsx";
+import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
 // Routines and Techniques are both a foldered library of named, tagged text
 // items — no dates. Both tabs are thin wrappers around this.
@@ -317,47 +318,21 @@ export default function FolderLibraryTab({
                 const { subCount, itemCount } = folderCounts(f.id);
                 const isRenaming = renamingFolderId === f.id;
                 return (
-                  <div key={f.id} style={{ ...cardStyle, padding: 10, display: "flex", alignItems: "center", gap: 10 }}>
-                    <div
-                      onClick={() => !isRenaming && setCurrentFolderId(f.id)}
-                      style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer" }}
-                    >
-                      <div style={{ background: `var(${accent}-dim)`, borderRadius: 8, padding: 7, display: "flex" }}>
-                        <Folder size={16} color={`var(${accent})`} />
-                      </div>
-                      {isRenaming ? (
-                        <input
-                          autoFocus
-                          value={renameDraft}
-                          onChange={(e) => setRenameDraft(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && commitRename()}
-                          onBlur={commitRename}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ ...inputStyle, padding: "4px 8px" }}
-                        />
-                      ) : (
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{f.name}</div>
-                          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                            {subCount > 0 ? `${subCount} folder${subCount !== 1 ? "s" : ""} · ` : ""}
-                            {itemCount} {itemNoun}
-                            {itemCount !== 1 ? "s" : ""}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {!isRenaming && (
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <IconBtn onClick={() => startRename(f)}>
-                          <Pencil size={13} />
-                        </IconBtn>
-                        <IconBtn onClick={() => deleteFolder(f)} danger>
-                          <Trash2 size={13} />
-                        </IconBtn>
-                      </div>
-                    )}
-                    <ChevronRight size={15} color="var(--text-dim)" onClick={() => !isRenaming && setCurrentFolderId(f.id)} style={{ cursor: "pointer" }} />
-                  </div>
+                  <FolderRow
+                    key={f.id}
+                    folder={f}
+                    subCount={subCount}
+                    itemCount={itemCount}
+                    itemNoun={itemNoun}
+                    accent={accent}
+                    isRenaming={isRenaming}
+                    renameDraft={renameDraft}
+                    setRenameDraft={setRenameDraft}
+                    onOpen={() => setCurrentFolderId(f.id)}
+                    onStartRename={() => startRename(f)}
+                    onCommitRename={commitRename}
+                    onDelete={() => deleteFolder(f)}
+                  />
                 );
               })}
 
