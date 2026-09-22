@@ -6,6 +6,7 @@ import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
+import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { inputStyle, cardStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent4";
@@ -20,6 +21,8 @@ export default function FlowTab({ techniques, setTechniques }) {
   const [path, setPath] = useState([]); // [{ position }]
   const [positionDraft, setPositionDraft] = useState("");
   const [giMode, setGiMode] = useState("gi");
+  const [activeTags, setActiveTags] = useState([]);
+  const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [openTechniqueId, setOpenTechniqueId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState(emptyForm());
@@ -40,22 +43,43 @@ export default function FlowTab({ techniques, setTechniques }) {
   );
   const hiddenGiOnlyCount = optionsAtPosition.length - options.length;
 
+  // Which tags are actually in play at this position (post gi-filter), so
+  // "just show me the escapes" (or whatever tag you use for that) only
+  // offers tags that exist here instead of the whole library's vocabulary.
+  const tagsHere = useMemo(() => {
+    const set = new Set();
+    options.forEach((t) => (t.tags || []).forEach((tag) => set.add(tag)));
+    return Array.from(set).sort();
+  }, [options]);
+  const tagFilteredOptions = useMemo(() => {
+    if (activeTags.length === 0) return options;
+    return options.filter((t) =>
+      tagMatchMode === "any"
+        ? activeTags.some((tag) => (t.tags || []).includes(tag))
+        : activeTags.every((tag) => (t.tags || []).includes(tag))
+    );
+  }, [options, activeTags, tagMatchMode]);
+  const toggleTagFilter = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+
   const goTo = (position) => {
     const clean = position.trim();
     if (!clean) return;
     setPath((prev) => [...prev, { position: clean }]);
     setPositionDraft("");
     setOpenTechniqueId(null);
+    setActiveTags([]);
   };
 
   const jumpToStep = (index) => {
     setPath((prev) => prev.slice(0, index + 1));
     setOpenTechniqueId(null);
+    setActiveTags([]);
   };
 
   const startOver = () => {
     setPath([]);
     setOpenTechniqueId(null);
+    setActiveTags([]);
   };
 
   const openComposer = () => {
@@ -155,12 +179,42 @@ export default function FlowTab({ techniques, setTechniques }) {
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ fontSize: 13, color: "var(--text-dim)" }}>
-                {options.length} option{options.length !== 1 ? "s" : ""} from here
+                {tagFilteredOptions.length} option{tagFilteredOptions.length !== 1 ? "s" : ""} from here
               </div>
               <button onClick={openComposer} style={{ ...ghostLinkStyle, color: `var(${ACCENT})` }}>
                 <Plus size={13} /> Add technique here
               </button>
             </div>
+
+            {tagsHere.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {tagsHere.map((tag) => (
+                    <TagChip
+                      key={tag}
+                      label={tag}
+                      accent={ACCENT}
+                      active={activeTags.includes(tag)}
+                      onClick={() => toggleTagFilter(tag)}
+                    />
+                  ))}
+                </div>
+                {activeTags.length > 1 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                    <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
+                    <SegmentedToggle
+                      options={[
+                        { key: "all", label: "All tags" },
+                        { key: "any", label: "Any tag" },
+                      ]}
+                      value={tagMatchMode}
+                      setValue={setTagMatchMode}
+                      accent={ACCENT}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {options.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
@@ -171,9 +225,13 @@ export default function FlowTab({ techniques, setTechniques }) {
                   </div>
                 )}
               </div>
+            ) : tagFilteredOptions.length === 0 ? (
+              <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
+                No techniques tagged that way from "{currentPosition}" yet.
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {options.map((t) => {
+                {tagFilteredOptions.map((t) => {
                   const isOpen = openTechniqueId === t.id;
                   const hasNext = normalizePosition(t.toPosition) !== "";
                   return (
@@ -193,7 +251,20 @@ export default function FlowTab({ techniques, setTechniques }) {
                         {t.tags && t.tags.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, justifyContent: "flex-end" }}>
                             {t.tags.slice(0, 3).map((tag) => (
-                              <TagChip key={tag} label={tag} small accent={ACCENT} />
+                              <TagChip
+                                key={tag}
+                                label={tag}
+                                small
+                                accent={ACCENT}
+                                active={activeTags.includes(tag)}
+                                // Stop the click from bubbling to the card
+                                // header's onClick, which would also toggle
+                                // this card open/closed at the same time.
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleTagFilter(tag);
+                                }}
+                              />
                             ))}
                           </div>
                         )}
