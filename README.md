@@ -130,3 +130,23 @@ Data** if you want to fully remove a test account's footprint.
   page's tag-based (no folders) organization, optional `prescription`
   field, and `active` flag were designed with this in mind, but the builder
   itself hasn't been started.
+- **Jits/Flow ideas, from a session on "build a library that helps in any
+  position" (2026-09-21).** A `role` field (Escape/Submission/Sweep/...)
+  shipped from that discussion; these three didn't:
+  - **Quick search inside Flow.** Flow only offers exact-match position
+    chips/autocomplete today — if you don't remember the exact position
+    string you logged, there's no way to search technique names/tags/notes
+    from within Flow itself (the Techniques tab has search, but that's a
+    separate screen with no position-chain navigation). Matters most for
+    the "half-remembered, under pressure" lookup this whole side of the app
+    is meant for.
+  - **A "go-to" star per technique.** When several techniques are logged
+    from the same position, nothing marks which one is your actual trusted
+    answer vs. one you tried once. A starred technique could sort first
+    within its position/role group.
+  - **Position rename/merge tool.** Positions are freeform strings matched
+    by exact normalized text (`src/lib/positions.js`), so naming drift
+    ("mount bottom" vs "bottom mount") silently creates disconnected nodes
+    with no way to fix it after the fact — folders have rename, positions
+    don't. Only worth building once the position vocabulary is large enough
+    for drift to actually bite.
