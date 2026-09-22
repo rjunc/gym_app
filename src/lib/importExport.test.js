@@ -25,6 +25,7 @@ const techniques = [
     text: "Break posture, sweep off the elbow",
     position: "bottom closed guard",
     toPosition: "top side control",
+    role: "Sweep",
     giOnly: false,
   },
   {
@@ -35,6 +36,7 @@ const techniques = [
     text: "Needs the lapel",
     position: "top mount",
     toPosition: "",
+    role: "",
     giOnly: true,
   },
 ];
@@ -153,7 +155,27 @@ test("CSV missing the position/to_position/gi_only columns (pre-Flow export) sti
   assert.equal(result.techniques.length, 1);
   assert.equal(result.techniques[0].position, "");
   assert.equal(result.techniques[0].toPosition, "");
+  assert.equal(result.techniques[0].role, "");
   assert.equal(result.techniques[0].giOnly, false);
+});
+
+test("CSV missing the role column (pre-role export) still parses, defaulting to no role", () => {
+  const oldStyleCsv = [
+    "type,id,date,name,folder_path,tags,text,position,to_position,gi_only",
+    "technique,t1,,Armbar,,,notes,bottom mount,,",
+  ].join("\r\n");
+  const result = combinedFromCSV(oldStyleCsv, [], []);
+  assert.equal(result.techniques[0].role, "");
+});
+
+test("role column round-trips a technique's role (Escape, Submission, ...) through CSV", () => {
+  const csv = combinedToCSV([], [], [], [], [], [
+    { id: "t1", name: "Hitchhiker escape", folderId: null, tags: [], text: "", position: "bottom mount", toPosition: "", role: "Escape", giOnly: false },
+    { id: "t2", name: "Untyped move", folderId: null, tags: [], text: "", position: "", toPosition: "", role: "", giOnly: false },
+  ]);
+  const result = combinedFromCSV(csv, [], []);
+  assert.equal(result.techniques.find((t) => t.id === "t1").role, "Escape");
+  assert.equal(result.techniques.find((t) => t.id === "t2").role, "");
 });
 
 test("CSV missing the prescription/active columns (pre-Library export) still parses, defaulting active to true", () => {

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { ChevronRight, RotateCcw, Plus, Flag, Shirt } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { collectPositions, techniquesFrom, normalizePosition } from "../lib/positions.js";
+import { TECHNIQUE_ROLES } from "../lib/roles.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
@@ -10,7 +11,7 @@ import { inputStyle, cardStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkSty
 
 const ACCENT = "--accent4";
 
-const emptyForm = (position) => ({ name: "", tags: [], text: "", position: position || "", toPosition: "", giOnly: false });
+const emptyForm = (position) => ({ name: "", tags: [], text: "", position: position || "", toPosition: "", role: "", giOnly: false });
 
 // Lets you navigate your Techniques library as a chain: pick where you are,
 // see the moves you've logged from there, follow one to where it leads, and
@@ -20,6 +21,7 @@ export default function FlowTab({ techniques, setTechniques }) {
   const [path, setPath] = useState([]); // [{ position }]
   const [positionDraft, setPositionDraft] = useState("");
   const [giMode, setGiMode] = useState("gi");
+  const [roleFilter, setRoleFilter] = useState(null);
   const [openTechniqueId, setOpenTechniqueId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
   const [form, setForm] = useState(emptyForm());
@@ -40,22 +42,38 @@ export default function FlowTab({ techniques, setTechniques }) {
   );
   const hiddenGiOnlyCount = optionsAtPosition.length - options.length;
 
+  // Which roles are actually in play at this position (post gi-filter), so
+  // "just show me the escapes" only offers roles that exist here — a
+  // position with nothing but submissions logged won't show an empty
+  // "Escape" chip.
+  const rolesHere = useMemo(() => {
+    const present = new Set(options.map((t) => t.role).filter(Boolean));
+    return TECHNIQUE_ROLES.filter((r) => present.has(r));
+  }, [options]);
+  const roleFilteredOptions = useMemo(
+    () => (roleFilter ? options.filter((t) => t.role === roleFilter) : options),
+    [options, roleFilter]
+  );
+
   const goTo = (position) => {
     const clean = position.trim();
     if (!clean) return;
     setPath((prev) => [...prev, { position: clean }]);
     setPositionDraft("");
     setOpenTechniqueId(null);
+    setRoleFilter(null);
   };
 
   const jumpToStep = (index) => {
     setPath((prev) => prev.slice(0, index + 1));
     setOpenTechniqueId(null);
+    setRoleFilter(null);
   };
 
   const startOver = () => {
     setPath([]);
     setOpenTechniqueId(null);
+    setRoleFilter(null);
   };
 
   const openComposer = () => {
@@ -155,12 +173,28 @@ export default function FlowTab({ techniques, setTechniques }) {
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ fontSize: 13, color: "var(--text-dim)" }}>
-                {options.length} option{options.length !== 1 ? "s" : ""} from here
+                {roleFilteredOptions.length} option{roleFilteredOptions.length !== 1 ? "s" : ""} from here
               </div>
               <button onClick={openComposer} style={{ ...ghostLinkStyle, color: `var(${ACCENT})` }}>
                 <Plus size={13} /> Add technique here
               </button>
             </div>
+
+            {rolesHere.length > 1 && (
+              // Only worth offering when there's an actual mix at this spot
+              // — e.g. bottom mount has both escapes and submissions logged.
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                {rolesHere.map((r) => (
+                  <TagChip
+                    key={r}
+                    label={r}
+                    accent={ACCENT}
+                    active={roleFilter === r}
+                    onClick={() => setRoleFilter(roleFilter === r ? null : r)}
+                  />
+                ))}
+              </div>
+            )}
 
             {options.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
@@ -171,9 +205,13 @@ export default function FlowTab({ techniques, setTechniques }) {
                   </div>
                 )}
               </div>
+            ) : roleFilteredOptions.length === 0 ? (
+              <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
+                No "{roleFilter}" techniques logged from "{currentPosition}" yet.
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {options.map((t) => {
+                {roleFilteredOptions.map((t) => {
                   const isOpen = openTechniqueId === t.id;
                   const hasNext = normalizePosition(t.toPosition) !== "";
                   return (
@@ -184,6 +222,21 @@ export default function FlowTab({ techniques, setTechniques }) {
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <div style={{ fontWeight: 700, fontSize: 13 }}>{t.name}</div>
+                          {t.role && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                letterSpacing: 0.3,
+                                color: `var(${ACCENT})`,
+                                background: `var(${ACCENT}-dim)`,
+                                borderRadius: 5,
+                                padding: "2px 6px",
+                              }}
+                            >
+                              {t.role.toUpperCase()}
+                            </span>
+                          )}
                           {t.giOnly && (
                             <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, color: "var(--danger)" }}>
                               <Shirt size={11} /> GI ONLY
@@ -259,6 +312,7 @@ export default function FlowTab({ techniques, setTechniques }) {
           namePlaceholder="Scissor sweep, cross collar choke from mount…"
           showPositions
           positionOptions={allPositions}
+          showRole
           showGiOnly
           tagSuggestions={tagSuggestions}
           textLabel="Technique notes"

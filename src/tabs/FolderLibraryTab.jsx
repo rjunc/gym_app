@@ -3,6 +3,7 @@ import { Search, Plus, Pencil, Trash2, ChevronRight, Folder, FolderPlus, X } fro
 import { uid } from "../lib/id.js";
 import { folderPath } from "../lib/folders.js";
 import { collectPositions } from "../lib/positions.js";
+import { TECHNIQUE_ROLES } from "../lib/roles.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
 import TagChip from "../ui/TagChip.jsx";
@@ -30,17 +31,19 @@ export default function FolderLibraryTab({
   textPlaceholder,
   accent = "--accent2",
   showPositions = false,
+  showRole = false,
   showGiOnly = false,
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
+  const [roleFilter, setRoleFilter] = useState(null);
   const [giMode, setGiMode] = useState("gi");
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "", giOnly: false });
+  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "", role: "", giOnly: false });
   const [tagDraft, setTagDraft] = useState("");
   const tagSuggestions = useMemo(() => tagCounts(items), [items]);
   const [newFolderName, setNewFolderName] = useState("");
@@ -49,7 +52,7 @@ export default function FolderLibraryTab({
   const [renamingFolderId, setRenamingFolderId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
 
-  const isFiltering = search.trim() !== "" || activeTags.length > 0;
+  const isFiltering = search.trim() !== "" || activeTags.length > 0 || roleFilter !== null;
 
   // In No-Gi mode, anything marked giOnly is hidden everywhere in this tab —
   // browsing, folder counts, search — since it simply doesn't apply.
@@ -59,11 +62,26 @@ export default function FolderLibraryTab({
   );
   const hiddenGiOnlyCount = items.length - visibleItems.length;
 
+  // A role filter narrows further, same as a tag filter would (e.g. "just
+  // show me escapes"), applied on top of the gi-mode visibility above.
+  const scopedItems = useMemo(
+    () => (showRole && roleFilter ? visibleItems.filter((r) => r.role === roleFilter) : visibleItems),
+    [visibleItems, showRole, roleFilter]
+  );
+
+  // Which roles actually appear anywhere (under the current gi mode), so the
+  // filter row only ever offers choices that do something.
+  const rolesPresent = useMemo(() => {
+    if (!showRole) return [];
+    const present = new Set(visibleItems.map((r) => r.role).filter(Boolean));
+    return TECHNIQUE_ROLES.filter((r) => present.has(r));
+  }, [visibleItems, showRole]);
+
   const allTags = useMemo(() => {
     const set = new Set();
-    visibleItems.forEach((r) => (r.tags || []).forEach((t) => set.add(t)));
+    scopedItems.forEach((r) => (r.tags || []).forEach((t) => set.add(t)));
     return Array.from(set).sort();
-  }, [visibleItems]);
+  }, [scopedItems]);
 
   const subfolders = useMemo(
     () => folders.filter((f) => (f.parentId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
@@ -71,13 +89,13 @@ export default function FolderLibraryTab({
   );
 
   const itemsInFolder = useMemo(
-    () => visibleItems.filter((r) => (r.folderId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
-    [visibleItems, currentFolderId]
+    () => scopedItems.filter((r) => (r.folderId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
+    [scopedItems, currentFolderId]
   );
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return visibleItems
+    return scopedItems
       .filter((r) => {
         const matchesSearch =
           q === "" ||
@@ -92,13 +110,13 @@ export default function FolderLibraryTab({
         return matchesSearch && matchesTags;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [visibleItems, search, activeTags, tagMatchMode]);
+  }, [scopedItems, search, activeTags, tagMatchMode]);
 
   const breadcrumb = folderPath(folders, currentFolderId);
 
   const folderCounts = (folderId) => {
     const subCount = folders.filter((f) => (f.parentId || null) === folderId).length;
-    const itemCount = visibleItems.filter((r) => (r.folderId || null) === folderId).length;
+    const itemCount = scopedItems.filter((r) => (r.folderId || null) === folderId).length;
     return { subCount, itemCount };
   };
 
@@ -137,7 +155,7 @@ export default function FolderLibraryTab({
   };
 
   const resetForm = () => {
-    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "", giOnly: false });
+    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "", role: "", giOnly: false });
     setTagDraft("");
     setEditingId(null);
   };
@@ -155,6 +173,7 @@ export default function FolderLibraryTab({
       folderId: item.folderId || null,
       position: item.position || "",
       toPosition: item.toPosition || "",
+      role: item.role || "",
       giOnly: !!item.giOnly,
     });
     setEditingId(item.id);
@@ -218,6 +237,20 @@ export default function FolderLibraryTab({
           </div>
         )}
 
+        {showRole && rolesPresent.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+            {rolesPresent.map((r) => (
+              <TagChip
+                key={r}
+                label={r}
+                accent={accent}
+                active={roleFilter === r}
+                onClick={() => setRoleFilter(roleFilter === r ? null : r)}
+              />
+            ))}
+          </div>
+        )}
+
         <div style={{ position: "relative", marginBottom: 10 }}>
           <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
           <input
@@ -267,7 +300,7 @@ export default function FolderLibraryTab({
             </div>
             {filteredItems.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "36px 10px", fontSize: 13 }}>
-                Nothing matches that search or tag filter.
+                Nothing matches that search, tag, or type filter.
                 {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
                   <div style={{ marginTop: 6 }}>
                     ({hiddenGiOnlyCount} gi-only {itemNoun}
@@ -291,6 +324,7 @@ export default function FolderLibraryTab({
                       setCurrentFolderId(r.folderId || null);
                       setSearch("");
                       setActiveTags([]);
+                      setRoleFilter(null);
                     }}
                     onTagClick={toggleTagFilter}
                     activeTags={activeTags}
@@ -427,6 +461,7 @@ export default function FolderLibraryTab({
           folderOptions={folderOptions}
           showPositions={showPositions}
           positionOptions={positionOptions}
+          showRole={showRole}
           showGiOnly={showGiOnly}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}

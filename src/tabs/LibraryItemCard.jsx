@@ -11,6 +11,21 @@ export default function LibraryItemCard({ item, pathLabel, isOpen, onToggle, onE
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+            {item.role && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                  color: `var(${accent})`,
+                  background: `var(${accent}-dim)`,
+                  borderRadius: 5,
+                  padding: "2px 6px",
+                }}
+              >
+                {item.role.toUpperCase()}
+              </span>
+            )}
             {item.giOnly && (
               <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, color: "var(--danger)" }}>
                 <Shirt size={11} /> GI ONLY
