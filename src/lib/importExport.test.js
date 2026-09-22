@@ -12,6 +12,10 @@ const sessions = [{ id: "s1", date: "2026-09-01", title: "Leg day", tags: ["legs
 const journals = [{ id: "j1", date: "2026-09-02", title: "", tags: [], text: "Feeling good" }];
 const rolls = [{ id: "ro1", date: "2026-09-03", title: "Gi class", tags: ["gi"], text: "Rolled 5 rounds" }];
 const routines = [{ id: "r1", name: "Push A", folderId: "f1", tags: ["push"], text: "Bench, OHP" }];
+const exercises = [
+  { id: "e1", name: "Goblet squat", tags: ["strength", "legs"], text: "Hold at chest, sit between heels", prescription: "3x10", active: true },
+  { id: "e2", name: "Retired stretch", tags: ["mobility"], text: "", prescription: "", active: false },
+];
 const techniques = [
   {
     id: "t1",
@@ -38,7 +42,7 @@ const techniques = [
 /* ============================== CSV round trip ============================== */
 
 test("combinedToCSV -> combinedFromCSV round trip preserves every field, every type", () => {
-  const csv = combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders);
+  const csv = combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders, exercises);
   const result = combinedFromCSV(csv, folders, jitsFolders);
 
   assert.deepEqual(result.sessions, sessions);
@@ -48,6 +52,7 @@ test("combinedToCSV -> combinedFromCSV round trip preserves every field, every t
   assert.deepEqual(result.techniques, techniques);
   assert.deepEqual(result.folders, folders);
   assert.deepEqual(result.jitsFolders, jitsFolders);
+  assert.deepEqual(result.exercises, exercises);
 });
 
 test("CSV round trip survives commas, quotes, and embedded newlines", () => {
@@ -151,6 +156,24 @@ test("CSV missing the position/to_position/gi_only columns (pre-Flow export) sti
   assert.equal(result.techniques[0].giOnly, false);
 });
 
+test("CSV missing the prescription/active columns (pre-Library export) still parses, defaulting active to true", () => {
+  const oldStyleCsv = ["type,id,date,name,folder_path,tags,text", "exercise,e1,,Push-up,,,notes"].join("\r\n");
+  const result = combinedFromCSV(oldStyleCsv, [], []);
+  assert.equal(result.exercises.length, 1);
+  assert.equal(result.exercises[0].prescription, "");
+  assert.equal(result.exercises[0].active, true);
+});
+
+test("active column: '0' becomes false, '1' becomes true", () => {
+  const csv = combinedToCSV([], [], [], [], [], [], [], [
+    { id: "e1", name: "A", tags: [], text: "", prescription: "", active: true },
+    { id: "e2", name: "B", tags: [], text: "", prescription: "", active: false },
+  ]);
+  const result = combinedFromCSV(csv, [], []);
+  assert.equal(result.exercises.find((e) => e.id === "e1").active, true);
+  assert.equal(result.exercises.find((e) => e.id === "e2").active, false);
+});
+
 test("gi_only column: '1' becomes true, empty becomes false", () => {
   const csv = combinedToCSV([], [], [], [], [], [
     { id: "t1", name: "A", folderId: null, tags: [], text: "", position: "", toPosition: "", giOnly: true },
@@ -190,13 +213,14 @@ test("an empty CSV file returns empty collections and leaves existing folders un
     rolls: [],
     techniques: [],
     jitsFolders,
+    exercises: [],
   });
 });
 
 /* ============================== JSON round trip (parseImportFile) ============================== */
 
 test("parseImportFile: JSON round trip preserves every field, every type", () => {
-  const json = JSON.stringify({ sessions, journals, routines, folders, rolls, techniques, jitsFolders });
+  const json = JSON.stringify({ sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises });
   const result = parseImportFile("export.json", json, folders, jitsFolders);
 
   assert.deepEqual(result.sessions, sessions);
@@ -204,6 +228,19 @@ test("parseImportFile: JSON round trip preserves every field, every type", () =>
   assert.deepEqual(result.rolls, rolls);
   assert.deepEqual(result.routines, routines);
   assert.deepEqual(result.techniques, techniques);
+  assert.deepEqual(result.exercises, exercises);
+});
+
+test("parseImportFile: exercise defaults are applied (untitled name, active true, blank prescription)", () => {
+  const json = JSON.stringify({ exercises: [{ id: "e1", tags: [] }] });
+  const result = parseImportFile("export.json", json, [], []);
+  assert.deepEqual(result.exercises[0], { id: "e1", name: "Untitled exercise", tags: [], text: "", prescription: "", active: true });
+});
+
+test("parseImportFile: exercise active:false survives, and an exercise-only JSON is recognized", () => {
+  const json = JSON.stringify({ exercises: [{ id: "e1", name: "Rest day walk", tags: [], active: false }] });
+  const result = parseImportFile("export.json", json, [], []);
+  assert.equal(result.exercises[0].active, false);
 });
 
 test("parseImportFile: routines never pick up position/toPosition/giOnly keys", () => {
@@ -276,6 +313,7 @@ test("parseImportFile: a pre-jits export (no rolls/techniques/jitsFolders keys) 
   assert.deepEqual(result.rolls, []);
   assert.deepEqual(result.techniques, []);
   assert.deepEqual(result.jitsFolders, []);
+  assert.deepEqual(result.exercises, []);
 });
 
 test("parseImportFile: JSON with none of the known record types throws", () => {

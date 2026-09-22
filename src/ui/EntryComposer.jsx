@@ -26,6 +26,12 @@ export default function EntryComposer({
   showPositions,
   positionOptions = [],
   showGiOnly,
+  // A free-text "how much" field (sets/reps/duration) for library exercises.
+  showPrescription,
+  // A checkbox for whether this item should be picked when something
+  // generates for you at random (e.g. a future routine builder).
+  showActive,
+  activeLabel = "Active — include when randomly building routines",
   textLabel,
   textPlaceholder,
   saveLabel,
@@ -174,6 +180,30 @@ export default function EntryComposer({
               style={{ width: 16, height: 16, accentColor: `var(${accentVar})` }}
             />
             Gi only — won't work without the gi
+          </label>
+        )}
+
+        {showPrescription && (
+          <div>
+            <label style={labelStyle}>Prescription (optional)</label>
+            <input
+              value={form.prescription || ""}
+              onChange={(e) => setForm((f) => ({ ...f, prescription: e.target.value }))}
+              placeholder="3x8, 30s hold, 5 rounds…"
+              style={inputStyle}
+            />
+          </div>
+        )}
+
+        {showActive && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={form.active !== false}
+              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+              style={{ width: 16, height: 16, accentColor: `var(${accentVar})` }}
+            />
+            {activeLabel}
           </label>
         )}
 

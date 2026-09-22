@@ -18,6 +18,7 @@ export default function Shell({ children }) {
         "--accent4": "#5B8DBA",
         "--accent4-dim": "rgba(91,141,186,0.16)",
         "--danger": "#C2604A",
+        "--danger-dim": "rgba(194,96,74,0.16)",
         background: "var(--bg)",
         color: "var(--text)",
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",

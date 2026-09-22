@@ -13,16 +13,16 @@ function normalizeTags(raw) {
 
 /* ============================== COMBINED CSV ============================== */
 // Unified CSV: one file, one 'type' column distinguishing session/journal/routine/
-// roll/technique rows. Routine folder paths resolve against `folders` (lifting);
-// technique folder paths resolve against `jitsFolders`.
+// roll/technique/exercise rows. Routine folder paths resolve against `folders`
+// (lifting); technique folder paths resolve against `jitsFolders`.
 
-export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = []) {
-  const header = ["type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only"];
+export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = [], exercises = []) {
+  const header = ["type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "prescription", "active"];
   // Sessions/journals/rolls reuse the "name" column (otherwise unused for
   // them) to carry their optional title.
-  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", ""]);
-  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", ""]);
-  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", ""]);
+  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", ""]);
+  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", "", "", ""]);
+  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", ""]);
   const routineRows = routines.map((r) => [
     "routine",
     r.id,
@@ -31,6 +31,8 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     folderPath(folders, r.folderId).map((f) => f.name).join("/"),
     (r.tags || []).join(";"),
     r.text || "",
+    "",
+    "",
     "",
     "",
     "",
@@ -49,8 +51,26 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     t.position || "",
     t.toPosition || "",
     t.giOnly ? "1" : "",
+    "",
+    "",
   ]);
-  return [header, ...sessionRows, ...journalRows, ...routineRows, ...rollRows, ...techniqueRows]
+  // Library exercises carry an optional prescription (sets/reps/duration) and
+  // an active flag (so a future random routine builder can skip retired ones).
+  const exerciseRows = exercises.map((e) => [
+    "exercise",
+    e.id,
+    "",
+    e.name,
+    "",
+    (e.tags || []).join(";"),
+    e.text || "",
+    "",
+    "",
+    "",
+    e.prescription || "",
+    e.active === false ? "0" : "1",
+  ]);
+  return [header, ...sessionRows, ...journalRows, ...routineRows, ...rollRows, ...techniqueRows, ...exerciseRows]
     .map((row) => row.map(csvEscape).join(","))
     .join("\r\n");
 }
@@ -58,7 +78,16 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
 export function combinedFromCSV(text, existingFolders, existingJitsFolders = []) {
   const rows = parseCSV(text);
   if (rows.length === 0) {
-    return { sessions: [], routines: [], journals: [], folders: existingFolders, rolls: [], techniques: [], jitsFolders: existingJitsFolders };
+    return {
+      sessions: [],
+      routines: [],
+      journals: [],
+      folders: existingFolders,
+      rolls: [],
+      techniques: [],
+      jitsFolders: existingJitsFolders,
+      exercises: [],
+    };
   }
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const typeIdx = header.indexOf("type");
@@ -71,6 +100,8 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
   const positionIdx = header.indexOf("position");
   const toPositionIdx = header.indexOf("to_position");
   const giOnlyIdx = header.indexOf("gi_only");
+  const prescriptionIdx = header.indexOf("prescription");
+  const activeIdx = header.indexOf("active");
 
   let foldersAcc = existingFolders;
   let jitsFoldersAcc = existingJitsFolders;
@@ -79,6 +110,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
   const journals = [];
   const rolls = [];
   const techniques = [];
+  const exercises = [];
 
   rows.slice(1).forEach((r) => {
     const type = typeIdx >= 0 ? (r[typeIdx] || "").trim().toLowerCase() : "session";
@@ -86,7 +118,16 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
     const text = textIdx >= 0 ? r[textIdx] : "";
     const title = nameIdx >= 0 ? r[nameIdx] || "" : "";
     const id = idIdx >= 0 && r[idIdx] ? r[idIdx] : uid();
-    if (type === "routine") {
+    if (type === "exercise") {
+      exercises.push({
+        id,
+        name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled exercise",
+        tags,
+        text,
+        prescription: prescriptionIdx >= 0 ? r[prescriptionIdx] || "" : "",
+        active: activeIdx >= 0 ? r[activeIdx] !== "0" : true,
+      });
+    } else if (type === "routine") {
       const { id: folderId, folders: nextFolders } = resolveFolderPath(foldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
       foldersAcc = nextFolders;
       routines.push({ id, name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled routine", folderId, tags, text });
@@ -112,7 +153,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
     }
   });
 
-  return { sessions, routines, journals, folders: foldersAcc, rolls, techniques, jitsFolders: jitsFoldersAcc };
+  return { sessions, routines, journals, folders: foldersAcc, rolls, techniques, jitsFolders: jitsFoldersAcc, exercises };
 }
 
 /* ============================== JSON NORMALIZATION ============================== */
@@ -148,6 +189,22 @@ function normalizeFolderItems(arr, defaultName, { techniqueExtras = false } = {}
     : [];
 }
 
+// Library exercises: id/name/tags/text like a routine, plus an optional
+// prescription string and an active flag (defaulting true, since most
+// imported/older data predates the flag and should count as usable).
+function normalizeExercises(arr) {
+  return Array.isArray(arr)
+    ? arr.map((e) => ({
+        id: e.id || uid(),
+        name: e.name || "Untitled exercise",
+        tags: normalizeTags(e.tags),
+        text: e.text || "",
+        prescription: e.prescription || "",
+        active: e.active !== false,
+      }))
+    : [];
+}
+
 function mergeFolders(existingFolders, incomingFolders) {
   if (!Array.isArray(incomingFolders)) return existingFolders;
   const byId = new Map(existingFolders.map((f) => [f.id, f]));
@@ -158,15 +215,15 @@ function mergeFolders(existingFolders, incomingFolders) {
 /* ============================== IMPORT ENTRY POINT ============================== */
 
 // Parses an imported .json or .csv file's text into normalized
-// { sessions, journals, routines, folders, rolls, techniques, jitsFolders },
+// { sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises },
 // merging any folders discovered in the file into `existingFolders`/
 // `existingJitsFolders`. Throws if a JSON file has none of the known record types.
 export function parseImportFile(filename, text, existingFolders, existingJitsFolders = []) {
   if (filename.toLowerCase().endsWith(".json")) {
     const parsed = JSON.parse(text);
-    const hasKnownData = ["sessions", "routines", "journals", "rolls", "techniques"].some((k) => Array.isArray(parsed[k]));
+    const hasKnownData = ["sessions", "routines", "journals", "rolls", "techniques", "exercises"].some((k) => Array.isArray(parsed[k]));
     if (!hasKnownData) {
-      throw new Error("No sessions, journals, routines, rolls, or techniques found in JSON");
+      throw new Error("No sessions, journals, routines, rolls, techniques, or exercises found in JSON");
     }
     return {
       sessions: normalizeSimpleEntries(parsed.sessions),
@@ -176,6 +233,7 @@ export function parseImportFile(filename, text, existingFolders, existingJitsFol
       rolls: normalizeSimpleEntries(parsed.rolls),
       techniques: normalizeFolderItems(parsed.techniques, "Untitled technique", { techniqueExtras: true }),
       jitsFolders: mergeFolders(existingJitsFolders, parsed.jitsFolders),
+      exercises: normalizeExercises(parsed.exercises),
     };
   }
   return combinedFromCSV(text, existingFolders, existingJitsFolders);

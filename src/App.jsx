@@ -14,12 +14,14 @@ import RoutinesTab from "./tabs/RoutinesTab.jsx";
 import RollsTab from "./tabs/RollsTab.jsx";
 import TechniquesTab from "./tabs/TechniquesTab.jsx";
 import FlowTab from "./tabs/FlowTab.jsx";
+import ExerciseLibraryTab from "./tabs/ExerciseLibraryTab.jsx";
 
 const PAGE_TITLES = {
   home: "Home",
   sessions: "Sessions",
   journals: "Journals",
   routines: "Routines",
+  library: "Library",
   rolls: "Rolls",
   techniques: "Techniques",
   flow: "Flow",
@@ -35,6 +37,7 @@ export default function App({ uid, userEmail, onLogout }) {
   const [rolls, setRolls] = useState([]);
   const [techniques, setTechniques] = useState([]);
   const [jitsFolders, setJitsFolders] = useState([]);
+  const [exercises, setExercises] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [importError, setImportError] = useState("");
@@ -61,6 +64,7 @@ export default function App({ uid, userEmail, onLogout }) {
         setRolls(Array.isArray(data.rolls) ? data.rolls : []);
         setTechniques(Array.isArray(data.techniques) ? data.techniques : []);
         setJitsFolders(Array.isArray(data.jitsFolders) ? data.jitsFolders : []);
+        setExercises(Array.isArray(data.exercises) ? data.exercises : []);
         setSyncError("");
         setLoaded(true);
       },
@@ -81,25 +85,29 @@ export default function App({ uid, userEmail, onLogout }) {
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveLog(uid, { sessions, folders, routines, journals, rolls, techniques, jitsFolders }).catch((e) => {
+      saveLog(uid, { sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises }).catch((e) => {
         console.error("save failed", e);
         setSyncError("Couldn't save your last change. Check your connection.");
       });
     }, 250);
     return () => clearTimeout(saveTimer.current);
-  }, [sessions, folders, routines, journals, rolls, techniques, jitsFolders, loaded, uid]);
+  }, [sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises, loaded, uid]);
 
   const exportJSON = () =>
     downloadFile(
       `workout-data-${todayISO()}.json`,
-      JSON.stringify({ exportedAt: new Date().toISOString(), sessions, folders, routines, journals, rolls, techniques, jitsFolders }, null, 2),
+      JSON.stringify(
+        { exportedAt: new Date().toISOString(), sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises },
+        null,
+        2
+      ),
       "application/json"
     );
 
   const exportCSV = () =>
     downloadFile(
       `workout-data-${todayISO()}.csv`,
-      combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders),
+      combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders, exercises),
       "text/csv"
     );
 
@@ -118,6 +126,7 @@ export default function App({ uid, userEmail, onLogout }) {
       setJitsFolders(incoming.jitsFolders);
       setRolls((prev) => mergeById(prev, incoming.rolls));
       setTechniques((prev) => mergeById(prev, incoming.techniques));
+      setExercises((prev) => mergeById(prev, incoming.exercises));
     } catch (err) {
       setImportError("Couldn't read that file. Make sure it's a CSV or JSON export from this app.");
     }
@@ -161,6 +170,8 @@ export default function App({ uid, userEmail, onLogout }) {
             <JournalsTab journals={journals} setJournals={setJournals} />
           ) : page === "routines" ? (
             <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} />
+          ) : page === "library" ? (
+            <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} />
           ) : page === "rolls" ? (
             <RollsTab rolls={rolls} setRolls={setRolls} />
           ) : page === "techniques" ? (

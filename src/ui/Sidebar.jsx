@@ -6,6 +6,7 @@ import {
   ClipboardList,
   NotebookPen,
   BookOpen,
+  Layers,
   Route,
   Download,
   Upload,
@@ -23,6 +24,7 @@ const GROUPS = [
       { key: "sessions", label: "Sessions", Icon: ClipboardList },
       { key: "journals", label: "Journals", Icon: NotebookPen },
       { key: "routines", label: "Routines", Icon: BookOpen },
+      { key: "library", label: "Library", Icon: Layers },
     ],
   },
   {
