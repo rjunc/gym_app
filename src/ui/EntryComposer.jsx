@@ -31,6 +31,9 @@ export default function EntryComposer({
   nameField = "name",
   nameLabel = "Name",
   namePlaceholder = "",
+  // Validation message shown under the name field (e.g. a duplicate-name
+  // check) — purely display, callers own the actual validation logic.
+  nameError,
   showFolder,
   folderOptions,
   showPositions,
@@ -94,6 +97,7 @@ export default function EntryComposer({
         {topContent}
 
         {showName && <NameField form={form} setForm={setForm} nameField={nameField} nameLabel={nameLabel} namePlaceholder={namePlaceholder} />}
+        {showName && nameError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: -6 }}>{nameError}</div>}
 
         {showDate && <DateField form={form} setForm={setForm} />}
 

@@ -120,9 +120,16 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
 
   const removeFormTag = (t) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }));
 
+  // Exercise names are compared case-insensitively so "Bench" and "bench"
+  // count as the same exercise — otherwise the Library (and the Exercises
+  // picker it feeds) quietly grows near-duplicates.
+  const trimmedName = form.name.trim();
+  const isDuplicateName =
+    trimmedName !== "" && exercises.some((e) => e.id !== editingId && e.name.trim().toLowerCase() === trimmedName.toLowerCase());
+
   const saveExercise = () => {
     const name = form.name.trim();
-    if (!name) return;
+    if (!name || isDuplicateName) return;
     if (editingId) {
       setExercises((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...form, name } : e)));
     } else {
@@ -236,11 +243,12 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
             setShowComposer(false);
             resetForm();
           }}
-          saveDisabled={!form.name.trim()}
+          saveDisabled={!form.name.trim() || isDuplicateName}
           showName
           nameField="name"
           nameLabel="Name"
           namePlaceholder="Goblet squat, cat-cow, jump rope…"
+          nameError={isDuplicateName ? "An exercise with this name already exists." : undefined}
           showPrescription
           showActive
           textLabel="Notes (optional)"
