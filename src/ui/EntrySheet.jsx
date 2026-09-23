@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import { addTagsFromDraft, tagCounts } from "../lib/tags.js";
 import { routineOptions, applyRoutine } from "../lib/routines.js";
+import { recentExerciseCounts } from "../lib/exercises.js";
 import { redoFields } from "../lib/activity.js";
+import { todayISO } from "../lib/id.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle, inputStyle } from "./styles.js";
@@ -39,6 +41,12 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
   // Sessions and rolls have different vocabularies (legs vs. guard), so suggest
   // from the type being logged.
   const tagSuggestions = useMemo(() => tagCounts(entriesByType[type]), [entriesByType, type]);
+  // Only meaningful for sessions (meta.showExercises); ranks the Exercises
+  // picker by what's actually been trained in the last 30 days.
+  const exerciseRecentCounts = useMemo(
+    () => (meta.showExercises ? recentExerciseCounts(entriesByType[type] || [], todayISO()) : undefined),
+    [entriesByType, type, meta.showExercises]
+  );
 
   const routineChoices = useMemo(() => routineOptions(routines, folders), [routines, folders]);
   const showRoutines = !isEdit && !redo && meta.canStartFromRoutine && routineChoices.length > 0;
@@ -107,6 +115,7 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
       namePlaceholder="Optional title…"
       showExercises={meta.showExercises}
       exerciseOptions={exercises}
+      exerciseRecentCounts={exerciseRecentCounts}
       textLabel={meta.textLabel}
       textPlaceholder={meta.textPlaceholder}
       saveLabel={isEdit ? "Save changes" : "Save entry"}

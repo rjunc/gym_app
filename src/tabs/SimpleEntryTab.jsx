@@ -3,6 +3,7 @@ import { Search, Plus } from "lucide-react";
 import { uid, todayISO } from "../lib/id.js";
 import { matchesTags, redoFields } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
+import { recentExerciseCounts } from "../lib/exercises.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SimpleEntryCard from "./SimpleEntryCard.jsx";
@@ -38,6 +39,12 @@ export default function SimpleEntryTab({
   const [tagDraft, setTagDraft] = useState("");
 
   const tagSuggestions = useMemo(() => tagCounts(entries), [entries]);
+  // Only meaningful for Sessions (showExercises); ranks the Exercises picker
+  // by what's actually been trained in the last 30 days.
+  const exerciseRecentCounts = useMemo(
+    () => (showExercises ? recentExerciseCounts(entries, todayISO()) : undefined),
+    [entries, showExercises]
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -191,6 +198,7 @@ export default function SimpleEntryTab({
           namePlaceholder="Optional title…"
           showExercises={showExercises}
           exerciseOptions={exercises}
+          exerciseRecentCounts={exerciseRecentCounts}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : "Save entry"}

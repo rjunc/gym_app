@@ -47,6 +47,10 @@ export default function EntryComposer({
   // Library can show you back which sessions/routines use a given exercise.
   showExercises,
   exerciseOptions = [],
+  // Optional Map of exercise id -> count in the last 30 days (see
+  // lib/exercises.js), used to rank the picker's suggestions by recent
+  // frequency instead of alphabetically. Sessions pass this; routines don't.
+  exerciseRecentCounts,
   textLabel,
   textPlaceholder,
   saveLabel,
@@ -105,7 +109,9 @@ export default function EntryComposer({
 
         {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
 
-        {showExercises && <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} />}
+        {showExercises && (
+          <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} recentCounts={exerciseRecentCounts} />
+        )}
 
         <TagsField
           form={form}

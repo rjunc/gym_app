@@ -145,16 +145,23 @@ export function PrescriptionField({ form, setForm }) {
 // inline; it only picks from what's already in the Library. That keeps the
 // link real (survives renaming the exercise later), instead of repeating the
 // name-matching drift problem positions.js already has.
-export function ExercisesField({ form, setForm, exercises, accentVar }) {
+// `recentCounts` (a Map of exercise id -> count in the last 30 days, see
+// lib/exercises.js) is optional: when given, suggestions rank by that count
+// first so the picker leads with what you've actually been training lately,
+// falling back to alphabetical among ties (including the untouched-lately
+// exercises, which all tie at zero). Without it, suggestions are plain
+// alphabetical.
+export function ExercisesField({ form, setForm, exercises, accentVar, recentCounts }) {
   const [query, setQuery] = useState("");
   const selectedIds = form.exerciseIds || [];
   const selected = selectedIds.map((id) => exercises.find((e) => e.id === id)).filter(Boolean);
 
   const q = query.trim().toLowerCase();
+  const countOf = (id) => (recentCounts ? recentCounts.get(id) || 0 : 0);
   const suggestions = exercises
     .filter((e) => !selectedIds.includes(e.id))
     .filter((e) => q === "" || e.name.toLowerCase().includes(q))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => (recentCounts ? countOf(b.id) - countOf(a.id) : 0) || a.name.localeCompare(b.name))
     .slice(0, 8);
 
   const addExercise = (id) => {
@@ -190,10 +197,15 @@ export function ExercisesField({ form, setForm, exercises, accentVar }) {
         style={inputStyle}
       />
       {suggestions.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-          {suggestions.map((e) => (
-            <TagChip key={e.id} small accent={accentVar} label={e.name} onClick={() => addExercise(e.id)} />
-          ))}
+        <div style={{ marginTop: 8 }}>
+          {recentCounts && (
+            <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching exercises" : "Most frequent (last 30 days)"}</span>
+          )}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {suggestions.map((e) => (
+              <TagChip key={e.id} small accent={accentVar} label={e.name} onClick={() => addExercise(e.id)} />
+            ))}
+          </div>
         </div>
       )}
     </div>
