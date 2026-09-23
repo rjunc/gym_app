@@ -149,3 +149,17 @@ Data** if you want to fully remove a test account's footprint.
     with no way to fix it after the fact — folders have rename, positions
     don't. Only worth building once the position vocabulary is large enough
     for drift to actually bite.
+- **Read-only viewer access for friends (2026-09-22).** Let friends view and
+  search the whole log (jits + lifts) without editing, without giving out
+  real edit access. Firestore rules currently only allow
+  `request.auth.uid == uid`, so a viewer needs *some* Firebase Auth identity,
+  just not full owner access. Sketch: give each friend (or one shared) a real
+  Firebase Auth login, add a read-only allowance to `firestore.rules` for
+  those UIDs (`allow read: if request.auth.uid == uid || request.auth.uid in
+  [...friend UIDs]`, write stays owner-only), and add a "viewer mode" in the
+  app that hides the composer/edit/delete controls when the logged-in UID
+  isn't the owner's. Search/filtering need no new work — it's all client-side
+  over data they can already read. Main cost: manually maintaining the friend
+  UID allowlist in the rules file (revocable per-friend, unlike a shared
+  password); the Firestore rule is the actual security boundary, not the
+  UI hiding. Not built.
