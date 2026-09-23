@@ -163,15 +163,23 @@ export default function App({ uid, userEmail, onLogout }) {
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {page === "home" ? (
-            <HomeTab sessions={sessions} rolls={rolls} setSessions={setSessions} setRolls={setRolls} routines={routines} folders={folders} />
+            <HomeTab
+              sessions={sessions}
+              rolls={rolls}
+              setSessions={setSessions}
+              setRolls={setRolls}
+              routines={routines}
+              folders={folders}
+              exercises={exercises}
+            />
           ) : page === "sessions" ? (
-            <SessionsTab sessions={sessions} setSessions={setSessions} />
+            <SessionsTab sessions={sessions} setSessions={setSessions} exercises={exercises} />
           ) : page === "journals" ? (
             <JournalsTab journals={journals} setJournals={setJournals} />
           ) : page === "routines" ? (
-            <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} />
+            <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} exercises={exercises} />
           ) : page === "library" ? (
-            <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} />
+            <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} routines={routines} />
           ) : page === "rolls" ? (
             <RollsTab rolls={rolls} setRolls={setRolls} />
           ) : page === "techniques" ? (

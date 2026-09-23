@@ -3,6 +3,8 @@ import { normalizeTags } from "./combinedCsv.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
+// Only sessions actually carry exerciseIds, but it round-trips for any of the
+// three if present, same as everything else here.
 export function normalizeSimpleEntries(arr) {
   return Array.isArray(arr)
     ? arr.map((s) => ({
@@ -11,6 +13,7 @@ export function normalizeSimpleEntries(arr) {
         title: s.title || "",
         tags: normalizeTags(s.tags),
         text: s.text || "",
+        ...(Array.isArray(s.exerciseIds) ? { exerciseIds: s.exerciseIds.filter((id) => typeof id === "string") } : {}),
       }))
     : [];
 }
@@ -19,7 +22,8 @@ export function normalizeSimpleEntries(arr) {
 // one helper normalizes either out of an imported JSON payload. Techniques
 // additionally carry an optional position -> toPosition pair for the Flow tab,
 // a giOnly flag for the Gi/No-Gi mode filter, and a starred flag marking a
-// go-to that sorts to the top.
+// go-to that sorts to the top. Routines carry an optional exerciseIds link
+// into the exercise Library, which round-trips here the same way.
 export function normalizeFolderItems(arr, defaultName, { techniqueExtras = false } = {}) {
   return Array.isArray(arr)
     ? arr.map((r) => ({
@@ -28,6 +32,7 @@ export function normalizeFolderItems(arr, defaultName, { techniqueExtras = false
         folderId: r.folderId || null,
         tags: normalizeTags(r.tags),
         text: r.text || "",
+        ...(Array.isArray(r.exerciseIds) ? { exerciseIds: r.exerciseIds.filter((id) => typeof id === "string") } : {}),
         ...(techniqueExtras
           ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly, starred: !!r.starred }
           : {}),

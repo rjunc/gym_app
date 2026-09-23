@@ -22,6 +22,10 @@ export default function SimpleEntryTab({
   accent = "--accent",
   // Adds a "Redo" button to each entry that starts a new one from it, dated today.
   canRedo = false,
+  // Links an entry to Library exercises (Sessions only — Journals don't get
+  // this field at all, not even an empty one).
+  showExercises = false,
+  exercises = [],
 }) {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
@@ -30,7 +34,7 @@ export default function SimpleEntryTab({
   const [editingId, setEditingId] = useState(null);
   const [isRedo, setIsRedo] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({ date: todayISO(), title: "", tags: [], text: "" });
+  const [form, setForm] = useState({ date: todayISO(), title: "", tags: [], text: "", ...(showExercises ? { exerciseIds: [] } : {}) });
   const [tagDraft, setTagDraft] = useState("");
 
   const tagSuggestions = useMemo(() => tagCounts(entries), [entries]);
@@ -51,7 +55,7 @@ export default function SimpleEntryTab({
   }, [entries, search, activeTags, tagMatchMode]);
 
   const resetForm = () => {
-    setForm({ date: todayISO(), title: "", tags: [], text: "" });
+    setForm({ date: todayISO(), title: "", tags: [], text: "", ...(showExercises ? { exerciseIds: [] } : {}) });
     setTagDraft("");
     setEditingId(null);
     setIsRedo(false);
@@ -63,7 +67,13 @@ export default function SimpleEntryTab({
   };
 
   const openEdit = (entry) => {
-    setForm({ date: entry.date, title: entry.title || "", tags: [...(entry.tags || [])], text: entry.text || "" });
+    setForm({
+      date: entry.date,
+      title: entry.title || "",
+      tags: [...(entry.tags || [])],
+      text: entry.text || "",
+      ...(showExercises ? { exerciseIds: [...(entry.exerciseIds || [])] } : {}),
+    });
     setEditingId(entry.id);
     setShowComposer(true);
     setTagDraft("");
@@ -179,6 +189,8 @@ export default function SimpleEntryTab({
           nameField="title"
           nameLabel="Title"
           namePlaceholder="Optional title…"
+          showExercises={showExercises}
+          exerciseOptions={exercises}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : "Save entry"}

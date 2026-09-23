@@ -16,12 +16,26 @@ export function normalizeTags(raw) {
 // (lifting); technique folder paths resolve against `jitsFolders`.
 
 export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = [], exercises = []) {
-  const header = ["type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "starred", "prescription", "active"];
+  // Resolves a session/routine's exerciseIds to a readable ";"-joined name
+  // list for the CSV. This column is for humans reading the export — import
+  // doesn't reconstruct exerciseIds from it (that would mean matching names
+  // back to Library exercises, the same drift-prone approach positions.js
+  // already has problems with), so re-importing a CSV drops exercise links.
+  // The JSON export/import path preserves them exactly; use that if you need
+  // the links to survive a round trip.
+  const exerciseNameById = new Map(exercises.map((e) => [e.id, e.name]));
+  const exerciseNames = (ids) => (ids || []).map((id) => exerciseNameById.get(id)).filter(Boolean).join(";");
+
+  const header = [
+    "type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "starred", "prescription", "active", "exercises",
+  ];
   // Sessions/journals/rolls reuse the "name" column (otherwise unused for
   // them) to carry their optional title.
-  const sessionRows = sessions.map((s) => ["session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", ""]);
-  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", "", "", "", ""]);
-  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", ""]);
+  const sessionRows = sessions.map((s) => [
+    "session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", "", exerciseNames(s.exerciseIds),
+  ]);
+  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", "", "", "", "", ""]);
+  const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", "", ""]);
   const routineRows = routines.map((r) => [
     "routine",
     r.id,
@@ -36,6 +50,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     "",
     "",
     "",
+    exerciseNames(r.exerciseIds),
   ]);
   // Techniques carry an optional position -> to_position pair used by the
   // Flow tab to chain moves together, a gi_only flag for the Gi/No-Gi mode
@@ -52,6 +67,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     t.toPosition || "",
     t.giOnly ? "1" : "",
     t.starred ? "1" : "",
+    "",
     "",
     "",
   ]);
@@ -71,6 +87,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     "",
     e.prescription || "",
     e.active === false ? "0" : "1",
+    "",
   ]);
   return [header, ...sessionRows, ...journalRows, ...routineRows, ...rollRows, ...techniqueRows, ...exerciseRows]
     .map((row) => row.map(csvEscape).join(","))

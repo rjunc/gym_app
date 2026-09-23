@@ -69,6 +69,19 @@ test("redoFields doesn't carry over the id, copies tags, and tolerates missing f
   assert.deepEqual(redoFields({}, "2026-09-21").tags, []);
 });
 
+test("redoFields carries exerciseIds when the source entry has them, as an independent copy", () => {
+  const entry = { id: "s1", date: "2026-08-01", tags: [], text: "Squats", exerciseIds: ["e1", "e2"] };
+  const out = redoFields(entry, "2026-09-21");
+  assert.deepEqual(out.exerciseIds, ["e1", "e2"]);
+  out.exerciseIds.push("e3");
+  assert.deepEqual(entry.exerciseIds, ["e1", "e2"]);
+});
+
+test("redoFields doesn't add exerciseIds when the source entry doesn't have them (e.g. a journal or roll)", () => {
+  const entry = { id: "j1", date: "2026-08-01", tags: [], text: "Feeling good" };
+  assert.equal("exerciseIds" in redoFields(entry, "2026-09-21"), false);
+});
+
 test("shiftMonth rolls the year in both directions", () => {
   assert.deepEqual(shiftMonth({ year: 2026, month: 11 }, 1), { year: 2027, month: 0 });
   assert.deepEqual(shiftMonth({ year: 2026, month: 0 }, -1), { year: 2025, month: 11 });

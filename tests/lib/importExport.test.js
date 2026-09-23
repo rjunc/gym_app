@@ -57,6 +57,18 @@ test("combinedToCSV -> combinedFromCSV round trip preserves every field, every t
   assert.deepEqual(result.exercises, exercises);
 });
 
+test("CSV export includes exercise names as a readable column, but import doesn't reconstruct exerciseIds", () => {
+  const linkedSessions = [{ id: "s1", date: "2026-09-01", title: "", tags: [], text: "Squats", exerciseIds: ["e1"] }];
+  const linkedRoutines = [{ id: "r1", name: "Push A", folderId: null, tags: [], text: "Bench", exerciseIds: ["e1", "e2"] }];
+  const csv = combinedToCSV(linkedSessions, linkedRoutines, [], [], [], [], [], exercises);
+
+  assert.ok(csv.includes("Goblet squat"), "exercise name appears somewhere in the export for a human to read");
+
+  const result = combinedFromCSV(csv, [], []);
+  assert.equal("exerciseIds" in result.sessions[0], false);
+  assert.equal("exerciseIds" in result.routines[0], false);
+});
+
 test("CSV round trip survives commas, quotes, and embedded newlines", () => {
   const nasty = [
     {
@@ -263,6 +275,24 @@ test("parseImportFile: exercise active:false survives, and an exercise-only JSON
   const json = JSON.stringify({ exercises: [{ id: "e1", name: "Rest day walk", tags: [], active: false }] });
   const result = parseImportFile("export.json", json, [], []);
   assert.equal(result.exercises[0].active, false);
+});
+
+test("parseImportFile: JSON round trip preserves exerciseIds on sessions and routines", () => {
+  const linkedSessions = [{ id: "s1", date: "2026-09-01", title: "", tags: [], text: "Squats", exerciseIds: ["e1"] }];
+  const linkedRoutines = [{ id: "r1", name: "Push A", folderId: null, tags: [], text: "Bench", exerciseIds: ["e1", "e2"] }];
+  const json = JSON.stringify({ sessions: linkedSessions, routines: linkedRoutines });
+  const result = parseImportFile("export.json", json, [], []);
+
+  assert.deepEqual(result.sessions[0].exerciseIds, ["e1"]);
+  assert.deepEqual(result.routines[0].exerciseIds, ["e1", "e2"]);
+});
+
+test("parseImportFile: a session/routine with no exerciseIds doesn't gain an empty one", () => {
+  const json = JSON.stringify({ sessions: [{ id: "s1", tags: [], text: "" }], routines: [{ id: "r1", tags: [], text: "" }] });
+  const result = parseImportFile("export.json", json, [], []);
+
+  assert.equal("exerciseIds" in result.sessions[0], false);
+  assert.equal("exerciseIds" in result.routines[0], false);
 });
 
 test("parseImportFile: routines never pick up position/toPosition/giOnly keys", () => {

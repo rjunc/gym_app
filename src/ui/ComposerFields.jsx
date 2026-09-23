@@ -1,5 +1,7 @@
-import { Star } from "lucide-react";
-import { labelStyle, inputStyle } from "./styles.js";
+import { useState } from "react";
+import { Star, X } from "lucide-react";
+import { labelStyle, inputStyle, tagPillStyle } from "./styles.js";
+import TagChip from "./TagChip.jsx";
 
 export function NameField({ form, setForm, nameField, nameLabel, namePlaceholder }) {
   return (
@@ -134,6 +136,66 @@ export function PrescriptionField({ form, setForm }) {
         placeholder="3x8, 30s hold, 5 rounds…"
         style={inputStyle}
       />
+    </div>
+  );
+}
+
+// A multi-select of real Library exercise records, referenced by id — not a
+// free-typed list like tags. Unlike TagsField, you can't invent a new entry
+// inline; it only picks from what's already in the Library. That keeps the
+// link real (survives renaming the exercise later), instead of repeating the
+// name-matching drift problem positions.js already has.
+export function ExercisesField({ form, setForm, exercises, accentVar }) {
+  const [query, setQuery] = useState("");
+  const selectedIds = form.exerciseIds || [];
+  const selected = selectedIds.map((id) => exercises.find((e) => e.id === id)).filter(Boolean);
+
+  const q = query.trim().toLowerCase();
+  const suggestions = exercises
+    .filter((e) => !selectedIds.includes(e.id))
+    .filter((e) => q === "" || e.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 8);
+
+  const addExercise = (id) => {
+    setForm((f) => ({ ...f, exerciseIds: [...(f.exerciseIds || []), id] }));
+    setQuery("");
+  };
+
+  const removeExercise = (id) => setForm((f) => ({ ...f, exerciseIds: (f.exerciseIds || []).filter((x) => x !== id) }));
+
+  return (
+    <div>
+      <label style={labelStyle}>Exercises</label>
+      {selected.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+          {selected.map((e) => (
+            <span key={e.id} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
+              {e.name}
+              <button
+                onClick={() => removeExercise(e.id)}
+                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={exercises.length === 0 ? "No exercises in the Library yet" : "Search exercises…"}
+        disabled={exercises.length === 0}
+        style={inputStyle}
+      />
+      {suggestions.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+          {suggestions.map((e) => (
+            <TagChip key={e.id} small accent={accentVar} label={e.name} onClick={() => addExercise(e.id)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -11,14 +11,17 @@ export function routineOptions(routines, folders) {
 
 // Prefills a session form from a routine without clobbering what's already
 // been typed: the title is only filled if blank, the routine's tags are added
-// to the existing ones, and its text is appended after anything already written
-// (or becomes the text if there's none).
+// to the existing ones, its exercises are added to the existing ones (deduped
+// by id), and its text is appended after anything already written (or becomes
+// the text if there's none).
 export function applyRoutine(form, routine) {
   const existingText = form.text.trim();
+  const existingExerciseIds = new Set(form.exerciseIds || []);
   return {
     ...form,
     title: form.title.trim() ? form.title : routine.name || "",
     tags: (routine.tags || []).reduce((tags, t) => addTagsFromDraft(tags, t), form.tags),
+    exerciseIds: [...(form.exerciseIds || []), ...(routine.exerciseIds || []).filter((id) => !existingExerciseIds.has(id))],
     text: existingText ? `${form.text.trimEnd()}\n\n${routine.text || ""}` : routine.text || "",
   };
 }

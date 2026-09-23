@@ -18,6 +18,7 @@ const SOURCE_META = {
     singular: "Session",
     accent: "--accent",
     canStartFromRoutine: true, // routines are lifting templates; rolls have no equivalent
+    showExercises: true, // links to the exercise Library; rolls have no equivalent
     textLabel: "What did you do?",
     textPlaceholder: "Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with...",
   },
@@ -31,7 +32,7 @@ const SOURCE_META = {
 };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
 
-export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders }) {
+export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises }) {
   const today = todayISO();
   const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
@@ -193,6 +194,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           entriesByType={bySource}
           routines={routines}
           folders={folders}
+          exercises={exercises}
           entry={composer.entry}
           redo={composer.redo}
           // With one type filtered on, that's almost certainly what's being logged.

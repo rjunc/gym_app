@@ -22,7 +22,7 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", activ
 // straight off this list by querying tags, which is why the tag vocabulary
 // here is worth keeping clean (reuse existing tags via the suggestions below
 // rather than typing near-duplicates).
-export default function ExerciseLibraryTab({ exercises, setExercises }) {
+export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], routines = [] }) {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
@@ -38,6 +38,34 @@ export default function ExerciseLibraryTab({ exercises, setExercises }) {
 
   const tagSuggestions = useMemo(() => tagCounts(exercises), [exercises]);
   const untaggedCount = useMemo(() => exercises.filter((e) => (e.tags || []).length === 0).length, [exercises]);
+
+  // Backlinks for "which sessions/routines use this exercise", keyed by
+  // exercise id. Sessions are sorted newest-first so ExerciseCard can just
+  // slice off the most recent few.
+  const sessionsByExercise = useMemo(() => {
+    const map = new Map();
+    sessions.forEach((s) => {
+      (s.exerciseIds || []).forEach((id) => {
+        const list = map.get(id) || [];
+        list.push(s);
+        map.set(id, list);
+      });
+    });
+    map.forEach((list) => list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)));
+    return map;
+  }, [sessions]);
+
+  const routinesByExercise = useMemo(() => {
+    const map = new Map();
+    routines.forEach((r) => {
+      (r.exerciseIds || []).forEach((id) => {
+        const list = map.get(id) || [];
+        list.push(r);
+        map.set(id, list);
+      });
+    });
+    return map;
+  }, [routines]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -105,7 +133,13 @@ export default function ExerciseLibraryTab({ exercises, setExercises }) {
   };
 
   const deleteExercise = (id) => {
-    if (!window.confirm("Delete this exercise? This can't be undone.")) return;
+    const sessionCount = (sessionsByExercise.get(id) || []).length;
+    const routineCount = (routinesByExercise.get(id) || []).length;
+    const parts = [];
+    if (sessionCount > 0) parts.push(`${sessionCount} session${sessionCount === 1 ? "" : "s"}`);
+    if (routineCount > 0) parts.push(`${routineCount} routine${routineCount === 1 ? "" : "s"}`);
+    const warning = parts.length > 0 ? ` Used in ${parts.join(" and ")}.` : "";
+    if (!window.confirm(`Delete this exercise?${warning} This can't be undone.`)) return;
     setExercises((prev) => prev.filter((e) => e.id !== id));
   };
 
@@ -180,6 +214,8 @@ export default function ExerciseLibraryTab({ exercises, setExercises }) {
                 onDelete={() => deleteExercise(e.id)}
                 activeTags={activeTags}
                 onTagClick={toggleTagFilter}
+                usedInSessions={sessionsByExercise.get(e.id) || []}
+                usedInRoutines={routinesByExercise.get(e.id) || []}
               />
             ))}
           </div>

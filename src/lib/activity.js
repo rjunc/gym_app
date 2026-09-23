@@ -42,11 +42,14 @@ export function monthCells(year, month, weekStart = 0) {
 
 // The fields for redoing an entry: a copy of its title, tags and text, dated
 // today. Tags are copied so editing the draft can't touch the original.
+// exerciseIds is only carried over when the source entry actually has it
+// (sessions do, journals/rolls don't), so redoing a journal doesn't grow one.
 export const redoFields = (entry, today) => ({
   date: today,
   title: entry.title || "",
   tags: [...(entry.tags || [])],
   text: entry.text || "",
+  ...(Array.isArray(entry.exerciseIds) ? { exerciseIds: [...entry.exerciseIds] } : {}),
 });
 
 // Shifts a { year, month } pair by `delta` months, rolling the year over.

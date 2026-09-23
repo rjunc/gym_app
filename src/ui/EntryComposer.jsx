@@ -1,6 +1,16 @@
 import { X } from "lucide-react";
 import { labelStyle, inputStyle, primaryBtnStyle } from "./styles.js";
-import { NameField, DateField, FolderField, PositionsField, StarField, GiOnlyField, PrescriptionField, ActiveField } from "./ComposerFields.jsx";
+import {
+  NameField,
+  DateField,
+  FolderField,
+  PositionsField,
+  StarField,
+  GiOnlyField,
+  PrescriptionField,
+  ActiveField,
+  ExercisesField,
+} from "./ComposerFields.jsx";
 import TagsField from "./TagsField.jsx";
 
 export default function EntryComposer({
@@ -33,6 +43,10 @@ export default function EntryComposer({
   // generates for you at random (e.g. a future routine builder).
   showActive,
   activeLabel = "Active — include when randomly building routines",
+  // A multi-select linking this routine/session to Library exercises, so the
+  // Library can show you back which sessions/routines use a given exercise.
+  showExercises,
+  exerciseOptions = [],
   textLabel,
   textPlaceholder,
   saveLabel,
@@ -90,6 +104,8 @@ export default function EntryComposer({
         {showPrescription && <PrescriptionField form={form} setForm={setForm} />}
 
         {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
+
+        {showExercises && <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} />}
 
         <TagsField
           form={form}

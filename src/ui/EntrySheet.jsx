@@ -12,18 +12,25 @@ import { labelStyle, inputStyle } from "./styles.js";
 // textPlaceholder }; `entriesByType` maps the same keys to the existing entries,
 // which feed the tag suggestions for whichever type is selected. Types flagged
 // `canStartFromRoutine` offer a "Start from a routine" picker (when adding) fed
-// by `routines` and `folders`. Pass `entry` to edit, or `redo` (an existing
-// entry) to add a new one copied from it and dated `initialDate`; with neither,
-// it starts blank on `initialType` and `initialDate`.
-export default function EntrySheet({ types, entriesByType, routines, folders, entry, redo, initialType, initialDate, onSave, onClose }) {
+// by `routines` and `folders`. Types flagged `showExercises` (sessions only)
+// offer the Library exercise picker, fed by `exercises`. Pass `entry` to edit,
+// or `redo` (an existing entry) to add a new one copied from it and dated
+// `initialDate`; with neither, it starts blank on `initialType` and `initialDate`.
+export default function EntrySheet({ types, entriesByType, routines, folders, exercises = [], entry, redo, initialType, initialDate, onSave, onClose }) {
   const isEdit = !!entry;
   const [type, setType] = useState(isEdit ? entry.source : redo ? redo.source : initialType);
   const [form, setForm] = useState(
     isEdit
-      ? { date: entry.date, title: entry.title || "", tags: [...(entry.tags || [])], text: entry.text || "" }
+      ? {
+          date: entry.date,
+          title: entry.title || "",
+          tags: [...(entry.tags || [])],
+          text: entry.text || "",
+          exerciseIds: [...(entry.exerciseIds || [])],
+        }
       : redo
         ? redoFields(redo, initialDate)
-        : { date: initialDate, title: "", tags: [], text: "" }
+        : { date: initialDate, title: "", tags: [], text: "", exerciseIds: [] }
   );
   const [tagDraft, setTagDraft] = useState("");
 
@@ -50,7 +57,9 @@ export default function EntrySheet({ types, entriesByType, routines, folders, en
     if (!canSave) return;
     // A tag typed but never confirmed with Enter/Add would otherwise be lost.
     const tags = addTagsFromDraft(form.tags, tagDraft);
-    onSave(type, { date: form.date, title: form.title.trim(), tags, text: form.text });
+    const fields = { date: form.date, title: form.title.trim(), tags, text: form.text };
+    if (meta.showExercises) fields.exerciseIds = form.exerciseIds || [];
+    onSave(type, fields);
   };
 
   return (
@@ -96,6 +105,8 @@ export default function EntrySheet({ types, entriesByType, routines, folders, en
       nameField="title"
       nameLabel="Title"
       namePlaceholder="Optional title…"
+      showExercises={meta.showExercises}
+      exerciseOptions={exercises}
       textLabel={meta.textLabel}
       textPlaceholder={meta.textPlaceholder}
       saveLabel={isEdit ? "Save changes" : "Save entry"}

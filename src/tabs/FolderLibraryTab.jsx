@@ -33,6 +33,8 @@ export default function FolderLibraryTab({
   showPositions = false,
   showStar = false,
   showGiOnly = false,
+  showExercises = false,
+  exercises = [],
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
@@ -42,7 +44,17 @@ export default function FolderLibraryTab({
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({ name: "", tags: [], text: "", folderId: null, position: "", toPosition: "", starred: false, giOnly: false });
+  const [form, setForm] = useState({
+    name: "",
+    tags: [],
+    text: "",
+    folderId: null,
+    position: "",
+    toPosition: "",
+    starred: false,
+    giOnly: false,
+    ...(showExercises ? { exerciseIds: [] } : {}),
+  });
   const [tagDraft, setTagDraft] = useState("");
   const tagSuggestions = useMemo(() => tagCounts(items), [items]);
   const [newFolderName, setNewFolderName] = useState("");
@@ -143,7 +155,17 @@ export default function FolderLibraryTab({
   };
 
   const resetForm = () => {
-    setForm({ name: "", tags: [], text: "", folderId: currentFolderId, position: "", toPosition: "", starred: false, giOnly: false });
+    setForm({
+      name: "",
+      tags: [],
+      text: "",
+      folderId: currentFolderId,
+      position: "",
+      toPosition: "",
+      starred: false,
+      giOnly: false,
+      ...(showExercises ? { exerciseIds: [] } : {}),
+    });
     setTagDraft("");
     setEditingId(null);
   };
@@ -163,6 +185,7 @@ export default function FolderLibraryTab({
       toPosition: item.toPosition || "",
       starred: !!item.starred,
       giOnly: !!item.giOnly,
+      ...(showExercises ? { exerciseIds: [...(item.exerciseIds || [])] } : {}),
     });
     setEditingId(item.id);
     setShowComposer(true);
@@ -414,6 +437,8 @@ export default function FolderLibraryTab({
           positionOptions={positionOptions}
           showStar={showStar}
           showGiOnly={showGiOnly}
+          showExercises={showExercises}
+          exerciseOptions={exercises}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : `Save ${itemNoun}`}

@@ -1,6 +1,6 @@
 import SimpleEntryTab from "./SimpleEntryTab.jsx";
 
-export default function SessionsTab({ sessions, setSessions }) {
+export default function SessionsTab({ sessions, setSessions, exercises }) {
   return (
     <SimpleEntryTab
       entries={sessions}
@@ -12,6 +12,8 @@ export default function SessionsTab({ sessions, setSessions }) {
       textLabel="What did you do?"
       canRedo
       textPlaceholder="Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with..."
+      showExercises
+      exercises={exercises}
     />
   );
 }
