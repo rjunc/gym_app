@@ -173,7 +173,7 @@ export default function App({ uid, userEmail, onLogout }) {
               exercises={exercises}
             />
           ) : page === "sessions" ? (
-            <SessionsTab sessions={sessions} setSessions={setSessions} exercises={exercises} />
+            <SessionsTab sessions={sessions} setSessions={setSessions} exercises={exercises} routines={routines} folders={folders} />
           ) : page === "journals" ? (
             <JournalsTab journals={journals} setJournals={setJournals} />
           ) : page === "routines" ? (

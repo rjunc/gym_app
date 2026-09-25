@@ -4,6 +4,7 @@ import { uid, todayISO } from "../lib/id.js";
 import { matchesTags, redoFields } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import { recentExerciseCounts } from "../lib/exercises.js";
+import { routineOptions } from "../lib/routines.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SimpleEntryCard from "./SimpleEntryCard.jsx";
@@ -27,6 +28,10 @@ export default function SimpleEntryTab({
   // this field at all, not even an empty one).
   showExercises = false,
   exercises = [],
+  // Offers a picker that copies routines into the entry (Sessions only).
+  showRoutines = false,
+  routines = [],
+  folders = [],
 }) {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
@@ -45,6 +50,8 @@ export default function SimpleEntryTab({
     () => (showExercises ? recentExerciseCounts(entries, todayISO()) : undefined),
     [entries, showExercises]
   );
+
+  const routineChoices = useMemo(() => (showRoutines ? routineOptions(routines, folders) : []), [showRoutines, routines, folders]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -196,6 +203,9 @@ export default function SimpleEntryTab({
           nameField="title"
           nameLabel="Title"
           namePlaceholder="Optional title…"
+          showRoutines={showRoutines}
+          routines={routines}
+          routineOptions={routineChoices}
           showExercises={showExercises}
           exerciseOptions={exercises}
           exerciseRecentCounts={exerciseRecentCounts}

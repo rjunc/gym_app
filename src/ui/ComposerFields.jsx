@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Star, X } from "lucide-react";
+import { Star, X, Check } from "lucide-react";
 import { labelStyle, inputStyle, tagPillStyle } from "./styles.js";
+import { applyRoutine } from "../lib/routines.js";
 import TagChip from "./TagChip.jsx";
 
 export function NameField({ form, setForm, nameField, nameLabel, namePlaceholder }) {
@@ -206,6 +207,64 @@ export function ExercisesField({ form, setForm, exercises, accentVar, recentCoun
               <TagChip key={e.id} small accent={accentVar} label={e.name} onClick={() => addExercise(e.id)} />
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Adds routines to a session the way ExercisesField adds exercises, except a
+// routine isn't linked: tapping one copies its tags, exercises and text into
+// the form (see applyRoutine) and from then on it's just ordinary form content.
+// Several can be added, each appending after the last. The "Added" pills are
+// only a reminder for this draft — they have no remove button because what a
+// routine brought in has already merged with everything else in the form.
+// `options` is routineOptions() output, already sorted alphabetically by
+// folder path.
+export function RoutinesField({ setForm, routines, options, accentVar }) {
+  const [query, setQuery] = useState("");
+  const [addedIds, setAddedIds] = useState([]);
+  const added = addedIds.map((id) => options.find((o) => o.id === id)).filter(Boolean);
+
+  const q = query.trim().toLowerCase();
+  const suggestions = options
+    .filter((o) => !addedIds.includes(o.id))
+    .filter((o) => q === "" || o.label.toLowerCase().includes(q))
+    .slice(0, 8);
+
+  const addRoutine = (id) => {
+    const routine = routines.find((r) => r.id === id);
+    if (!routine) return;
+    setForm((f) => applyRoutine(f, routine));
+    setAddedIds((ids) => [...ids, id]);
+    setQuery("");
+  };
+
+  return (
+    <div>
+      <label style={labelStyle}>Routines</label>
+      {added.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+          {added.map((o) => (
+            <span key={o.id} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
+              <Check size={11} />
+              {o.label}
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={options.length === 0 ? "No routines yet" : "Search routines to add…"}
+        disabled={options.length === 0}
+        style={inputStyle}
+      />
+      {suggestions.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+          {suggestions.map((o) => (
+            <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(o.id)} />
+          ))}
         </div>
       )}
     </div>

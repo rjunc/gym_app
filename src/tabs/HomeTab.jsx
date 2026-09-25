@@ -17,7 +17,7 @@ const SOURCE_META = {
     label: "Sessions",
     singular: "Session",
     accent: "--accent",
-    canStartFromRoutine: true, // routines are lifting templates; rolls have no equivalent
+    showRoutines: true, // routines are lifting templates; rolls have no equivalent
     showExercises: true, // links to the exercise Library; rolls have no equivalent
     textLabel: "What did you do?",
     textPlaceholder: "Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with...",

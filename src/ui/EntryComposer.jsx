@@ -10,6 +10,7 @@ import {
   PrescriptionField,
   ActiveField,
   ExercisesField,
+  RoutinesField,
 } from "./ComposerFields.jsx";
 import TagsField from "./TagsField.jsx";
 
@@ -54,6 +55,12 @@ export default function EntryComposer({
   // lib/exercises.js), used to rank the picker's suggestions by recent
   // frequency instead of alphabetically. Sessions pass this; routines don't.
   exerciseRecentCounts,
+  // A picker that copies routines (tags, exercises, text) into the form, any
+  // number of them (Sessions only). `routineOptions` is routineOptions()
+  // output; `routines` are the records it points at.
+  showRoutines,
+  routines = [],
+  routineOptions = [],
   textLabel,
   textPlaceholder,
   saveLabel,
@@ -112,6 +119,8 @@ export default function EntryComposer({
         {showPrescription && <PrescriptionField form={form} setForm={setForm} />}
 
         {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
+
+        {showRoutines && <RoutinesField setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} />}
 
         {showExercises && (
           <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} recentCounts={exerciseRecentCounts} />

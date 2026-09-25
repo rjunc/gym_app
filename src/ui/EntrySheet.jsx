@@ -1,23 +1,24 @@
 import { useState, useMemo } from "react";
 import { addTagsFromDraft, tagCounts } from "../lib/tags.js";
-import { routineOptions, applyRoutine } from "../lib/routines.js";
+import { routineOptions } from "../lib/routines.js";
 import { recentExerciseCounts } from "../lib/exercises.js";
 import { redoFields } from "../lib/activity.js";
 import { todayISO } from "../lib/id.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
-import { labelStyle, inputStyle } from "./styles.js";
+import { labelStyle } from "./styles.js";
 
 // Bottom sheet for logging a new entry or editing one from Home. Owns its own
 // draft state and hands back (type, fields) on save; the caller decides where
 // that goes. `types` maps a type key to its { singular, accent, textLabel,
 // textPlaceholder }; `entriesByType` maps the same keys to the existing entries,
 // which feed the tag suggestions for whichever type is selected. Types flagged
-// `canStartFromRoutine` offer a "Start from a routine" picker (when adding) fed
-// by `routines` and `folders`. Types flagged `showExercises` (sessions only)
-// offer the Library exercise picker, fed by `exercises`. Pass `entry` to edit,
-// or `redo` (an existing entry) to add a new one copied from it and dated
-// `initialDate`; with neither, it starts blank on `initialType` and `initialDate`.
+// `showRoutines` offer a picker for adding routines into the form (any number,
+// in add, edit or redo alike) fed by `routines` and `folders`. Types flagged
+// `showExercises` (sessions only) offer the Library exercise picker, fed by
+// `exercises`. Pass `entry` to edit, or `redo` (an existing entry) to add a new
+// one copied from it and dated `initialDate`; with neither, it starts blank on
+// `initialType` and `initialDate`.
 export default function EntrySheet({ types, entriesByType, routines, folders, exercises = [], entry, redo, initialType, initialDate, onSave, onClose }) {
   const isEdit = !!entry;
   const [type, setType] = useState(isEdit ? entry.source : redo ? redo.source : initialType);
@@ -49,12 +50,6 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
   );
 
   const routineChoices = useMemo(() => routineOptions(routines, folders), [routines, folders]);
-  const showRoutines = !isEdit && !redo && meta.canStartFromRoutine && routineChoices.length > 0;
-
-  const startFromRoutine = (id) => {
-    const routine = routines.find((r) => r.id === id);
-    if (routine) setForm((f) => applyRoutine(f, routine));
-  };
 
   const addTag = () => {
     setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tagDraft) }));
@@ -83,36 +78,23 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
       onClose={onClose}
       saveDisabled={!canSave}
       topContent={
-        <>
-          <div>
-            <span style={labelStyle}>Type</span>
-            <SegmentedToggle
-              options={Object.entries(types).map(([key, t]) => ({ key, label: t.singular, accent: t.accent }))}
-              value={type}
-              setValue={setType}
-            />
-          </div>
-          {showRoutines && (
-            <div>
-              <label style={labelStyle}>Start from a routine</label>
-              {/* Always reset to the placeholder: picking is an action that fills the form, not a stored value. */}
-              <select value="" onChange={(e) => startFromRoutine(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
-                <option value="">Choose a routine…</option>
-                {routineChoices.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </>
+        <div>
+          <span style={labelStyle}>Type</span>
+          <SegmentedToggle
+            options={Object.entries(types).map(([key, t]) => ({ key, label: t.singular, accent: t.accent }))}
+            value={type}
+            setValue={setType}
+          />
+        </div>
       }
       showDate
       showName
       nameField="title"
       nameLabel="Title"
       namePlaceholder="Optional title…"
+      showRoutines={meta.showRoutines}
+      routines={routines}
+      routineOptions={routineChoices}
       showExercises={meta.showExercises}
       exerciseOptions={exercises}
       exerciseRecentCounts={exerciseRecentCounts}
