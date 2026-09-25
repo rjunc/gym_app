@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, FolderPlus, X } from "lucide-react";
+import { Plus, FolderPlus, X } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { folderPath } from "../lib/folders.js";
+import { matchesSearch, folderItemSearchFields, exerciseNameMap } from "../lib/search.js";
 import { collectPositions } from "../lib/positions.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
@@ -9,6 +10,7 @@ import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
+import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
 import FolderRow from "./FolderRow.jsx";
@@ -38,6 +40,7 @@ export default function FolderLibraryTab({
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
+  const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [giMode, setGiMode] = useState("gi");
@@ -93,24 +96,21 @@ export default function FolderLibraryTab({
     [visibleItems, currentFolderId]
   );
 
+  const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
+
   const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return visibleItems
       .filter((r) => {
-        const matchesSearch =
-          q === "" ||
-          r.name.toLowerCase().includes(q) ||
-          (r.text || "").toLowerCase().includes(q) ||
-          (r.tags || []).some((t) => t.toLowerCase().includes(q));
+        const matchesText = matchesSearch(folderItemSearchFields(r, folders, exerciseNameById), search, searchMatchMode);
         const matchesTags =
           activeTags.length === 0 ||
           (tagMatchMode === "any"
             ? activeTags.some((t) => (r.tags || []).includes(t))
             : activeTags.every((t) => (r.tags || []).includes(t)));
-        return matchesSearch && matchesTags;
+        return matchesText && matchesTags;
       })
       .sort(byStarThenName);
-  }, [visibleItems, search, activeTags, tagMatchMode]);
+  }, [visibleItems, search, searchMatchMode, folders, exerciseNameById, activeTags, tagMatchMode]);
 
   const breadcrumb = folderPath(folders, currentFolderId);
 
@@ -250,15 +250,14 @@ export default function FolderLibraryTab({
           </div>
         )}
 
-        <div style={{ position: "relative", marginBottom: 10 }}>
-          <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={searchPlaceholder}
-            style={{ ...inputStyle, padding: "9px 10px 9px 32px" }}
-          />
-        </div>
+        <SearchBox
+          value={search}
+          setValue={setSearch}
+          matchMode={searchMatchMode}
+          setMatchMode={setSearchMatchMode}
+          placeholder={searchPlaceholder}
+          accent={accent}
+        />
 
         {allTags.length > 0 && (
           // Capped and independently scrollable so a large tag vocabulary

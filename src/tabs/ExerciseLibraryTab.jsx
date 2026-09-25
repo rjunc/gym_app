@@ -1,15 +1,17 @@
 import { useState, useMemo } from "react";
-import { Search, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { matchesTags } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import { entriesByExercise } from "../lib/exercises.js";
+import { matchesSearch, exerciseSearchFields } from "../lib/search.js";
 import TagChip from "../ui/TagChip.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
+import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import ExerciseCard from "./ExerciseCard.jsx";
-import { inputStyle, primaryBtnStyle } from "../ui/styles.js";
+import { primaryBtnStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent2"; // matches Routines/Techniques, the other library-style tabs
 
@@ -25,6 +27,7 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", activ
 // rather than typing near-duplicates).
 export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [] }) {
   const [search, setSearch] = useState("");
+  const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
   const [status, setStatus] = useState("active"); // "active" | "inactive" | "all"
@@ -47,26 +50,21 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   const routinesByExercise = useMemo(() => entriesByExercise(routines), [routines]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return exercises
       .filter((e) => {
         const matchesStatus = status === "all" || (status === "active" ? e.active !== false : e.active === false);
-        const matchesSearch =
-          q === "" ||
-          (e.name || "").toLowerCase().includes(q) ||
-          (e.text || "").toLowerCase().includes(q) ||
-          (e.tags || []).some((t) => t.toLowerCase().includes(q));
+        const matchesText = matchesSearch(exerciseSearchFields(e), search, searchMatchMode);
         // Untagged mode is its own filter — an untagged exercise can never
         // match a tag filter, so the two would otherwise always empty the list.
         const matchesTagScope = untaggedOnly ? (e.tags || []).length === 0 : matchesTags(e.tags, activeTags, tagMatchMode);
-        return matchesStatus && matchesSearch && matchesTagScope;
+        return matchesStatus && matchesText && matchesTagScope;
       })
       .slice()
       .sort((a, b) => {
         const byStatus = (a.active === false ? 1 : 0) - (b.active === false ? 1 : 0);
         return byStatus !== 0 ? byStatus : (a.name || "").localeCompare(b.name || "");
       });
-  }, [exercises, search, activeTags, tagMatchMode, status, untaggedOnly]);
+  }, [exercises, search, searchMatchMode, activeTags, tagMatchMode, status, untaggedOnly]);
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -147,15 +145,14 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
           </button>
         </div>
 
-        <div style={{ position: "relative", marginBottom: 10 }}>
-          <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search exercises or tags…"
-            style={{ ...inputStyle, padding: "9px 10px 9px 32px" }}
-          />
-        </div>
+        <SearchBox
+          value={search}
+          setValue={setSearch}
+          matchMode={searchMatchMode}
+          setMatchMode={setSearchMatchMode}
+          placeholder="Search text, tags, prescription…"
+          accent={ACCENT}
+        />
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           <SegmentedToggle

@@ -10,7 +10,7 @@ export default function TechniquesTab({ folders, setFolders, techniques, setTech
       eyebrow="Library"
       heading="Techniques"
       itemNoun="technique"
-      searchPlaceholder="Search techniques or tags…"
+      searchPlaceholder="Search text, folders, positions…"
       emptyLabel='No techniques yet. Tap "New technique" or add a folder to start organizing your library.'
       namePlaceholder="Scissor sweep, cross collar choke from mount…"
       textLabel="Technique notes"

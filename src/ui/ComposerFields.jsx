@@ -145,7 +145,8 @@ export function PrescriptionField({ form, setForm }) {
 // free-typed list like tags. Unlike TagsField, you can't invent a new entry
 // inline; it only picks from what's already in the Library. That keeps the
 // link real (survives renaming the exercise later), instead of repeating the
-// name-matching drift problem positions.js already has.
+// name-matching drift problem positions.js already has. Typing matches an
+// exercise's name or its tags, so "legs" suggests everything tagged legs.
 // `recentCounts` (a Map of exercise id -> count in the last 30 days, see
 // lib/exercises.js) is optional: when given, suggestions rank by that count
 // first so the picker leads with what you've actually been training lately,
@@ -161,7 +162,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, recentCoun
   const countOf = (id) => (recentCounts ? recentCounts.get(id) || 0 : 0);
   const suggestions = exercises
     .filter((e) => !selectedIds.includes(e.id))
-    .filter((e) => q === "" || e.name.toLowerCase().includes(q))
+    .filter((e) => q === "" || e.name.toLowerCase().includes(q) || (e.tags || []).some((t) => t.toLowerCase().includes(q)))
     .sort((a, b) => (recentCounts ? countOf(b.id) - countOf(a.id) : 0) || a.name.localeCompare(b.name))
     .slice(0, 8);
 
@@ -193,7 +194,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, recentCoun
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={exercises.length === 0 ? "No exercises in the Library yet" : "Search exercises…"}
+        placeholder={exercises.length === 0 ? "No exercises in the Library yet" : "Search exercises or tags…"}
         disabled={exercises.length === 0}
         style={inputStyle}
       />

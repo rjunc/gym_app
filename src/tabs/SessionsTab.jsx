@@ -7,7 +7,7 @@ export default function SessionsTab({ sessions, setSessions, exercises, routines
       setEntries={setSessions}
       eyebrow="Training journal"
       heading="Session Log"
-      searchPlaceholder="Search entries or tags…"
+      searchPlaceholder="Search text, tags, exercises…"
       emptyLabel='No sessions logged yet. Tap "New entry" to write your first one.'
       textLabel="What did you do?"
       canRedo

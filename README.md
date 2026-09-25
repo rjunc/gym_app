@@ -124,6 +124,14 @@ Data** if you want to fully remove a test account's footprint.
   text — Home was deliberately kept to date/tag filtering only, to avoid
   cluttering the page with a search box. Revisit whether journals belong on
   Home too, e.g. as a third opt-in type alongside Sessions/Rolls.
+- **Search gaps, left alone on purpose (2026-09-25).** Every list page's
+  search box now shares one matcher (`src/lib/search.js`: words matched
+  across all of an item's fields, with an All words / Any word toggle).
+  Deliberately not included: dates (the Home calendar covers that, and
+  number searches like "225" would start matching them), a text search on
+  Home or Flow (both stay tag/position filtering only), and the in-form
+  pickers, which stay name-only apart from the Exercises picker also
+  matching exercise tags. Revisit any of these if they turn out to be missed.
 - **A random routine builder, drawing from the Library.** Idea: pick one
   random exercise per tag/category (a `mobility` one, a `strength` one, a
   `cardio` one, ...) to assemble a day's routine automatically. The Library

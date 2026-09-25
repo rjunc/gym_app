@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
-import { Search, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { uid, todayISO } from "../lib/id.js";
 import { matchesTags, redoFields } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import { recentExerciseCounts } from "../lib/exercises.js";
 import { routineOptions } from "../lib/routines.js";
+import { matchesSearch, entrySearchFields, exerciseNameMap } from "../lib/search.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
+import SearchBox from "../ui/SearchBox.jsx";
 import SimpleEntryCard from "./SimpleEntryCard.jsx";
-import { inputStyle, primaryBtnStyle } from "../ui/styles.js";
+import { primaryBtnStyle } from "../ui/styles.js";
 
 // Sessions and journals are both just a flat, most-recent-first list of dated
 // entries with tags — no folders. Both tabs are thin wrappers around this.
@@ -34,6 +36,7 @@ export default function SimpleEntryTab({
   folders = [],
 }) {
   const [search, setSearch] = useState("");
+  const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [expanded, setExpanded] = useState(null);
@@ -53,20 +56,18 @@ export default function SimpleEntryTab({
 
   const routineChoices = useMemo(() => (showRoutines ? routineOptions(routines, folders) : []), [showRoutines, routines, folders]);
 
+  const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return entries
-      .filter((s) => {
-        const matchesSearch =
-          q === "" ||
-          (s.title || "").toLowerCase().includes(q) ||
-          (s.text || "").toLowerCase().includes(q) ||
-          (s.tags || []).some((t) => t.toLowerCase().includes(q));
-        return matchesSearch && matchesTags(s.tags, activeTags, tagMatchMode);
-      })
+      .filter(
+        (s) =>
+          matchesSearch(entrySearchFields(s, exerciseNameById), search, searchMatchMode) &&
+          matchesTags(s.tags, activeTags, tagMatchMode)
+      )
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [entries, search, activeTags, tagMatchMode]);
+  }, [entries, search, searchMatchMode, exerciseNameById, activeTags, tagMatchMode]);
 
   const resetForm = () => {
     setForm({ date: todayISO(), title: "", tags: [], text: "", ...(showExercises ? { exerciseIds: [] } : {}) });
@@ -139,15 +140,14 @@ export default function SimpleEntryTab({
           </button>
         </div>
 
-        <div style={{ position: "relative", marginBottom: 10 }}>
-          <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={searchPlaceholder}
-            style={{ ...inputStyle, padding: "9px 10px 9px 32px" }}
-          />
-        </div>
+        <SearchBox
+          value={search}
+          setValue={setSearch}
+          matchMode={searchMatchMode}
+          setMatchMode={setSearchMatchMode}
+          placeholder={searchPlaceholder}
+          accent={accent}
+        />
 
         <TagFilter
           entries={entries}

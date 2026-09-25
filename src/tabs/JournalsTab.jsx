@@ -7,7 +7,7 @@ export default function JournalsTab({ journals, setJournals, exercises, routines
       setEntries={setJournals}
       eyebrow="Personal journal"
       heading="Journal"
-      searchPlaceholder="Search journal entries or tags…"
+      searchPlaceholder="Search text, tags, exercises…"
       emptyLabel='No journal entries yet. Tap "New entry" to write your first one.'
       textLabel="What's on your mind?"
       textPlaceholder="How training's feeling, energy levels, sleep, motivation, anything worth remembering..."

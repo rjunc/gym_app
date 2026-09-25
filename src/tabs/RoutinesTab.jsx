@@ -10,7 +10,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
       eyebrow="Library"
       heading="Routines"
       itemNoun="routine"
-      searchPlaceholder="Search routines or tags…"
+      searchPlaceholder="Search text, folders, exercises…"
       emptyLabel='No routines yet. Tap "New routine" or add a folder to start organizing your library.'
       namePlaceholder="Push day A, 20-min plyo circuit…"
       textLabel="Routine details"
