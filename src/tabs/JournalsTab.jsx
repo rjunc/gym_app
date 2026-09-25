@@ -1,6 +1,6 @@
 import SimpleEntryTab from "./SimpleEntryTab.jsx";
 
-export default function JournalsTab({ journals, setJournals }) {
+export default function JournalsTab({ journals, setJournals, exercises, routines, folders }) {
   return (
     <SimpleEntryTab
       entries={journals}
@@ -12,6 +12,11 @@ export default function JournalsTab({ journals, setJournals }) {
       textLabel="What's on your mind?"
       textPlaceholder="How training's feeling, energy levels, sleep, motivation, anything worth remembering..."
       accent="--accent3"
+      showExercises
+      exercises={exercises}
+      showRoutines
+      routines={routines}
+      folders={folders}
     />
   );
 }

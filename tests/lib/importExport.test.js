@@ -69,6 +69,13 @@ test("CSV export includes exercise names as a readable column, but import doesn'
   assert.equal("exerciseIds" in result.routines[0], false);
 });
 
+test("CSV export lists a journal entry's linked exercise names", () => {
+  const linkedJournals = [{ id: "j1", date: "2026-09-01", title: "", tags: [], text: "Knee felt fine", exerciseIds: ["e1"] }];
+  const csv = combinedToCSV([], [], linkedJournals, [], [], [], [], exercises);
+  const journalLine = csv.split(/\r?\n/).find((line) => line.startsWith("journal,"));
+  assert.ok(journalLine.endsWith("Goblet squat"));
+});
+
 test("CSV round trip survives commas, quotes, and embedded newlines", () => {
   const nasty = [
     {

@@ -3,6 +3,7 @@ import { Search, Plus } from "lucide-react";
 import { uid } from "../lib/id.js";
 import { matchesTags } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
+import { entriesByExercise } from "../lib/exercises.js";
 import TagChip from "../ui/TagChip.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
@@ -22,7 +23,7 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", activ
 // straight off this list by querying tags, which is why the tag vocabulary
 // here is worth keeping clean (reuse existing tags via the suggestions below
 // rather than typing near-duplicates).
-export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], routines = [] }) {
+export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [] }) {
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
@@ -39,33 +40,11 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   const tagSuggestions = useMemo(() => tagCounts(exercises), [exercises]);
   const untaggedCount = useMemo(() => exercises.filter((e) => (e.tags || []).length === 0).length, [exercises]);
 
-  // Backlinks for "which sessions/routines use this exercise", keyed by
-  // exercise id. Sessions are sorted newest-first so ExerciseCard can just
-  // slice off the most recent few.
-  const sessionsByExercise = useMemo(() => {
-    const map = new Map();
-    sessions.forEach((s) => {
-      (s.exerciseIds || []).forEach((id) => {
-        const list = map.get(id) || [];
-        list.push(s);
-        map.set(id, list);
-      });
-    });
-    map.forEach((list) => list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)));
-    return map;
-  }, [sessions]);
-
-  const routinesByExercise = useMemo(() => {
-    const map = new Map();
-    routines.forEach((r) => {
-      (r.exerciseIds || []).forEach((id) => {
-        const list = map.get(id) || [];
-        list.push(r);
-        map.set(id, list);
-      });
-    });
-    return map;
-  }, [routines]);
+  // Backlinks for "which sessions/journal entries/routines use this
+  // exercise", keyed by exercise id.
+  const sessionsByExercise = useMemo(() => entriesByExercise(sessions), [sessions]);
+  const journalsByExercise = useMemo(() => entriesByExercise(journals), [journals]);
+  const routinesByExercise = useMemo(() => entriesByExercise(routines), [routines]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -141,11 +120,14 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
 
   const deleteExercise = (id) => {
     const sessionCount = (sessionsByExercise.get(id) || []).length;
+    const journalCount = (journalsByExercise.get(id) || []).length;
     const routineCount = (routinesByExercise.get(id) || []).length;
     const parts = [];
     if (sessionCount > 0) parts.push(`${sessionCount} session${sessionCount === 1 ? "" : "s"}`);
+    if (journalCount > 0) parts.push(`${journalCount} journal entr${journalCount === 1 ? "y" : "ies"}`);
     if (routineCount > 0) parts.push(`${routineCount} routine${routineCount === 1 ? "" : "s"}`);
-    const warning = parts.length > 0 ? ` Used in ${parts.join(" and ")}.` : "";
+    const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
+    const warning = parts.length > 0 ? ` Used in ${list}.` : "";
     if (!window.confirm(`Delete this exercise?${warning} This can't be undone.`)) return;
     setExercises((prev) => prev.filter((e) => e.id !== id));
   };
@@ -222,6 +204,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
                 activeTags={activeTags}
                 onTagClick={toggleTagFilter}
                 usedInSessions={sessionsByExercise.get(e.id) || []}
+                usedInJournals={journalsByExercise.get(e.id) || []}
                 usedInRoutines={routinesByExercise.get(e.id) || []}
               />
             ))}

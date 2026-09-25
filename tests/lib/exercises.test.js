@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { recentExerciseCounts } from "../../src/lib/exercises.js";
+import { recentExerciseCounts, entriesByExercise } from "../../src/lib/exercises.js";
 
 const today = "2026-09-22";
 
@@ -41,4 +41,24 @@ test("recentExerciseCounts tolerates sessions with no exerciseIds or a malformed
 
 test("recentExerciseCounts returns an empty map for no sessions", () => {
   assert.equal(recentExerciseCounts([], today).size, 0);
+});
+
+test("entriesByExercise maps each exercise id to the entries linking it, newest first", () => {
+  const journals = [
+    { id: "j1", date: "2026-09-10", exerciseIds: ["e1"] },
+    { id: "j2", date: "2026-09-20", exerciseIds: ["e1", "e2"] },
+    { id: "j3", date: "2026-09-15" },
+  ];
+  const map = entriesByExercise(journals);
+  assert.deepEqual(map.get("e1").map((j) => j.id), ["j2", "j1"]);
+  assert.deepEqual(map.get("e2").map((j) => j.id), ["j2"]);
+  assert.equal(map.has("e3"), false);
+});
+
+test("entriesByExercise keeps undated entries (routines) in their original order", () => {
+  const routines = [
+    { id: "r1", exerciseIds: ["e1"] },
+    { id: "r2", exerciseIds: ["e1"] },
+  ];
+  assert.deepEqual(entriesByExercise(routines).get("e1").map((r) => r.id), ["r1", "r2"]);
 });

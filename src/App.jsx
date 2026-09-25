@@ -175,11 +175,11 @@ export default function App({ uid, userEmail, onLogout }) {
           ) : page === "sessions" ? (
             <SessionsTab sessions={sessions} setSessions={setSessions} exercises={exercises} routines={routines} folders={folders} />
           ) : page === "journals" ? (
-            <JournalsTab journals={journals} setJournals={setJournals} />
+            <JournalsTab journals={journals} setJournals={setJournals} exercises={exercises} routines={routines} folders={folders} />
           ) : page === "routines" ? (
             <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} exercises={exercises} />
           ) : page === "library" ? (
-            <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} routines={routines} />
+            <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} />
           ) : page === "rolls" ? (
             <RollsTab rolls={rolls} setRolls={setRolls} />
           ) : page === "techniques" ? (

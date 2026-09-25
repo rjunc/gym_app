@@ -24,11 +24,11 @@ export default function SimpleEntryTab({
   accent = "--accent",
   // Adds a "Redo" button to each entry that starts a new one from it, dated today.
   canRedo = false,
-  // Links an entry to Library exercises (Sessions only — Journals don't get
-  // this field at all, not even an empty one).
+  // Links an entry to Library exercises (Sessions and Journals — Rolls don't
+  // get this field at all, not even an empty one).
   showExercises = false,
   exercises = [],
-  // Offers a picker that copies routines into the entry (Sessions only).
+  // Offers a picker that copies routines into the entry (Sessions and Journals).
   showRoutines = false,
   routines = [],
   folders = [],
@@ -44,8 +44,8 @@ export default function SimpleEntryTab({
   const [tagDraft, setTagDraft] = useState("");
 
   const tagSuggestions = useMemo(() => tagCounts(entries), [entries]);
-  // Only meaningful for Sessions (showExercises); ranks the Exercises picker
-  // by what's actually been trained in the last 30 days.
+  // Only meaningful with showExercises; ranks the Exercises picker by what's
+  // actually been linked in this tab's entries in the last 30 days.
   const exerciseRecentCounts = useMemo(
     () => (showExercises ? recentExerciseCounts(entries, todayISO()) : undefined),
     [entries, showExercises]

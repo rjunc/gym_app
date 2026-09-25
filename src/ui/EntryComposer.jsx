@@ -53,10 +53,10 @@ export default function EntryComposer({
   exerciseOptions = [],
   // Optional Map of exercise id -> count in the last 30 days (see
   // lib/exercises.js), used to rank the picker's suggestions by recent
-  // frequency instead of alphabetically. Sessions pass this; routines don't.
+  // frequency instead of alphabetically. Sessions and journals pass this; routines don't.
   exerciseRecentCounts,
   // A picker that copies routines (tags, exercises, text) into the form, any
-  // number of them (Sessions only). `routineOptions` is routineOptions()
+  // number of them (Sessions and Journals). `routineOptions` is routineOptions()
   // output; `routines` are the records it points at.
   showRoutines,
   routines = [],

@@ -13,6 +13,7 @@ export default function ExerciseCard({
   activeTags,
   onTagClick,
   usedInSessions = [],
+  usedInJournals = [],
   usedInRoutines = [],
 }) {
   const e = exercise;
@@ -108,24 +109,30 @@ export default function ExerciseCard({
         </div>
       )}
 
-      {usedInSessions.length > 0 && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11, color: "var(--text-dim)", fontWeight: 600, marginBottom: 4 }}>
-            Used in {usedInSessions.length} session{usedInSessions.length !== 1 ? "s" : ""}
+      <DatedBacklinks entries={usedInSessions} noun={(n) => (n === 1 ? "session" : "sessions")} />
+      <DatedBacklinks entries={usedInJournals} noun={(n) => (n === 1 ? "journal entry" : "journal entries")} />
+    </div>
+  );
+}
+
+// "Used in N sessions" (or journal entries) with the most recent few listed by
+// date and title. `entries` must already be sorted newest-first.
+function DatedBacklinks({ entries, noun }) {
+  if (entries.length === 0) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontSize: 11, color: "var(--text-dim)", fontWeight: 600, marginBottom: 4 }}>
+        Used in {entries.length} {noun(entries.length)}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {entries.slice(0, 5).map((s) => (
+          <div key={s.id} style={{ fontSize: 12, color: "var(--text)" }}>
+            {s.date}
+            {s.title ? ` — ${s.title}` : ""}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {usedInSessions.slice(0, 5).map((s) => (
-              <div key={s.id} style={{ fontSize: 12, color: "var(--text)" }}>
-                {s.date}
-                {s.title ? ` — ${s.title}` : ""}
-              </div>
-            ))}
-            {usedInSessions.length > 5 && (
-              <div style={{ fontSize: 11, color: "var(--text-dim)" }}>+{usedInSessions.length - 5} more</div>
-            )}
-          </div>
-        </div>
-      )}
+        ))}
+        {entries.length > 5 && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>+{entries.length - 5} more</div>}
+      </div>
     </div>
   );
 }

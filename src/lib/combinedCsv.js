@@ -16,7 +16,7 @@ export function normalizeTags(raw) {
 // (lifting); technique folder paths resolve against `jitsFolders`.
 
 export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = [], exercises = []) {
-  // Resolves a session/routine's exerciseIds to a readable ";"-joined name
+  // Resolves a session/journal/routine's exerciseIds to a readable ";"-joined name
   // list for the CSV. This column is for humans reading the export — import
   // doesn't reconstruct exerciseIds from it (that would mean matching names
   // back to Library exercises, the same drift-prone approach positions.js
@@ -34,7 +34,9 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   const sessionRows = sessions.map((s) => [
     "session", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", "", exerciseNames(s.exerciseIds),
   ]);
-  const journalRows = journals.map((j) => ["journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", "", "", "", "", ""]);
+  const journalRows = journals.map((j) => [
+    "journal", j.id, j.date, j.title || "", "", (j.tags || []).join(";"), j.text || "", "", "", "", "", "", "", exerciseNames(j.exerciseIds),
+  ]);
   const rollRows = rolls.map((s) => ["roll", s.id, s.date, s.title || "", "", (s.tags || []).join(";"), s.text || "", "", "", "", "", "", "", ""]);
   const routineRows = routines.map((r) => [
     "routine",

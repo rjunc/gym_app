@@ -3,8 +3,8 @@ import { normalizeTags } from "./combinedCsv.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
-// Only sessions actually carry exerciseIds, but it round-trips for any of the
-// three if present, same as everything else here.
+// Sessions and journals carry exerciseIds (rolls don't); it round-trips for
+// any of the three if present, same as everything else here.
 export function normalizeSimpleEntries(arr) {
   return Array.isArray(arr)
     ? arr.map((s) => ({

@@ -12,6 +12,23 @@ export function recentExerciseCounts(sessions, todayISO, days = 30) {
   return counts;
 }
 
+// Backlinks from Library exercises to the entries that link them: a Map of
+// exercise id -> the entries (sessions, journals, routines…) whose exerciseIds
+// include it. Dated entries come back newest-first so a card can slice off the
+// most recent few; undated ones (routines) keep their original order.
+export function entriesByExercise(entries) {
+  const map = new Map();
+  entries.forEach((entry) => {
+    (entry.exerciseIds || []).forEach((id) => {
+      const list = map.get(id) || [];
+      list.push(entry);
+      map.set(id, list);
+    });
+  });
+  map.forEach((list) => list.sort((a, b) => (a.date && b.date ? (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) : 0)));
+  return map;
+}
+
 // Shifts an ISO date string by `days` (negative to go back), local-time
 // based to match todayISO()/formatDate() elsewhere.
 function shiftISODate(iso, days) {
