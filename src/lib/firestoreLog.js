@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, onSnapshot, updateDoc, writeBatch } from "firebase/firestore";
+import { collection, doc, onSnapshot, writeBatch } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { newestFirst } from "./records.js";
 
@@ -9,13 +9,7 @@ import { newestFirst } from "./records.js";
 // that record, two devices editing different records never overwrite each
 // other, and Firestore's 1 MiB limit applies to one record rather than the
 // whole log.
-export const COLLECTIONS = ["sessions", "journals", "rolls", "routines", "folders", "techniques", "jitsFolders", "exercises"];
-
 const collectionRef = (authUid, name) => collection(db, "users", authUid, name);
-
-// Before 2026-09-25 the whole log was one document holding every collection
-// as an array. It's kept as a read-only backup after migration.
-const legacyDocRef = (authUid) => doc(db, "users", authUid, "data", "log");
 
 // Firestore caps a batch at 500 writes, so big changes (an import) go out in
 // chunks.
@@ -47,30 +41,4 @@ export function writeChanges(authUid, name, upserts, deleteIds) {
     ...upserts.map((record) => (batch) => batch.set(doc(col, record.id), record)),
     ...deleteIds.map((id) => (batch) => batch.delete(doc(col, id))),
   ]);
-}
-
-// Copies an old single-document log into the per-record collections, once.
-// The old document is left in place, marked with migratedAt, as a backup.
-// Safe to re-run if interrupted: records are written by id, so a second pass
-// just rewrites the same documents. If the old document can't be read (e.g.
-// offline with nothing cached), this does nothing and is retried next load.
-export async function migrateLegacyLog(authUid) {
-  let snap;
-  try {
-    snap = await getDoc(legacyDocRef(authUid));
-  } catch {
-    return;
-  }
-  if (!snap.exists()) return;
-  const data = snap.data();
-  if (data.migratedAt) return;
-  const ops = [];
-  COLLECTIONS.forEach((name) => {
-    const col = collectionRef(authUid, name);
-    (Array.isArray(data[name]) ? data[name] : [])
-      .filter((record) => record && typeof record.id === "string" && record.id)
-      .forEach((record) => ops.push((batch) => batch.set(doc(col, record.id), record)));
-  });
-  await commitInChunks(ops);
-  await updateDoc(legacyDocRef(authUid), { migratedAt: new Date().toISOString() });
 }

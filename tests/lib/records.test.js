@@ -23,7 +23,7 @@ test("editRecord keeps id and createdAt, bumps updatedAt, merges fields", () => 
   assert.ok(after.updatedAt > before.updatedAt);
 });
 
-test("editRecord on a record from before timestamps adds updatedAt but never invents createdAt", () => {
+test("editRecord on a record without timestamps (e.g. imported) adds updatedAt but never invents createdAt", () => {
   const after = editRecord({ id: "a", name: "Old" }, { name: "New" });
   assert.match(after.updatedAt, ISO);
   assert.equal("createdAt" in after, false);

@@ -56,12 +56,7 @@ exactly what the app works with (see `src/lib/firestoreLog.js`).
   fails, the app shows a Reload screen instead of an empty log that could
   be typed over.
 
-Before 2026-09-25 the whole log was one document at `users/{uid}/data/log`.
-On first load after that change, the app copies it into the collections
-above once and marks it with `migratedAt`. The old document is left in
-place as a backup and is never written again; delete it from the Firebase
-Console whenever you're confident it isn't needed. CSV/JSON export and
-import (sidebar) work exactly as before.
+CSV/JSON export and import live in the sidebar.
 
 ## Managing accounts
 
@@ -71,7 +66,7 @@ one or several at once.
 
 Deleting a user there only removes their *login* — it does not delete their
 data. Each account's log lives under `users/{uid}/` (one subcollection per
-kind of record, plus the old `data/log` backup); clean it up manually under
+kind of record); clean it up manually under
 **Firestore Database → Data** if you want to fully remove a test account's
 footprint.
 
@@ -98,20 +93,6 @@ footprint.
   comes from the Firebase SDK. Harmless for a personal app at this scale;
   only worth addressing (via code-splitting) if load time ever becomes
   noticeable.
-- **Entries saved before 2026-09-25 may still have messy whitespace.** Every
-  composer save and every JSON/CSV import now runs text through
-  `cleanFields` (`src/lib/text.js`): one-line fields are trimmed with inner
-  whitespace collapsed, body text loses leading/trailing blank lines and
-  trailing spaces, and runs of blank lines collapse to one. Data saved
-  before that is only cleaned when an item is next edited and saved.
-  A one-time cleanup was deliberately not done yet: it would be a small
-  migration that maps `cleanFields` over every session, journal, roll,
-  routine, technique and exercise once and saves the result. It rewrites
-  real data, so export a JSON backup first. Two things to watch: an
-  exercise name that only differed by spacing ("Back  squat" vs "Back
-  squat") would become an exact duplicate, and a folder or position name
-  that changes would no longer match anything that still uses the old
-  spelling.
 
 ## Feature ideas (not urgent)
 

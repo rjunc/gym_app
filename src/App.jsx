@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Menu } from "lucide-react";
 import { todayISO } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
 import { exerciseUsageCounts } from "./lib/exercises.js";
-import { migrateLegacyLog } from "./lib/firestoreLog.js";
 import { useSyncedCollection } from "./lib/useSyncedCollection.js";
 import Shell from "./ui/Shell.jsx";
 import { primaryBtnStyle } from "./ui/styles.js";
@@ -33,35 +32,20 @@ const PAGE_TITLES = {
 export default function App({ uid, userEmail, onLogout }) {
   const [page, setPage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // A log saved in the old single-document shape is copied into the
-  // per-record collections before anything subscribes (see migrateLegacyLog).
-  const [migrated, setMigrated] = useState(false);
-  const [migrationError, setMigrationError] = useState(null);
-  useEffect(() => {
-    setMigrated(false);
-    setMigrationError(null);
-    migrateLegacyLog(uid)
-      .then(() => setMigrated(true))
-      .catch((err) => {
-        console.error("migration failed", err);
-        setMigrationError(err);
-      });
-  }, [uid]);
-
   // Each collection syncs on its own, one Firestore document per record.
-  const [sessions, setSessions, sessionsStatus] = useSyncedCollection(uid, "sessions", migrated);
-  const [folders, setFolders, foldersStatus] = useSyncedCollection(uid, "folders", migrated);
-  const [routines, setRoutines, routinesStatus] = useSyncedCollection(uid, "routines", migrated);
-  const [journals, setJournals, journalsStatus] = useSyncedCollection(uid, "journals", migrated);
-  const [rolls, setRolls, rollsStatus] = useSyncedCollection(uid, "rolls", migrated);
-  const [techniques, setTechniques, techniquesStatus] = useSyncedCollection(uid, "techniques", migrated);
-  const [jitsFolders, setJitsFolders, jitsFoldersStatus] = useSyncedCollection(uid, "jitsFolders", migrated);
-  const [exercises, setExercises, exercisesStatus] = useSyncedCollection(uid, "exercises", migrated);
+  const [sessions, setSessions, sessionsStatus] = useSyncedCollection(uid, "sessions");
+  const [folders, setFolders, foldersStatus] = useSyncedCollection(uid, "folders");
+  const [routines, setRoutines, routinesStatus] = useSyncedCollection(uid, "routines");
+  const [journals, setJournals, journalsStatus] = useSyncedCollection(uid, "journals");
+  const [rolls, setRolls, rollsStatus] = useSyncedCollection(uid, "rolls");
+  const [techniques, setTechniques, techniquesStatus] = useSyncedCollection(uid, "techniques");
+  const [jitsFolders, setJitsFolders, jitsFoldersStatus] = useSyncedCollection(uid, "jitsFolders");
+  const [exercises, setExercises, exercisesStatus] = useSyncedCollection(uid, "exercises");
   const statuses = [sessionsStatus, foldersStatus, routinesStatus, journalsStatus, rollsStatus, techniquesStatus, jitsFoldersStatus, exercisesStatus];
   const loaded = statuses.every((s) => s.loaded);
   // A failed first load blocks the whole app (see the error screen below)
   // rather than showing an empty log you could type over.
-  const loadFailed = !!migrationError || statuses.some((s) => s.loadError);
+  const loadFailed = statuses.some((s) => s.loadError);
   const syncError = statuses.some((s) => s.error) ? "Couldn't sync with the server. Check your connection, then reload." : "";
   const [importError, setImportError] = useState("");
   // How much each exercise is used in sessions, shared by every Exercises

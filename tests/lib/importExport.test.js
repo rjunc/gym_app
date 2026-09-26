@@ -8,8 +8,8 @@ import { todayISO } from "../../src/lib/id.js";
 const folders = [{ id: "f1", name: "Push day", parentId: null }];
 const jitsFolders = [{ id: "jf1", name: "Closed guard", parentId: null }];
 
-// Some records carry createdAt/updatedAt and some don't (anything saved before
-// 2026-09-25), so the round trips below cover both.
+// Some records carry createdAt/updatedAt and some don't (a hand-made or
+// trimmed import file may leave them out), so the round trips below cover both.
 const sessions = [{ id: "s1", date: "2026-09-01", title: "Leg day", tags: ["legs"], text: "Squats, 5x5", createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" }];
 const journals = [{ id: "j1", date: "2026-09-02", title: "", tags: [], text: "Feeling good" }];
 const rolls = [{ id: "ro1", date: "2026-09-03", title: "Gi class", tags: ["gi"], text: "Rolled 5 rounds" }];
@@ -451,7 +451,7 @@ test("CSV export lists the routines a session was built from, but import doesn't
   assert.equal("routineIds" in combinedFromCSV(csv, folders, []).sessions[0], false);
 });
 
-test("CSV without created_at/updated_at columns (pre-timestamp export) imports with no timestamps", () => {
+test("CSV without created_at/updated_at columns imports with no timestamps", () => {
   const csv = "type,id,date,name,tags,text\nsession,s1,2026-09-01,,,Squats";
   const s = combinedFromCSV(csv, [], []).sessions[0];
   assert.equal("createdAt" in s, false);

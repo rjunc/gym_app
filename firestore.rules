@@ -3,8 +3,7 @@ rules_version = '2';
 // Paste this into Firebase Console → Firestore Database → Rules.
 // Each signed-in user can only read/write their own data under users/{uid}/ —
 // nobody else's, and nothing unauthenticated. That covers one document per
-// record in users/{uid}/sessions/{id}, users/{uid}/routines/{id}, … and the
-// old single-document log at users/{uid}/data/log (kept as a backup).
+// record in users/{uid}/sessions/{id}, users/{uid}/routines/{id}, …
 //
 // Firebase's own default (before you publish anything) is deny-all:
 //   match /{document=**} { allow read, write: if false; }

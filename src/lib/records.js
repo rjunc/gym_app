@@ -2,8 +2,8 @@ import { uid } from "./id.js";
 
 // Every record (entry, routine, technique, exercise, folder) carries
 // createdAt/updatedAt as full ISO timestamps, so same-day entries have a real
-// order and "last edited" is knowable. Records from before 2026-09-25 (or
-// imported without them) simply lack both — they're never faked.
+// order and "last edited" is knowable. A record imported from a file without
+// them simply lacks both — they're never faked.
 export const nowISO = () => new Date().toISOString();
 
 // A brand-new record: fresh id, both timestamps set to now.
@@ -26,8 +26,8 @@ export function editById(list, id, fields) {
 
 // Stored records come back from Firestore in no useful order, so they're put
 // newest-created first, the order the app has always kept by adding new
-// records to the front. Records without createdAt (older than timestamps)
-// go last, by id so the order at least stays put between loads.
+// records to the front. Records without createdAt (imported without one) go
+// last, by id so the order at least stays put between loads.
 export function newestFirst(records) {
   return [...records].sort((a, b) => {
     const ca = a.createdAt || "";

@@ -11,8 +11,7 @@ import { diffRecords } from "./records.js";
 // written, so a failed or slow first load can't be mistaken for an empty log
 // and saved over the real one. status.loadError is set if the listener fails
 // before that first snapshot; status.error for any later sync/save failure.
-// `enabled` holds the subscription back (e.g. until a migration has run).
-export function useSyncedCollection(authUid, name, enabled = true) {
+export function useSyncedCollection(authUid, name) {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState({ loaded: false, loadError: null, error: null });
   // Map of id -> record as last seen from or sent to Firestore; null until the
@@ -23,7 +22,6 @@ export function useSyncedCollection(authUid, name, enabled = true) {
     synced.current = null;
     setItems([]);
     setStatus({ loaded: false, loadError: null, error: null });
-    if (!enabled) return;
     return subscribeToCollection(
       authUid,
       name,
@@ -37,7 +35,7 @@ export function useSyncedCollection(authUid, name, enabled = true) {
         setStatus((s) => (s.loaded ? { ...s, error: err } : { ...s, loadError: err }));
       }
     );
-  }, [authUid, name, enabled]);
+  }, [authUid, name]);
 
   useEffect(() => {
     if (!synced.current) return;
