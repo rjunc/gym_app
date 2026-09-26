@@ -9,6 +9,7 @@ import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
 import DayEntries from "../ui/DayEntries.jsx";
 import EntrySheet from "../ui/EntrySheet.jsx";
+import EntryDetailSheet from "../ui/EntryDetailSheet.jsx";
 import { cardStyle, labelStyle, primaryBtnStyle } from "../ui/styles.js";
 
 // Every kind of dated log the calendar can draw from. Order here is the order
@@ -45,6 +46,9 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   // null when closed; { entry: null } to add, { entry } to edit that entry, or
   // { entry: null, redo } to add a new one copied from `redo`.
   const [composer, setComposer] = useState(null);
+  // The entry whose read-only summary is open, as { source, id } so it stays
+  // current after an edit elsewhere.
+  const [viewing, setViewing] = useState(null);
   const detailRef = useRef(null);
 
   const bySource = useMemo(() => ({ sessions, rolls }), [sessions, rolls]);
@@ -118,10 +122,15 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
     setComposer(null);
   };
 
+  // Returns whether it was deleted (the confirmation can be cancelled).
   const deleteEntry = (entry) => {
-    if (!window.confirm("Delete this entry? This can't be undone.")) return;
+    if (!window.confirm("Delete this entry? This can't be undone.")) return false;
     setters[entry.source]((prev) => prev.filter((e) => e.id !== entry.id));
+    return true;
   };
+
+  const viewedRecord = viewing && bySource[viewing.source].find((e) => e.id === viewing.id);
+  const viewedEntry = viewedRecord && { ...viewedRecord, source: viewing.source };
 
   const selectDay = (iso) => {
     setSelected(iso);
@@ -192,10 +201,33 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           onEdit={(entry) => setComposer({ entry })}
           onRedo={(redo) => setComposer({ entry: null, redo })}
           onDelete={deleteEntry}
+          onOpen={(entry) => setViewing({ source: entry.source, id: entry.id })}
           exerciseNameById={exerciseNameById}
           routineNameById={routineNameById}
         />
       </div>
+
+      {viewedEntry && (
+        <EntryDetailSheet
+          entry={viewedEntry}
+          kindLabel={SOURCE_META[viewedEntry.source].singular}
+          accent={SOURCE_META[viewedEntry.source].accent}
+          exerciseNameById={exerciseNameById}
+          routineNameById={routineNameById}
+          onEdit={() => {
+            setViewing(null);
+            setComposer({ entry: viewedEntry });
+          }}
+          onRedo={() => {
+            setViewing(null);
+            setComposer({ entry: null, redo: viewedEntry });
+          }}
+          onDelete={() => {
+            if (deleteEntry(viewedEntry)) setViewing(null);
+          }}
+          onClose={() => setViewing(null)}
+        />
+      )}
 
       {composer && (
         <EntrySheet

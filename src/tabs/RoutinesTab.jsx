@@ -9,15 +9,18 @@ import RoutineHistorySheet from "./RoutineHistorySheet.jsx";
 const ACCENT = "--accent2";
 
 // Routines, plus backlinks to the sessions and journal entries built from
-// each one (routineIds): a usage line on every card, a history sheet on tap,
-// and a delete warning when a routine has been used.
+// each one (routineIds): a usage line on every card, a summary sheet on tap
+// (the routine's details, then its history), and a delete warning when a
+// routine has been used.
 export default function RoutinesTab({ folders, setFolders, routines, setRoutines, exercises, exerciseUsage, sessions = [], journals = [] }) {
-  const [historyId, setHistoryId] = useState(null);
+  // The routine whose summary is open, with the page's edit/remove actions
+  // for it (see FolderLibraryTab's onOpenItem).
+  const [history, setHistory] = useState(null);
   const sessionsByRoutine = useMemo(() => entriesByRoutine(sessions), [sessions]);
   const journalsByRoutine = useMemo(() => entriesByRoutine(journals), [journals]);
   const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
   const usesOf = (routine) => ({ sessions: sessionsByRoutine.get(routine.id), journals: journalsByRoutine.get(routine.id) });
-  const historyRoutine = historyId ? routines.find((r) => r.id === historyId) : null;
+  const historyRoutine = history ? routines.find((r) => r.id === history.id) : null;
 
   return (
     <>
@@ -39,7 +42,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
         exercises={exercises}
         exerciseUsage={exerciseUsage}
         usageFor={(routine) => usageSummary(usesOf(routine))}
-        onOpenItem={(routine) => setHistoryId(routine.id)}
+        onOpenItem={(routine, actions) => setHistory({ id: routine.id, ...actions })}
         deleteWarningFor={(routine) => {
           const list = usageList(usesOf(routine));
           return list ? `Used in ${list} — they'll keep their text, but lose the link.` : "";
@@ -54,7 +57,14 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
           sessions={sessionsByRoutine.get(historyRoutine.id) || []}
           journals={journalsByRoutine.get(historyRoutine.id) || []}
           exerciseNameById={exerciseNameById}
-          onClose={() => setHistoryId(null)}
+          onEdit={() => {
+            setHistory(null);
+            history.edit();
+          }}
+          onDelete={() => {
+            if (history.remove()) setHistory(null);
+          }}
+          onClose={() => setHistory(null)}
         />
       )}
     </>

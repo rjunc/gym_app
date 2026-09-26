@@ -42,8 +42,9 @@ export default function FolderLibraryTab({
   // Session usage counts (exerciseUsageCounts) that rank the Exercises picker.
   exerciseUsage,
   // Optional, for items that dated entries link to (routines): the item's
-  // usageSummary for its card, what tapping the card does, and a sentence
-  // added to the delete confirmation (e.g. "Used in 8 sessions.").
+  // usageSummary for its card, what tapping the card does — called with the
+  // item and { edit, remove } so a summary sheet can offer those — and a
+  // sentence added to the delete confirmation (e.g. "Used in 8 sessions.").
   usageFor,
   onOpenItem,
   deleteWarningFor,
@@ -221,10 +222,12 @@ export default function FolderLibraryTab({
     resetForm();
   };
 
+  // Returns whether it was deleted (the confirmation can be cancelled).
   const deleteItem = (id) => {
     const warning = deleteWarningFor ? deleteWarningFor(items.find((r) => r.id === id)) : "";
-    if (!window.confirm(`Delete this ${itemNoun}?${warning ? ` ${warning}` : ""} This can't be undone.`)) return;
+    if (!window.confirm(`Delete this ${itemNoun}?${warning ? ` ${warning}` : ""} This can't be undone.`)) return false;
     setItems((prev) => prev.filter((r) => r.id !== id));
+    return true;
   };
 
   const toggleStar = (id) => setItems((prev) => editById(prev, id, { starred: !prev.find((r) => r.id === id)?.starred }));
@@ -339,7 +342,7 @@ export default function FolderLibraryTab({
                     activeTags={activeTags}
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                     usage={usageFor ? usageFor(r) : undefined}
-                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
+                    onOpen={onOpenItem ? () => onOpenItem(r, { edit: () => openEdit(r), remove: () => deleteItem(r.id) }) : undefined}
                   />
                 ))}
               </div>
@@ -421,7 +424,7 @@ export default function FolderLibraryTab({
                     activeTags={activeTags}
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                     usage={usageFor ? usageFor(r) : undefined}
-                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
+                    onOpen={onOpenItem ? () => onOpenItem(r, { edit: () => openEdit(r), remove: () => deleteItem(r.id) }) : undefined}
                   />
                 ))}
               </div>

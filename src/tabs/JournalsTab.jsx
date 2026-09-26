@@ -7,6 +7,7 @@ export default function JournalsTab({ journals, setJournals, exercises, exercise
       setEntries={setJournals}
       eyebrow="Personal journal"
       heading="Journal"
+      entryLabel="Journal entry"
       searchPlaceholder="Search text, tags, exercises, routines…"
       emptyLabel='No journal entries yet. Tap "New entry" to write your first one.'
       textLabel="What's on your mind?"

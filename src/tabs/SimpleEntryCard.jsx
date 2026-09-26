@@ -6,11 +6,18 @@ import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
 import SetsSummary from "../ui/SetsSummary.jsx";
 import RoutineLinks from "../ui/RoutineLinks.jsx";
 
-export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdit, onDelete, onRedo, activeTags, onTagClick, exerciseNameById = new Map(), routineNameById = new Map() }) {
+export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdit, onDelete, onRedo, activeTags, onTagClick, exerciseNameById = new Map(), routineNameById = new Map(), onOpen }) {
   const s = entry;
   const isLong = (s.text || "").length > 220;
   return (
-    <div style={cardStyle}>
+    // Tapping anywhere that isn't one of its buttons (redo, edit, delete, a
+    // tag chip, show more) opens the entry's summary.
+    <div
+      onClick={(ev) => {
+        if (onOpen && !ev.target.closest("button")) onOpen();
+      }}
+      style={{ ...cardStyle, cursor: onOpen ? "pointer" : undefined }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {s.title ? (

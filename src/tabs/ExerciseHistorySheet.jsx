@@ -8,11 +8,13 @@ import { labelStyle } from "../ui/styles.js";
 // it as one newest-first timeline, with the sets logged for this exercise
 // each time. `routines` arrive as { id, label } with the folder path already
 // in the label (see routineOptions).
-export default function ExerciseHistorySheet({ exercise, accent, sessions, journals, routines, onClose }) {
+export default function ExerciseHistorySheet({ exercise, accent, sessions, journals, routines, onEdit, onDelete, onClose }) {
   return (
     <HistorySheet
       sessions={sessions}
       journals={journals}
+      onEdit={onEdit}
+      onDelete={onDelete}
       onClose={onClose}
       emptyLabel="Not used in any sessions or journal entries yet."
       detail={(entry, entryAccent) =>

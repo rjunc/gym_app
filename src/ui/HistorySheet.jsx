@@ -3,6 +3,8 @@ import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import { entryHistory } from "../lib/links.js";
 import TagChip from "./TagChip.jsx";
+import BottomSheet from "./BottomSheet.jsx";
+import SheetActions from "./SheetActions.jsx";
 import { cardStyle, ghostLinkStyle, labelStyle } from "./styles.js";
 
 const KIND_META = {
@@ -16,51 +18,38 @@ const KIND_META = {
 // that links it as one newest-first timeline. `detail(entry)` renders what's
 // specific to this kind of link under each entry's title (e.g. the sets
 // logged for an exercise); `emptyLabel` shows when nothing links it yet.
-export default function HistorySheet({ header, sessions, journals, detail, emptyLabel, onClose, children }) {
+// `onEdit`/`onDelete` add those buttons under the header.
+export default function HistorySheet({ header, sessions, journals, detail, emptyLabel, onEdit, onDelete, onClose, children }) {
   const history = entryHistory(sessions, journals);
 
   return (
-    <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", zIndex: 10 }} onClick={onClose}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderTop: "1px solid var(--border)",
-          borderRadius: "16px 16px 0 0",
-          width: "100%",
-          maxHeight: "88%",
-          display: "flex",
-          flexDirection: "column",
-          padding: 18,
-          gap: 14,
-          overflowY: "auto",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>{header}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", flexShrink: 0 }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        {children}
-
-        <div>
-          <span style={labelStyle}>
-            {history.length === 0 ? "History" : `History · ${history.length} ${history.length === 1 ? "entry" : "entries"}`}
-          </span>
-          {history.length === 0 ? (
-            <div style={{ fontSize: 13, color: "var(--text-dim)", padding: "8px 0" }}>{emptyLabel}</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {history.map(({ kind, entry }) => (
-                <HistoryEntry key={`${kind}-${entry.id}`} kind={kind} entry={entry} detail={detail} />
-              ))}
-            </div>
-          )}
-        </div>
+    <BottomSheet onClose={onClose}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>{header}</div>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", flexShrink: 0 }}>
+          <X size={18} />
+        </button>
       </div>
-    </div>
+
+      <SheetActions onEdit={onEdit} onDelete={onDelete} />
+
+      {children}
+
+      <div>
+        <span style={labelStyle}>
+          {history.length === 0 ? "History" : `History · ${history.length} ${history.length === 1 ? "entry" : "entries"}`}
+        </span>
+        {history.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--text-dim)", padding: "8px 0" }}>{emptyLabel}</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {history.map(({ kind, entry }) => (
+              <HistoryEntry key={`${kind}-${entry.id}`} kind={kind} entry={entry} detail={detail} />
+            ))}
+          </div>
+        )}
+      </div>
+    </BottomSheet>
   );
 }
 

@@ -134,8 +134,9 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
       routines: routinesByExercise.get(id),
     });
     const warning = list ? ` Used in ${list}.` : "";
-    if (!window.confirm(`Delete this exercise?${warning} This can't be undone.`)) return;
+    if (!window.confirm(`Delete this exercise?${warning} This can't be undone.`)) return false;
     setExercises((prev) => prev.filter((e) => e.id !== id));
+    return true;
   };
 
   const toggleTagFilter = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
@@ -225,6 +226,13 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
           sessions={sessionsByExercise.get(historyExercise.id) || []}
           journals={journalsByExercise.get(historyExercise.id) || []}
           routines={routineLabels.filter((o) => (routinesByExercise.get(historyExercise.id) || []).some((r) => r.id === o.id))}
+          onEdit={() => {
+            setHistoryId(null);
+            openEdit(historyExercise);
+          }}
+          onDelete={() => {
+            if (deleteExercise(historyExercise.id)) setHistoryId(null);
+          }}
           onClose={() => setHistoryId(null)}
         />
       )}

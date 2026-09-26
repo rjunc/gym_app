@@ -7,11 +7,17 @@ import { cardStyle, ghostLinkStyle } from "./styles.js";
 import SetsSummary from "./SetsSummary.jsx";
 import RoutineLinks from "./RoutineLinks.jsx";
 
-function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById, routineNameById }) {
+function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById, routineNameById, onOpen }) {
   const [open, setOpen] = useState(false);
   const isLong = (entry.text || "").length > 220;
   return (
-    <div style={{ ...cardStyle, borderLeft: `3px solid var(${accent})` }}>
+    // Tapping anywhere that isn't one of its buttons opens the entry's summary.
+    <div
+      onClick={(ev) => {
+        if (onOpen && !ev.target.closest("button")) onOpen(entry);
+      }}
+      style={{ ...cardStyle, borderLeft: `3px solid var(${accent})`, cursor: onOpen ? "pointer" : undefined }}
+    >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: `var(${accent})` }}>
@@ -81,7 +87,7 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, on
 
 // The entries logged on one day. `hiddenCount` is how many more exist that the
 // current filters are hiding, so a filtered view never quietly lies about a day.
-export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById = new Map(), routineNameById = new Map() }) {
+export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete, onOpen, exerciseNameById = new Map(), routineNameById = new Map() }) {
   return (
     <div>
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{formatDate(iso)}</div>
@@ -105,6 +111,7 @@ export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, acti
               onDelete={onDelete}
               exerciseNameById={exerciseNameById}
               routineNameById={routineNameById}
+              onOpen={onOpen}
             />
           ))}
         </div>

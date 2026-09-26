@@ -14,6 +14,7 @@ import {
   RoutinesField,
 } from "./ComposerFields.jsx";
 import TagsField from "./TagsField.jsx";
+import BottomSheet from "./BottomSheet.jsx";
 import SetsField from "./SetsField.jsx";
 
 export default function EntryComposer({
@@ -91,96 +92,80 @@ export default function EntryComposer({
   const accentVar = accent || "--accent";
 
   return (
-    <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", zIndex: 10 }} onClick={onClose}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          borderTop: "1px solid var(--border)",
-          borderRadius: "16px 16px 0 0",
-          width: "100%",
-          maxHeight: "88%",
-          display: "flex",
-          flexDirection: "column",
-          padding: 18,
-          gap: 12,
-          overflowY: "auto",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{title}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer" }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        {topContent}
-
-        {showName && <NameField form={form} setForm={setForm} nameField={nameField} nameLabel={nameLabel} namePlaceholder={namePlaceholder} />}
-        {showName && nameError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: -6 }}>{nameError}</div>}
-
-        {showDate && <DateField form={form} setForm={setForm} />}
-
-        {showFolder && <FolderField form={form} setForm={setForm} folderOptions={folderOptions} />}
-
-        {showPositions && <PositionsField form={form} setForm={setForm} positionOptions={positionOptions} />}
-
-        {showStar && <StarField form={form} setForm={setForm} />}
-
-        {showGiOnly && <GiOnlyField form={form} setForm={setForm} accentVar={accentVar} />}
-
-        {showPrescription && <PrescriptionField form={form} setForm={setForm} />}
-
-        {showMeasure && <MeasureField form={form} setForm={setForm} accentVar={accentVar} />}
-
-        {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
-
-        {showRoutines && <RoutinesField form={form} setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} usage={routineUsage} />}
-
-        {showExercises && (
-          <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} usage={exerciseUsage} />
-        )}
-
-        {showExercises && showSets && (
-          <SetsField form={form} setForm={setForm} exercises={exerciseOptions} history={setsHistory} entryId={entryId} accentVar={accentVar} />
-        )}
-
-        <TagsField
-          form={form}
-          setForm={setForm}
-          tagDraft={tagDraft}
-          setTagDraft={setTagDraft}
-          onAddTag={onAddTag}
-          onRemoveTag={onRemoveTag}
-          tagSuggestions={tagSuggestions}
-          accentVar={accentVar}
-        />
-
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <label style={labelStyle}>{textLabel}</label>
-          <textarea
-            value={form.text}
-            onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
-            placeholder={textPlaceholder}
-            style={{ ...inputStyle, fontFamily: "'IBM Plex Mono', monospace", minHeight: 150, resize: "vertical", lineHeight: 1.5 }}
-          />
-        </div>
-
-        <button
-          onClick={onSave}
-          disabled={saveDisabled}
-          style={{
-            ...primaryBtnStyle,
-            background: `var(${accentVar})`,
-            justifyContent: "center",
-            padding: "12px 0",
-            opacity: saveDisabled ? 0.45 : 1,
-            cursor: saveDisabled ? "not-allowed" : "pointer",
-          }}
-        >
-          {saveLabel}
+    <BottomSheet onClose={onClose} gap={12}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{title}</div>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer" }}>
+          <X size={18} />
         </button>
       </div>
-    </div>
+
+      {topContent}
+
+      {showName && <NameField form={form} setForm={setForm} nameField={nameField} nameLabel={nameLabel} namePlaceholder={namePlaceholder} />}
+      {showName && nameError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: -6 }}>{nameError}</div>}
+
+      {showDate && <DateField form={form} setForm={setForm} />}
+
+      {showFolder && <FolderField form={form} setForm={setForm} folderOptions={folderOptions} />}
+
+      {showPositions && <PositionsField form={form} setForm={setForm} positionOptions={positionOptions} />}
+
+      {showStar && <StarField form={form} setForm={setForm} />}
+
+      {showGiOnly && <GiOnlyField form={form} setForm={setForm} accentVar={accentVar} />}
+
+      {showPrescription && <PrescriptionField form={form} setForm={setForm} />}
+
+      {showMeasure && <MeasureField form={form} setForm={setForm} accentVar={accentVar} />}
+
+      {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
+
+      {showRoutines && <RoutinesField form={form} setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} usage={routineUsage} />}
+
+      {showExercises && (
+        <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} usage={exerciseUsage} />
+      )}
+
+      {showExercises && showSets && (
+        <SetsField form={form} setForm={setForm} exercises={exerciseOptions} history={setsHistory} entryId={entryId} accentVar={accentVar} />
+      )}
+
+      <TagsField
+        form={form}
+        setForm={setForm}
+        tagDraft={tagDraft}
+        setTagDraft={setTagDraft}
+        onAddTag={onAddTag}
+        onRemoveTag={onRemoveTag}
+        tagSuggestions={tagSuggestions}
+        accentVar={accentVar}
+      />
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <label style={labelStyle}>{textLabel}</label>
+        <textarea
+          value={form.text}
+          onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
+          placeholder={textPlaceholder}
+          style={{ ...inputStyle, fontFamily: "'IBM Plex Mono', monospace", minHeight: 150, resize: "vertical", lineHeight: 1.5 }}
+        />
+      </div>
+
+      <button
+        onClick={onSave}
+        disabled={saveDisabled}
+        style={{
+          ...primaryBtnStyle,
+          background: `var(${accentVar})`,
+          justifyContent: "center",
+          padding: "12px 0",
+          opacity: saveDisabled ? 0.45 : 1,
+          cursor: saveDisabled ? "not-allowed" : "pointer",
+        }}
+      >
+        {saveLabel}
+      </button>
+    </BottomSheet>
   );
 }

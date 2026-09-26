@@ -7,6 +7,7 @@ export default function RollsTab({ rolls, setRolls }) {
       setEntries={setRolls}
       eyebrow="Training journal"
       heading="Rolls & Classes"
+      entryLabel="Roll"
       searchPlaceholder="Search text, tags…"
       emptyLabel='No rolls logged yet. Tap "New entry" to write your first one.'
       textLabel="What did you work on?"
