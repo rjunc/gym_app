@@ -15,6 +15,9 @@ import { uid } from "./id.js";
 //   { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }  carries, sleds
 //   { reps: 20, seconds: 60 }                     reps × time (max reps in 1:00)
 //   { seconds: 1200, level: 7 }                   time @ level (stairmaster, bike)
+// A set with `drop: true` follows straight on from the set before it, with no
+// rest (a dropset, or rest-pause/cluster reps at the same weight).
+// A block in a superset or circuit also carries `groupId` (see lib/groups.js).
 // A block with no sets is just "did it, no numbers". `note` is what the
 // numbers can't say, shown next to them and on the next session's "Last"
 // line. The session's `exerciseIds` is kept as the distinct exercises of its
@@ -170,6 +173,7 @@ export function toDraftRows(sets) {
     });
     if (typeof set.distance === "number") row.distanceUnit = set.distanceUnit || DISTANCE_UNIT;
     if (typeof set.seconds === "number" && TIME_UNITS.includes(set.timeUnit)) row.timeUnit = set.timeUnit;
+    if (set.drop === true) row.drop = true;
     return row;
   });
 }
@@ -188,7 +192,9 @@ function toStoredSet(row) {
   if (seconds !== null) set.seconds = seconds;
   if (seconds !== null && TIME_UNITS.includes(row.timeUnit)) set.timeUnit = row.timeUnit;
   if (level !== null) set.level = level;
-  return Object.keys(set).length > 0 ? set : null;
+  if (Object.keys(set).length === 0) return null;
+  if (row.drop === true) set.drop = true;
+  return set;
 }
 
 // Draft rows -> the sets saved: only rows with at least one usable number.
@@ -200,10 +206,17 @@ export const fromDraftRows = (rows) => (rows || []).map(toStoredSet).filter(Bool
 // A session's blocks, or [] (journals and older records have none).
 export const blocksOf = (entry) => (entry && Array.isArray(entry.blocks) ? entry.blocks : []);
 
-// Stored blocks -> the form's draft: { key, exerciseId, rows, note }. `key`
-// is the block's id, or a fresh one with `fresh` (a redo starts new blocks).
+// Stored blocks -> the form's draft: { key, exerciseId, rows, note, groupId? }.
+// `key` is the block's id, or a fresh one with `fresh` (a redo starts new
+// blocks).
 export const toDraftBlocks = (blocks, { fresh = false } = {}) =>
-  (blocks || []).map((b) => ({ key: fresh || !b.id ? uid() : b.id, exerciseId: b.exerciseId, rows: toDraftRows(b.sets), note: b.note || "" }));
+  (blocks || []).map((b) => ({
+    key: fresh || !b.id ? uid() : b.id,
+    exerciseId: b.exerciseId,
+    rows: toDraftRows(b.sets),
+    note: b.note || "",
+    ...(b.groupId ? { groupId: b.groupId } : {}),
+  }));
 
 // A draft block for an exercise just added to the form.
 export const newDraftBlock = (exerciseId) => ({ key: uid(), exerciseId, rows: [], note: "" });
@@ -214,7 +227,7 @@ export const newDraftBlock = (exerciseId) => ({ key: uid(), exerciseId, rows: []
 export const fromDraftBlocks = (draft) =>
   (draft || []).map((b) => {
     const note = typeof b.note === "string" ? b.note.replace(/\s+/g, " ").trim() : "";
-    return { id: b.key, exerciseId: b.exerciseId, sets: fromDraftRows(b.rows), ...(note ? { note } : {}) };
+    return { id: b.key, exerciseId: b.exerciseId, sets: fromDraftRows(b.rows), ...(note ? { note } : {}), ...(b.groupId ? { groupId: b.groupId } : {}) };
   });
 
 // The distinct exercises of some blocks, in first-done order — a session's
@@ -224,16 +237,6 @@ export const blockExerciseIds = (blocks) => [...new Set((blocks || []).map((b) =
 // Whether a draft has anything worth saving besides the text: a set or a
 // note in any block (a session may be saved with no text).
 export const hasLoggedBlocks = (draft) => fromDraftBlocks(draft).some((b) => b.sets.length > 0 || b.note);
-
-// Moves the draft block at `index` by `delta` places (-1 up, +1 down); out of
-// range leaves the list as it is.
-export function moveBlock(draft, index, delta) {
-  const to = index + delta;
-  if (to < 0 || to >= draft.length) return draft;
-  const next = [...draft];
-  [next[index], next[to]] = [next[to], next[index]];
-  return next;
-}
 
 // An empty draft row for a measure, with a distance unit if it has a
 // distance and a time unit if it has a time (the measure's default unless
@@ -304,18 +307,37 @@ export function formatSet(set) {
 }
 
 const sameSet = (a, b) => SET_FIELDS.every((f) => a[f] === b[f]) && a.weightUnit === b.weightUnit && a.distanceUnit === b.distanceUnit;
+const sameChain = (a, b) => a.length === b.length && a.every((set, i) => sameSet(set, b[i]));
+
+// Sets split into chains: each set followed by the drop sets that carry
+// straight on from it.
+export function dropChains(sets) {
+  const chains = [];
+  (sets || []).forEach((set) => {
+    if (set.drop && chains.length > 0) chains[chains.length - 1].push(set);
+    else chains.push([set]);
+  });
+  return chains;
+}
 
 // A list of sets as one line, with runs of identical sets grouped:
-// "3×5 @ 225 lb, 225 lb × 4" or "3×10" or "2 × 1:00".
+// "3×5 @ 225 lb, 225 lb × 4" or "3×10" or "2 × 1:00". A dropset reads as one
+// chain — "185 lb × 8 → 155 lb × 6 → 125 lb × 5" — and identical chains
+// group the same way ("2 × (…)").
 export function formatSets(sets) {
   const groups = [];
-  (sets || []).forEach((set) => {
+  dropChains(sets).forEach((chain) => {
     const last = groups[groups.length - 1];
-    if (last && sameSet(last.set, set)) last.count++;
-    else groups.push({ set, count: 1 });
+    if (last && sameChain(last.chain, chain)) last.count++;
+    else groups.push({ chain, count: 1 });
   });
   return groups
-    .map(({ set, count }) => {
+    .map(({ chain, count }) => {
+      if (chain.length > 1) {
+        const text = chain.map(formatSet).join(" → ");
+        return count === 1 ? text : `${count} × (${text})`;
+      }
+      const set = chain[0];
       if (count === 1) return formatSet(set);
       const onlyReps = typeof set.reps === "number" && SET_FIELDS.every((f) => f === "reps" || f === "weight" || typeof set[f] !== "number");
       if (onlyReps && typeof set.weight === "number") return `${count}×${set.reps} @ ${trimNumber(set.weight)} ${set.weightUnit || WEIGHT_UNIT}`;
@@ -338,6 +360,7 @@ function normalizeSetList(list) {
       if ("weight" in set) set.weightUnit = typeof s.weightUnit === "string" ? s.weightUnit : WEIGHT_UNIT;
       if ("distance" in set) set.distanceUnit = typeof s.distanceUnit === "string" ? s.distanceUnit : DISTANCE_UNIT;
       if ("seconds" in set && TIME_UNITS.includes(s.timeUnit)) set.timeUnit = s.timeUnit;
+      if (Object.keys(set).length > 0 && s.drop === true) set.drop = true;
       return set;
     })
     .filter((s) => Object.keys(s).length > 0);
@@ -352,6 +375,12 @@ export function normalizeBlocks(raw) {
     .filter((b) => b && typeof b === "object" && typeof b.exerciseId === "string" && b.exerciseId)
     .map((b) => {
       const note = typeof b.note === "string" ? b.note.trim() : "";
-      return { id: typeof b.id === "string" && b.id ? b.id : uid(), exerciseId: b.exerciseId, sets: normalizeSetList(b.sets), ...(note ? { note } : {}) };
+      return {
+        id: typeof b.id === "string" && b.id ? b.id : uid(),
+        exerciseId: b.exerciseId,
+        sets: normalizeSetList(b.sets),
+        ...(note ? { note } : {}),
+        ...(typeof b.groupId === "string" && b.groupId ? { groupId: b.groupId } : {}),
+      };
     });
 }

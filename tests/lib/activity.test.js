@@ -107,3 +107,11 @@ test("redoFields copies blocks as an independent deep copy", () => {
   assert.deepEqual(entry.blocks, [{ id: "b1", exerciseId: "e1", sets: [{ weight: 225, weightUnit: "lb", reps: 5 }] }]);
   assert.equal("blocks" in redoFields({ tags: [] }, "2026-09-21"), false);
 });
+
+test("redoFields copies a session's groups", () => {
+  const entry = { tags: [], blocks: [{ id: "b1", exerciseId: "e1", sets: [], groupId: "G" }], groups: [{ id: "G", kind: "superset" }] };
+  const out = redoFields(entry, "2026-09-21");
+  assert.deepEqual(out.groups, entry.groups);
+  out.groups[0].kind = "circuit";
+  assert.equal(entry.groups[0].kind, "superset");
+});

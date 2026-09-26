@@ -3,6 +3,7 @@ import { folderPath, resolveFolderPath } from "./folders.js";
 import { uid, todayISO } from "./id.js";
 import { importedTimestamps } from "./records.js";
 import { formatSets, blocksOf, MEASURES } from "./sets.js";
+import { layoutBlocks, GROUP_KINDS } from "./groups.js";
 
 // The composer always lowercases tags on save, so the tag list (sorted with
 // a plain, case-sensitive .sort()) is naturally alphabetical. Imported data
@@ -33,14 +34,20 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   // A session's logged sets as "Back squat: 3×5 @ 225 lb; Plank: 2 × 1:00",
   // for reading only, like the exercise names (JSON keeps the numbers).
   // A session's blocks in order, one "Name: sets (note)" each, skipping
-  // blocks with neither.
+  // blocks with neither; a superset or circuit as "Superset (A: … + B: …)".
+  const blockText = (b) => {
+    const parts = [(b.sets || []).length > 0 ? formatSets(b.sets) : "", b.note ? `(${b.note})` : ""].filter(Boolean).join(" ");
+    return `${exerciseNameById.get(b.exerciseId) || "Deleted exercise"}: ${parts}`;
+  };
+  const logged = (b) => (b.sets || []).length > 0 || b.note;
   const setsText = (record) =>
-    blocksOf(record)
-      .filter((b) => (b.sets || []).length > 0 || b.note)
-      .map((b) => {
-        const parts = [(b.sets || []).length > 0 ? formatSets(b.sets) : "", b.note ? `(${b.note})` : ""].filter(Boolean).join(" ");
-        return `${exerciseNameById.get(b.exerciseId) || "Deleted exercise"}: ${parts}`;
+    layoutBlocks(blocksOf(record), record.groups)
+      .map((item) => {
+        if (item.type === "block") return logged(item.block) ? blockText(item.block) : "";
+        const members = item.members.map((m) => m.block).filter(logged);
+        return members.length > 0 ? `${GROUP_KINDS[item.group.kind]} (${members.map(blockText).join(" + ")})` : "";
       })
+      .filter(Boolean)
       .join("; ");
 
   const header = [

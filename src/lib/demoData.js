@@ -5,8 +5,8 @@
 // has been training for months: a Library of exercises logged in every way
 // sets can be measured, routines in nested folders built from those
 // exercises, sessions built from those routines (blocks in the order done,
-// with sets that progress over time, notes, the odd extra exercise and some
-// exercises done twice), journal
+// with sets that progress over time, notes, the odd extra exercise, some
+// exercises done twice, supersets and circuits, and dropsets), journal
 // entries, BJJ rolls, and techniques whose positions chain into a flow.
 //
 // Every record's id starts with DEMO_PREFIX, which is the only way test data
@@ -15,6 +15,7 @@
 
 import { uid } from "./id.js";
 import { toISO } from "./activity.js";
+import { tidyGroups } from "./groups.js";
 
 export const DEMO_PREFIX = "demo-";
 export const isDemoRecord = (record) => typeof record.id === "string" && record.id.startsWith(DEMO_PREFIX);
@@ -75,21 +76,22 @@ const EXERCISES = [
 ];
 
 // Routine folders (a path per folder) and routines: which folder, which
-// exercises (by name), tags and the routine's own text.
+// exercises (by name), tags and the routine's own text. `groups` are runs of
+// its exercises done as a superset or circuit when the routine is logged.
 const ROUTINE_FOLDERS = ["Strength", "Strength/Upper", "Strength/Lower", "Conditioning", "Mobility"];
 const ROUTINES = [
   { name: "Lower A", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: ["Back squat", "Romanian deadlift", "Bulgarian split squat", "Plank"], text: "Squat heavy, RDL moderate. Finish with core." },
   { name: "Lower B", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: ["Deadlift", "Front squat", "Walking lunge", "Hanging leg raise"] },
-  { name: "Upper push", folder: "Strength/Upper", tags: ["strength", "push"], exercises: ["Bench press", "Overhead press", "Incline dumbbell press", "Dips", "Tricep pushdown"], text: "Rest 2–3 min on the big lifts." },
-  { name: "Upper pull", folder: "Strength/Upper", tags: ["strength", "pull"], exercises: ["Pull-ups", "Barbell row", "Lat pulldown", "Face pull", "Bicep curl"] },
+  { name: "Upper push", folder: "Strength/Upper", tags: ["strength", "push"], exercises: ["Bench press", "Overhead press", "Incline dumbbell press", "Dips", "Tricep pushdown"], groups: [{ kind: "superset", exercises: ["Dips", "Tricep pushdown"] }], text: "Rest 2–3 min on the big lifts." },
+  { name: "Upper pull", folder: "Strength/Upper", tags: ["strength", "pull"], exercises: ["Pull-ups", "Barbell row", "Lat pulldown", "Face pull", "Bicep curl"], groups: [{ kind: "superset", exercises: ["Face pull", "Bicep curl"] }] },
   { name: "Full body", folder: "Strength", tags: ["strength"], exercises: ["Back squat", "Bench press", "Barbell row", "Farmer carry"] },
-  { name: "Conditioning circuit", folder: "Conditioning", tags: ["conditioning"], exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"], text: "4 rounds, 90s rest between rounds." },
+  { name: "Conditioning circuit", folder: "Conditioning", tags: ["conditioning"], exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"], groups: [{ kind: "circuit", exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"] }], text: "4 rounds, 90s rest between rounds." },
   { name: "Easy cardio", folder: "Conditioning", tags: ["cardio"], exercises: ["Stairmaster", "Row"] },
   { name: "Long run", folder: "Conditioning", tags: ["cardio"], exercises: ["Run"] },
   { name: "Bike intervals", folder: "Conditioning", tags: ["cardio", "conditioning"], exercises: ["Assault bike", "Jump rope"] },
   { name: "Morning mobility", folder: "Mobility", tags: ["mobility"], exercises: ["Cat-cow", "World's greatest stretch", "Hip flexor stretch"] },
   { name: "Hips & back", folder: "Mobility", tags: ["mobility"], exercises: ["Couch stretch", "Hip flexor stretch", "Dead hang"] },
-  { name: "Core finisher", folder: null, tags: ["core"], exercises: ["Ab wheel", "Side plank", "Weighted plank"] },
+  { name: "Core finisher", folder: null, tags: ["core"], exercises: ["Ab wheel", "Side plank", "Weighted plank"], groups: [{ kind: "circuit", exercises: ["Ab wheel", "Side plank", "Weighted plank"] }] },
 ];
 
 // The weekly shape sessions follow, cycling through a training block.
@@ -173,10 +175,14 @@ function buildFolders(paths, createdAt) {
   return { folders, idByPath };
 }
 
+// Exercises that sometimes end in a dropset.
+const DROPSET_EXERCISES = ["Lat pulldown", "Bicep curl", "Tricep pushdown", "Leg press", "Incline dumbbell press"];
+
 // One exercise's sets on a session `progress` of the way (0..1) through the
 // log, creeping its numbers up over time.
-function setsFor(ex, progress) {
-  const count = ex.measure === "distance" || ex.measure === "time_level" ? 1 : between(2, 5);
+// `count` fixes how many (a circuit's rounds); machine and cable work
+// sometimes ends in a dropset.
+function setsFor(ex, progress, count = ex.measure === "distance" || ex.measure === "time_level" ? 1 : between(2, 5)) {
   const grow = 1 + progress * 0.3;
   const sets = [];
   for (let i = 0; i < count; i++) {
@@ -209,6 +215,13 @@ function setsFor(ex, progress) {
       case "time_level":
         sets.push({ seconds: roundTo(ex.seconds * grow, 60), timeUnit: "min", level: Math.round(ex.level + progress * 3) });
         break;
+    }
+  }
+  if (DROPSET_EXERCISES.includes(ex.name) && sets.length > 0 && chance(0.4)) {
+    let last = sets[sets.length - 1];
+    for (let d = between(1, 2); d > 0 && last.weight > 10; d--) {
+      last = { ...last, weight: roundTo(last.weight * 0.75, 5), reps: Math.max(3, last.reps - between(0, 2)), drop: true };
+      sets.push(last);
     }
   }
   return sets;
@@ -267,17 +280,27 @@ export function generateDemoData(today = new Date(), months = 9) {
       const used = plan.map((name) => routineByName.get(name));
       const exerciseNames = [...new Set(used.flatMap((r) => r.exercises))];
       if (chance(0.25)) exerciseNames.push(pick(EXERCISES.filter((e) => e.active !== false)).name);
+      // The routines' supersets and circuits (skipped now and then, as if
+      // done straight), each with a shared number of rounds.
+      const sessionGroups = used
+        .flatMap((r) => r.groups || [])
+        .filter(() => chance(0.85))
+        .map((g) => ({ id: demoId(), kind: g.kind, exercises: g.exercises, rounds: between(3, 4) }));
+      const groupOf = (name) => sessionGroups.find((g) => g.exercises.includes(name));
       // One block per exercise in the routines' order, sometimes with the
       // first one done again at the end (back-off sets, a second round).
       const blocks = exerciseNames.map((name) => {
         const ex = exerciseByName.get(name);
-        return { id: demoId(), exerciseId: ex.id, sets: chance(0.88) ? setsFor(ex, progress) : [], ...(chance(0.12) ? { note: pick(EXERCISE_NOTES) } : {}) };
+        const group = groupOf(name);
+        const sets = group ? setsFor(ex, progress, group.rounds) : chance(0.88) ? setsFor(ex, progress) : [];
+        return { id: demoId(), exerciseId: ex.id, sets, ...(chance(0.12) ? { note: pick(EXERCISE_NOTES) } : {}), ...(group ? { groupId: group.id } : {}) };
       });
       const first = exerciseByName.get(exerciseNames[0]);
       if (chance(0.3) && first.measure !== "distance" && first.measure !== "time_level") {
         const backOff = setsFor(first, progress * 0.5).slice(0, 2).map((set) => (set.weight ? { ...set, weight: roundTo(set.weight * 0.8, 5) || 5 } : set));
         blocks.push({ id: demoId(), exerciseId: first.id, sets: backOff, note: pick(["back-off sets", "second round", "finisher"]) });
       }
+      const tidy = tidyGroups(blocks, sessionGroups.map(({ id, kind }) => ({ id, kind })));
       const text = pick(SESSION_NOTES);
       sessions.push({
         id: demoId(),
@@ -285,9 +308,10 @@ export function generateDemoData(today = new Date(), months = 9) {
         title: chance(0.2) ? pick(SESSION_TITLES) : "",
         tags: [...new Set([...used.flatMap((r) => r.tags), ...(chance(0.1) ? ["deload"] : [])])],
         text,
-        exerciseIds: [...new Set(blocks.map((b) => b.exerciseId))],
+        exerciseIds: [...new Set(tidy.blocks.map((b) => b.exerciseId))],
         routineIds: used.map((r) => r.id),
-        blocks,
+        blocks: tidy.blocks,
+        groups: tidy.groups,
         createdAt: stamp(date, between(6, 20)),
         updatedAt: stamp(date, 21),
       });

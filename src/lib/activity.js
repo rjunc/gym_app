@@ -54,6 +54,7 @@ export const redoFields = (entry, today) => ({
   ...(Array.isArray(entry.exerciseIds) ? { exerciseIds: [...entry.exerciseIds] } : {}),
   ...(Array.isArray(entry.routineIds) ? { routineIds: [...entry.routineIds] } : {}),
   ...(Array.isArray(entry.blocks) ? { blocks: entry.blocks.map((b) => ({ ...b, sets: (b.sets || []).map((s) => ({ ...s })) })) } : {}),
+  ...(Array.isArray(entry.groups) ? { groups: entry.groups.map((g) => ({ ...g })) } : {}),
 });
 
 // Shifts a { year, month } pair by `delta` months, rolling the year over.

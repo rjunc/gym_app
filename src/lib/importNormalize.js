@@ -2,14 +2,25 @@ import { uid, todayISO } from "./id.js";
 import { normalizeTags } from "./combinedCsv.js";
 import { importedTimestamps } from "./records.js";
 import { normalizeBlocks, MEASURES } from "./sets.js";
+import { normalizeGroups, tidyGroups } from "./groups.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
 // Sessions and journals carry exerciseIds and routineIds (rolls don't); they
 // round-trip for any of the three if present, same as everything else here.
-// Sessions also carry what was done in order (blocks: exercise, sets, note),
-// validated by normalizeBlocks.
+// Sessions also carry what was done in order (blocks: exercise, sets, note)
+// and the supersets/circuits those form (groups), validated by
+// normalizeBlocks / normalizeGroups and made to agree by tidyGroups.
 // Every normalizer below keeps createdAt/updatedAt when the record has them.
+// An imported entry's blocks and groups, checked and consistent with each
+// other; neither field when it has no blocks.
+function blocksAndGroups(s) {
+  const blocks = normalizeBlocks(s.blocks);
+  if (!blocks) return {};
+  const tidy = tidyGroups(blocks, normalizeGroups(s.groups) || []);
+  return { blocks: tidy.blocks, ...(tidy.groups.length > 0 ? { groups: tidy.groups } : {}) };
+}
+
 export function normalizeSimpleEntries(arr) {
   return Array.isArray(arr)
     ? arr.map((s) => ({
@@ -20,7 +31,7 @@ export function normalizeSimpleEntries(arr) {
         text: s.text || "",
         ...(Array.isArray(s.exerciseIds) ? { exerciseIds: s.exerciseIds.filter((id) => typeof id === "string") } : {}),
         ...(Array.isArray(s.routineIds) ? { routineIds: s.routineIds.filter((id) => typeof id === "string") } : {}),
-        ...(normalizeBlocks(s.blocks) ? { blocks: normalizeBlocks(s.blocks) } : {}),
+        ...blocksAndGroups(s),
         ...importedTimestamps(s),
       }))
     : [];

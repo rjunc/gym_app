@@ -517,3 +517,21 @@ test("CSV without a measure column imports exercises without one", () => {
   const csv = "type,id,name,tags\nexercise,e1,Squat,";
   assert.equal("measure" in combinedFromCSV(csv, [], []).exercises[0], false);
 });
+
+test("groups round-trip through JSON (tidied), and show in the CSV sets column", () => {
+  const session = {
+    ...loggedSession,
+    blocks: [
+      { id: "b1", exerciseId: "e1", sets: [{ weight: 100, weightUnit: "lb", reps: 8 }], groupId: "G" },
+      { id: "b2", exerciseId: "e2", sets: [{ seconds: 30 }], groupId: "G" },
+      { id: "b3", exerciseId: "e1", sets: [{ weight: 100, weightUnit: "lb", reps: 8 }], groupId: "LONE" },
+    ],
+    groups: [{ id: "G", kind: "superset" }, { id: "LONE", kind: "circuit" }],
+  };
+  const imported = parseImportFile("export.json", JSON.stringify({ sessions: [session], exercises }), [], []).sessions[0];
+  assert.deepEqual(imported.groups, [{ id: "G", kind: "superset" }]);
+  assert.equal("groupId" in imported.blocks[2], false);
+  const csv = combinedToCSV([session], [], [], [], [], [], [], exercises);
+  const sessionLine = csv.split(/\r?\n/).find((line) => line.startsWith("session,"));
+  assert.ok(sessionLine.endsWith("Superset (Goblet squat: 100 lb × 8 + Retired stretch: 0:30); Goblet squat: 100 lb × 8"), sessionLine);
+});

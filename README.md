@@ -63,7 +63,11 @@ in several blocks (squats first, back-off squats at the end), and the order
 is the order it was done (reorderable while logging). A block with no sets is
 just "done, no numbers"; `note` is a short line for what the numbers can't
 say ("last set AMRAP"), shown next to the sets everywhere, on the next
-session's "Last" line, and searchable. The session's `exerciseIds` is kept
+session's "Last" line, and searchable. Consecutive blocks can form a
+superset or circuit: they share a `groupId`, and the session lists
+`groups: [{ id, kind: "superset" | "circuit" }]` (set 1 of each is round 1,
+and so on; see `src/lib/groups.js`). A set with `drop: true` carries straight
+on from the one before (dropsets, rest-pause). The session's `exerciseIds` is kept
 as the distinct exercises of its blocks, which is what links, usage counts
 and search go by (journals and routines just have `exerciseIds`).
 

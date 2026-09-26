@@ -1,4 +1,5 @@
 import { formatSets, blocksOf } from "../lib/sets.js";
+import { GROUP_KINDS } from "../lib/groups.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { SheetLink } from "../ui/SheetNav.jsx";
@@ -27,7 +28,12 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
           .filter((b) => b.exerciseId === exercise.id && ((b.sets || []).length > 0 || b.note))
           .map((b) => (
             <div key={b.id} style={{ marginTop: 4 }}>
-              {(b.sets || []).length > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})` }}>{formatSets(b.sets)}</div>}
+              {(b.sets || []).length > 0 && (
+                <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})` }}>
+                  {formatSets(b.sets)}
+                  {b.groupId && <GroupTag entry={entry} groupId={b.groupId} />}
+                </div>
+              )}
               {b.note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 2 }}>{b.note}</div>}
             </div>
           ))
@@ -60,4 +66,11 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
       )}
     </HistorySheet>
   );
+}
+
+// "· in a superset" after an exercise's sets when it was done in one.
+function GroupTag({ entry, groupId }) {
+  const group = (entry.groups || []).find((g) => g.id === groupId);
+  if (!group) return null;
+  return <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}> · in a {GROUP_KINDS[group.kind].toLowerCase()}</span>;
 }

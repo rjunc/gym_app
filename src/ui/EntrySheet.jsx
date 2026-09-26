@@ -5,6 +5,7 @@ import { redoFields } from "../lib/activity.js";
 import { todayISO } from "../lib/id.js";
 import { cleanFields } from "../lib/text.js";
 import { toDraftBlocks, fromDraftBlocks, hasLoggedBlocks, blockExerciseIds } from "../lib/sets.js";
+import { tidyGroups } from "../lib/groups.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
@@ -62,8 +63,13 @@ export default function EntrySheet({
         ? redoFields(redo, initialDate)
         : { date: initialDate, title: "", tags: [], text: "", exerciseIds: [], routineIds: [] };
     if (!withBlocks) return base;
-    const { blocks: _stored, ...rest } = base;
-    return { ...rest, blocks: isEdit ? toDraftBlocks(entry.blocks) : redo ? toDraftBlocks(redo.blocks, { fresh: true }) : [] };
+    const { blocks: _stored, groups: _storedGroups, ...rest } = base;
+    const from = isEdit ? entry : redo;
+    return {
+      ...rest,
+      blocks: from ? toDraftBlocks(from.blocks, { fresh: !isEdit }) : [],
+      groups: from ? (from.groups || []).map((g) => ({ ...g })) : [],
+    };
   });
   const [tagDraft, setTagDraft] = useState("");
 
@@ -88,8 +94,10 @@ export default function EntrySheet({
     const tags = addTagsFromDraft(form.tags, tagDraft);
     const fields = cleanFields({ date: form.date, title: form.title, tags, text: form.text });
     if (meta.showSets) {
-      fields.blocks = fromDraftBlocks(form.blocks);
-      fields.exerciseIds = blockExerciseIds(fields.blocks);
+      const { blocks, groups } = tidyGroups(fromDraftBlocks(form.blocks), form.groups);
+      fields.blocks = blocks;
+      fields.groups = groups;
+      fields.exerciseIds = blockExerciseIds(blocks);
     } else if (meta.showExercises) {
       fields.exerciseIds = form.exerciseIds || [];
     }

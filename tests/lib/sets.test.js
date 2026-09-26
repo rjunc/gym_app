@@ -10,7 +10,7 @@ import {
   newDraftBlock,
   blockExerciseIds,
   hasLoggedBlocks,
-  moveBlock,
+  dropChains,
   blocksOf,
   blankRow,
   rowFields,
@@ -109,15 +109,6 @@ test("hasLoggedBlocks is true only when a set or a note would actually be saved"
   assert.equal(hasLoggedBlocks([{ key: "k", exerciseId: "e1", rows: [{ reps: "5" }], note: "" }]), true);
   assert.equal(hasLoggedBlocks([{ key: "k", exerciseId: "e1", rows: [], note: "skipped" }]), true);
   assert.equal(hasLoggedBlocks([]), false);
-});
-
-test("moveBlock swaps with a neighbour, and leaves the ends alone", () => {
-  const list = ["a", "b", "c"];
-  assert.deepEqual(moveBlock(list, 1, -1), ["b", "a", "c"]);
-  assert.deepEqual(moveBlock(list, 1, 1), ["a", "c", "b"]);
-  assert.equal(moveBlock(list, 0, -1), list);
-  assert.equal(moveBlock(list, 2, 1), list);
-  assert.deepEqual(list, ["a", "b", "c"]);
 });
 
 test("blocksOf is a session's blocks, or none", () => {
@@ -341,4 +332,30 @@ test("a comma works as the decimal point (iPhone number pad in some regions)", (
   assert.equal(parseDuration("20,5", "min"), 1230);
   assert.deepEqual(fromDraftRows([{ weight: "22,5", reps: "5" }]), [{ weight: 22.5, weightUnit: "lb", reps: 5 }]);
   assert.deepEqual(fromDraftRows([{ seconds: "10", level: "7,5", timeUnit: "min" }]), [{ seconds: 600, timeUnit: "min", level: 7.5 }]);
+});
+
+/* ================================== dropsets ================================== */
+
+test("a drop is saved, read back, and only on a set with numbers", () => {
+  const saved = fromDraftRows([{ weight: "185", reps: "8" }, { weight: "155", reps: "6", drop: true }, { weight: "", reps: "", drop: true }]);
+  assert.deepEqual(saved, [lb(185, 8), { ...lb(155, 6), drop: true }]);
+  assert.deepEqual(toDraftRows(saved)[1], { weight: "155", reps: "6", drop: true });
+});
+
+test("dropChains and formatSets read a dropset as one chain", () => {
+  const sets = [lb(185, 8), { ...lb(155, 6), drop: true }, { ...lb(125, 5), drop: true }, lb(185, 8)];
+  assert.deepEqual(dropChains(sets).map((c) => c.length), [3, 1]);
+  assert.equal(formatSets(sets), "185 lb × 8 → 155 lb × 6 → 125 lb × 5, 185 lb × 8");
+  const twice = [lb(100, 10), { ...lb(80, 8), drop: true }, lb(100, 10), { ...lb(80, 8), drop: true }];
+  assert.equal(formatSets(twice), "2 × (100 lb × 10 → 80 lb × 8)");
+  // A first set marked as a drop has nothing to drop from, so it stands alone.
+  assert.equal(formatSets([{ ...lb(50, 5), drop: true }]), "50 lb × 5");
+});
+
+test("blocks keep their group through the draft and import", () => {
+  const stored = [{ id: "b1", exerciseId: "e1", sets: [], groupId: "G" }];
+  assert.equal(toDraftBlocks(stored)[0].groupId, "G");
+  assert.deepEqual(fromDraftBlocks(toDraftBlocks(stored)), stored);
+  assert.equal(normalizeBlocks([{ id: "b1", exerciseId: "e1", sets: [{ reps: 5, drop: true }], groupId: "G" }])[0].groupId, "G");
+  assert.deepEqual(normalizeBlocks([{ id: "b1", exerciseId: "e1", sets: [{ reps: 5, drop: "yes" }] }])[0].sets, [{ reps: 5 }]);
 });
