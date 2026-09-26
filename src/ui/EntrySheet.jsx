@@ -8,20 +8,39 @@ import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
 
-// Bottom sheet for logging a new entry or editing one from Home. Owns its own
-// draft state and hands back (type, fields) on save; the caller decides where
-// that goes. `types` maps a type key to its { singular, accent, textLabel,
-// textPlaceholder }; `entriesByType` maps the same keys to the existing entries,
-// which feed the tag suggestions for whichever type is selected. Types flagged
+// Bottom sheet for logging a new dated entry or editing one — the one add/edit
+// form behind Home and the Sessions/Journals/Rolls pages. Owns its own draft
+// state and hands back (type, fields) on save; the caller decides where that
+// goes. `types` maps a type key to its { singular, accent, textLabel,
+// textPlaceholder }; with more than one (Home's Session/Roll) a Type switch is
+// shown, with just one it's hidden. `entriesByType` maps the same keys to the
+// existing entries, which feed the tag suggestions for whichever type is
+// selected. Types flagged
 // `showRoutines` offer a picker for adding routines into the form (any number,
 // in add, edit or redo alike) fed by `routines` and `folders`. Types flagged
 // `showExercises` (sessions only) offer the Library exercise picker, fed by
 // `exercises` and ranked by `exerciseUsage`. Pass `entry` to edit, or `redo`
 // (an existing entry) to add a new one copied from it and dated `initialDate`;
-// with neither, it starts blank on `initialType` and `initialDate`.
-export default function EntrySheet({ types, entriesByType, routines, folders, exercises = [], exerciseUsage, entry, redo, initialType, initialDate, onSave, onClose }) {
+// with neither, it starts blank on `initialType` and `initialDate`. An entry's
+// type comes from its `source` (Home's merged entries carry one), falling back
+// to `initialType`. `newTitle` is the sheet's heading when adding.
+export default function EntrySheet({
+  types,
+  entriesByType,
+  routines = [],
+  folders = [],
+  exercises = [],
+  exerciseUsage,
+  entry,
+  redo,
+  initialType,
+  initialDate,
+  newTitle = "Log an entry",
+  onSave,
+  onClose,
+}) {
   const isEdit = !!entry;
-  const [type, setType] = useState(isEdit ? entry.source : redo ? redo.source : initialType);
+  const [type, setType] = useState((isEdit ? entry.source : redo ? redo.source : null) || initialType);
   const [form, setForm] = useState(
     isEdit
       ? {
@@ -61,7 +80,7 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
 
   return (
     <EntryComposer
-      title={isEdit ? "Edit entry" : redo ? "Redo entry" : "Log an entry"}
+      title={isEdit ? "Edit entry" : redo ? "Redo entry" : newTitle}
       form={form}
       setForm={setForm}
       tagDraft={tagDraft}
@@ -72,14 +91,16 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
       onClose={onClose}
       saveDisabled={!canSave}
       topContent={
-        <div>
-          <span style={labelStyle}>Type</span>
-          <SegmentedToggle
-            options={Object.entries(types).map(([key, t]) => ({ key, label: t.singular, accent: t.accent }))}
-            value={type}
-            setValue={setType}
-          />
-        </div>
+        Object.keys(types).length > 1 && (
+          <div>
+            <span style={labelStyle}>Type</span>
+            <SegmentedToggle
+              options={Object.entries(types).map(([key, t]) => ({ key, label: t.singular, accent: t.accent }))}
+              value={type}
+              setValue={setType}
+            />
+          </div>
+        )
       }
       showDate
       showName
