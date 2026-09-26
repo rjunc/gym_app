@@ -515,3 +515,12 @@ test("CSV without a measure column imports exercises without one", () => {
   const csv = "type,id,name,tags\nexercise,e1,Squat,";
   assert.equal("measure" in combinedFromCSV(csv, [], []).exercises[0], false);
 });
+
+test("exercise notes round-trip through JSON and show in the CSV sets column", () => {
+  const session = { ...loggedSession, exerciseNotes: { e1: "last set AMRAP", e2: "  " } };
+  const json = JSON.stringify({ sessions: [session], exercises });
+  assert.deepEqual(parseImportFile("export.json", json, [], []).sessions[0].exerciseNotes, { e1: "last set AMRAP" });
+  const csv = combinedToCSV([session], [], [], [], [], [], [], exercises);
+  const sessionLine = csv.split(/\r?\n/).find((line) => line.startsWith("session,"));
+  assert.ok(sessionLine.endsWith("Goblet squat: 2×5 @ 225 lb (last set AMRAP); Retired stretch: 1:00"));
+});

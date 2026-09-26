@@ -20,6 +20,11 @@
 // way. Sets logged before it existed have none and were typed as seconds.
 // Sets are optional: an
 // exercise in exerciseIds with no entry here is just "did it, no numbers".
+//
+// Alongside `sets`, a session can carry `exerciseNotes`, a short note per
+// exercise for that day ("last set AMRAP", "go up 5 lb next time"), keyed by
+// the same exercise ids. It's what the numbers can't say, shown next to them
+// wherever they appear and on the next session's "Last" line.
 
 export const WEIGHT_UNIT = "lb";
 export const DISTANCE_UNIT = "mi"; // for an exercise never logged with a distance
@@ -234,19 +239,59 @@ export function rowFields(row, measure) {
   return SET_FIELDS.filter((f) => fields.has(f));
 }
 
-// The most recent other session that logged sets for `exerciseId`, on or
-// before `onOrBefore` (the date being logged), as { date, sets } — or null.
-// Same-day ties go to the one created last.
+// The most recent other session that logged sets or a note for
+// `exerciseId`, on or before `onOrBefore` (the date being logged), as
+// { date, sets, note? } (sets may be empty when only a note was left) — or
+// null. Same-day ties go to the one created last.
 export function lastSetsFor(sessions, exerciseId, { excludeId, onOrBefore } = {}) {
   let best = null;
   sessions.forEach((s) => {
-    const list = s.sets && s.sets[exerciseId];
-    if (!list || list.length === 0 || s.id === excludeId) return;
+    const list = (s.sets && s.sets[exerciseId]) || [];
+    const note = exerciseNoteOf(s, exerciseId);
+    if ((list.length === 0 && !note) || s.id === excludeId) return;
     if (onOrBefore && s.date > onOrBefore) return;
     const key = `${s.date}|${s.createdAt || ""}`;
-    if (!best || key > best.key) best = { key, date: s.date, sets: list };
+    if (!best || key > best.key) best = { key, date: s.date, sets: list, note };
   });
-  return best && { date: best.date, sets: best.sets };
+  return best && { date: best.date, sets: best.sets, ...(best.note ? { note: best.note } : {}) };
+}
+
+// A session's note for one exercise, or "".
+export const exerciseNoteOf = (entry, exerciseId) => {
+  const note = entry && entry.exerciseNotes && entry.exerciseNotes[exerciseId];
+  return typeof note === "string" ? note.trim() : "";
+};
+
+// The form's exercise notes -> what's saved: only exercises still in
+// `exerciseIds`, trimmed, with blank ones dropped.
+export function cleanExerciseNotes(notes, exerciseIds) {
+  const out = {};
+  (exerciseIds || []).forEach((id) => {
+    const note = typeof (notes || {})[id] === "string" ? notes[id].replace(/\s+/g, " ").trim() : "";
+    if (note) out[id] = note;
+  });
+  return out;
+}
+
+// Validates `exerciseNotes` from an imported file: string values only,
+// trimmed, blanks dropped. Undefined when `raw` isn't an object at all.
+export function normalizeExerciseNotes(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out = {};
+  Object.entries(raw).forEach(([id, note]) => {
+    if (typeof note === "string" && note.trim()) out[id] = note.trim();
+  });
+  return out;
+}
+
+// The exercises a session has sets or a note for, in its exercise order,
+// then any whose link was since removed (so nothing logged is hidden).
+export function loggedExerciseIds(entry) {
+  const linked = entry.exerciseIds || [];
+  const sets = entry.sets || {};
+  const notes = entry.exerciseNotes || {};
+  const extra = [...Object.keys(sets), ...Object.keys(notes)].filter((id, i, all) => !linked.includes(id) && all.indexOf(id) === i);
+  return [...linked, ...extra].filter((id) => (sets[id] || []).length > 0 || exerciseNoteOf(entry, id));
 }
 
 const trimNumber = (n) => String(Math.round(n * 100) / 100);

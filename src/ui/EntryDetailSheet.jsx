@@ -1,6 +1,6 @@
 import { X, BookOpen } from "lucide-react";
 import { formatDate, formatDateTime, wasEdited } from "../lib/id.js";
-import { formatSet } from "../lib/sets.js";
+import { formatSet, exerciseNoteOf } from "../lib/sets.js";
 import TagChip from "./TagChip.jsx";
 import BottomSheet from "./BottomSheet.jsx";
 import SheetActions from "./SheetActions.jsx";
@@ -19,7 +19,7 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
   // removed (so logged numbers are never hidden). Deleted Library exercises
   // are only kept when they have sets to show.
   const exerciseIds = [...(entry.exerciseIds || []), ...Object.keys(sets).filter((id) => !(entry.exerciseIds || []).includes(id))].filter(
-    (id) => exerciseNameById.has(id) || (sets[id] || []).length > 0
+    (id) => exerciseNameById.has(id) || (sets[id] || []).length > 0 || exerciseNoteOf(entry, id)
   );
   const logged = formatDateTime(entry.createdAt);
 
@@ -57,11 +57,12 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {exerciseIds.map((id) => {
               const list = sets[id] || [];
+              const note = exerciseNoteOf(entry, id);
               return (
                 <div key={id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px" }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: `var(${accent})` }}>{exerciseNameById.get(id) || "Deleted exercise"}</div>
                   {list.length === 0 ? (
-                    <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 2 }}>No sets logged</div>
+                    !note && <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 2 }}>No sets logged</div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 4 }}>
                       {list.map((set, i) => (
@@ -72,6 +73,7 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
                       ))}
                     </div>
                   )}
+                  {note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 4 }}>{note}</div>}
                 </div>
               );
             })}

@@ -139,3 +139,8 @@ test("entrySearchFields matches the names of the routines an entry was built fro
   assert.equal(matchesSearch(entrySearchFields(session, exerciseNameById, routineNameById), "push a"), true);
   assert.equal(matchesSearch(entrySearchFields(session, exerciseNameById), "push"), false);
 });
+
+test("entrySearchFields finds a session by its per-exercise notes", () => {
+  const session = { text: "", tags: [], exerciseIds: ["e1"], exerciseNotes: { e1: "left shoulder twinged" } };
+  assert.equal(matchesSearch(entrySearchFields(session, new Map()), "shoulder"), true);
+});

@@ -4,7 +4,7 @@ import { routineOptions } from "../lib/routines.js";
 import { redoFields } from "../lib/activity.js";
 import { todayISO } from "../lib/id.js";
 import { cleanFields } from "../lib/text.js";
-import { toDraftSets, fromDraftSets, hasLoggedSets } from "../lib/sets.js";
+import { toDraftSets, fromDraftSets, hasLoggedSets, cleanExerciseNotes } from "../lib/sets.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
@@ -55,6 +55,7 @@ export default function EntrySheet({
           exerciseIds: [...(entry.exerciseIds || [])],
           routineIds: [...(entry.routineIds || [])],
           sets: toDraftSets(entry.sets),
+          exerciseNotes: { ...(entry.exerciseNotes || {}) },
         }
       : redo
         ? { ...redoFields(redo, initialDate), sets: toDraftSets(redo.sets) }
@@ -64,7 +65,9 @@ export default function EntrySheet({
 
   const meta = types[type];
   // Text or at least one logged set (a session can be just the numbers).
-  const hasContent = form.text.trim() !== "" || (meta.showSets && hasLoggedSets(form.sets, form.exerciseIds));
+  const hasContent =
+    form.text.trim() !== "" ||
+    (meta.showSets && (hasLoggedSets(form.sets, form.exerciseIds) || Object.keys(cleanExerciseNotes(form.exerciseNotes, form.exerciseIds)).length > 0));
   const canSave = hasContent && form.date !== "";
   // Sessions and rolls have different vocabularies (legs vs. guard), so suggest
   // from the type being logged.
@@ -84,7 +87,10 @@ export default function EntrySheet({
     const fields = cleanFields({ date: form.date, title: form.title, tags, text: form.text });
     if (meta.showExercises) fields.exerciseIds = form.exerciseIds || [];
     if (meta.showRoutines) fields.routineIds = form.routineIds || [];
-    if (meta.showSets) fields.sets = fromDraftSets(form.sets, fields.exerciseIds);
+    if (meta.showSets) {
+      fields.sets = fromDraftSets(form.sets, fields.exerciseIds);
+      fields.exerciseNotes = cleanExerciseNotes(form.exerciseNotes, fields.exerciseIds);
+    }
     onSave(type, fields);
   };
 

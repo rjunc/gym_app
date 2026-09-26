@@ -1,4 +1,4 @@
-import { formatSets } from "../lib/sets.js";
+import { formatSets, exerciseNoteOf } from "../lib/sets.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { labelStyle } from "../ui/styles.js";
@@ -19,12 +19,16 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
       onDelete={onDelete}
       onClose={onClose}
       emptyLabel="Not used in any sessions or journal entries yet."
-      detail={(entry, entryAccent) =>
-        entry.sets &&
-        (entry.sets[exercise.id] || []).length > 0 && (
-          <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})`, marginTop: 4 }}>{formatSets(entry.sets[exercise.id])}</div>
-        )
-      }
+      detail={(entry, entryAccent) => {
+        const list = (entry.sets && entry.sets[exercise.id]) || [];
+        const note = exerciseNoteOf(entry, exercise.id);
+        return (
+          <>
+            {list.length > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})`, marginTop: 4 }}>{formatSets(list)}</div>}
+            {note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 2 }}>{note}</div>}
+          </>
+        );
+      }}
       header={
         <>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{exercise.name}</div>

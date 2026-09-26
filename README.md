@@ -73,7 +73,12 @@ every set. Time is saved in seconds, typed in min or sec the same way
 are optional, so an exercise with no entry is just "done, no numbers".
 See `src/lib/sets.js`.
 
-CSV/JSON export and import live in the sidebar. JSON keeps sets exactly.
+**Exercise notes.** A session can also carry a short note per exercise
+for that day, as `exerciseNotes: { [exerciseId]: "last set AMRAP" }`. It
+shows next to that exercise's sets everywhere, on the next session's "Last"
+line, and is searchable.
+
+CSV/JSON export and import live in the sidebar. JSON keeps sets and exercise notes exactly.
 CSV lists them in a `sets` column for reading only, like exercise names.
 
 ## Managing accounts

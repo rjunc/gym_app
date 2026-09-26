@@ -21,6 +21,10 @@ import {
   timeUnitOfSets,
   setTimeUnit,
   defaultTimeUnit,
+  cleanExerciseNotes,
+  normalizeExerciseNotes,
+  loggedExerciseIds,
+  exerciseNoteOf,
 } from "../../src/lib/sets.js";
 
 const lb = (weight, reps) => ({ weight, weightUnit: "lb", reps });
@@ -267,4 +271,34 @@ test("a comma works as the decimal point (iPhone number pad in some regions)", (
     e1: [{ weight: 22.5, weightUnit: "lb", reps: 5 }],
     e2: [{ seconds: 600, timeUnit: "min", level: 7.5 }],
   });
+});
+
+/* =============================== exercise notes =============================== */
+
+test("cleanExerciseNotes keeps trimmed notes for linked exercises only", () => {
+  assert.deepEqual(cleanExerciseNotes({ e1: "  last set AMRAP ", e2: "   ", e3: "gone" }, ["e1", "e2"]), { e1: "last set AMRAP" });
+  assert.deepEqual(cleanExerciseNotes({ e1: "two\nlines" }, ["e1"]), { e1: "two lines" });
+  assert.deepEqual(cleanExerciseNotes(undefined, ["e1"]), {});
+});
+
+test("normalizeExerciseNotes keeps only non-blank strings", () => {
+  assert.deepEqual(normalizeExerciseNotes({ e1: " go up ", e2: 5, e3: "" }), { e1: "go up" });
+  assert.equal(normalizeExerciseNotes("nope"), undefined);
+  assert.equal(normalizeExerciseNotes([]), undefined);
+});
+
+test("lastSetsFor carries the note, and counts a session with only a note", () => {
+  const sessions = [
+    { id: "a", date: "2026-09-01", sets: { e1: [lb(200, 5)] }, exerciseNotes: { e1: "easy" } },
+    { id: "b", date: "2026-09-10", exerciseNotes: { e1: "skipped, shoulder" } },
+  ];
+  assert.deepEqual(lastSetsFor(sessions, "e1", { onOrBefore: "2026-09-25" }), { date: "2026-09-10", sets: [], note: "skipped, shoulder" });
+  assert.deepEqual(lastSetsFor(sessions, "e1", { excludeId: "b" }), { date: "2026-09-01", sets: [lb(200, 5)], note: "easy" });
+});
+
+test("loggedExerciseIds lists exercises with sets or a note, linked ones first", () => {
+  const entry = { exerciseIds: ["e1", "e2", "e3"], sets: { e1: [lb(1, 1)], e9: [{ reps: 3 }] }, exerciseNotes: { e3: "note", e8: "unlinked note" } };
+  assert.deepEqual(loggedExerciseIds(entry), ["e1", "e3", "e9", "e8"]);
+  assert.deepEqual(exerciseNoteOf(entry, "e3"), "note");
+  assert.deepEqual(exerciseNoteOf(entry, "e1"), "");
 });

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import {
   MEASURES,
@@ -72,12 +73,22 @@ const shortDate = (iso) => {
 // Distance and time units work the same way: tapping the unit after a
 // distance (mi/km/m/yd) or time (min/sec) switches every row of that
 // exercise, and new rows start in the unit it was last logged in.
+// "+ Note" opens a one-line note for the exercise on this session
+// (`form.exerciseNotes`, see cleanExerciseNotes); it's shown open whenever the
+// exercise already has one.
 // "Add set" copies the previous row, so 5×5 is one row typed plus four taps.
 // "Last time" shows the most recent other session's sets for that exercise
 // (from `history`, not after the date being logged) and can copy them in.
 export default function SetsField({ form, setForm, exercises, history = [], entryId, accentVar }) {
+  const [openNotes, setOpenNotes] = useState([]); // exercises whose "+ Note" was tapped
   const linked = (form.exerciseIds || []).map((id) => exercises.find((e) => e.id === id)).filter(Boolean);
   if (linked.length === 0) return null;
+
+  // Typing keeps the box open even if it's cleared, so it doesn't vanish mid-edit.
+  const setNote = (exerciseId, note) => {
+    setOpenNotes((ids) => (ids.includes(exerciseId) ? ids : [...ids, exerciseId]));
+    setForm((f) => ({ ...f, exerciseNotes: { ...(f.exerciseNotes || {}), [exerciseId]: note } }));
+  };
 
   const setRows = (exerciseId, update) =>
     setForm((f) => {
@@ -101,6 +112,8 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {linked.map((exercise) => {
           const rows = (form.sets || {})[exercise.id] || [];
+          const note = (form.exerciseNotes || {})[exercise.id] || "";
+          const noteOpen = note !== "" || openNotes.includes(exercise.id);
           const last = lastSetsFor(history, exercise.id, { excludeId: entryId, onOrBefore: form.date });
           const measure = resolveMeasure({ chosen: (form.setMeasures || {})[exercise.id], rows, lastSets: last && last.sets, exercise });
           const units = {
@@ -130,16 +143,19 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
               {last && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
-                    Last ({shortDate(last.date)}): {formatSets(last.sets)}
+                    Last ({shortDate(last.date)}): {last.sets.length > 0 ? formatSets(last.sets) : "no sets"}
                   </span>
-                  <button
-                    onClick={() => setMeasure(exercise.id, measureOfSets(last.sets), () => toDraftSets({ x: last.sets }).x)}
-                    style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}
-                  >
-                    Use
-                  </button>
+                  {last.sets.length > 0 && (
+                    <button
+                      onClick={() => setMeasure(exercise.id, measureOfSets(last.sets), () => toDraftSets({ x: last.sets }).x)}
+                      style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}
+                    >
+                      Use
+                    </button>
+                  )}
                 </div>
               )}
+              {last && last.note && <div style={{ fontSize: 11, color: "var(--text-dim)", fontStyle: "italic", marginTop: 2 }}>“{last.note}”</div>}
 
               {rows.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
@@ -207,14 +223,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                 </div>
               )}
 
-              {measure ? (
-                <button
-                  onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure, units)])}
-                  style={{ ...ghostLinkStyle, color: `var(${accentVar})`, marginTop: 8 }}
-                >
-                  <Plus size={13} /> Add set
-                </button>
-              ) : (
+              {!measure && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Log as</span>
                   {Object.entries(MEASURES).map(([key, m]) => (
@@ -226,6 +235,35 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                       {m.label}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {noteOpen && (
+                <input
+                  value={note}
+                  onChange={(e) => setNote(exercise.id, e.target.value)}
+                  placeholder="Note for this exercise…"
+                  aria-label={`${exercise.name} note`}
+                  autoFocus={note === ""}
+                  style={{ ...inputStyle, padding: "7px 8px", marginTop: 8, fontSize: 13 }}
+                />
+              )}
+
+              {(measure || !noteOpen) && (
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8 }}>
+                  {measure && (
+                    <button
+                      onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure, units)])}
+                      style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}
+                    >
+                      <Plus size={13} /> Add set
+                    </button>
+                  )}
+                  {!noteOpen && (
+                    <button onClick={() => setOpenNotes((ids) => [...ids, exercise.id])} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
+                      <Plus size={13} /> Note
+                    </button>
+                  )}
                 </div>
               )}
             </div>
