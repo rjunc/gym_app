@@ -4,6 +4,7 @@ import { uid } from "../lib/id.js";
 import { matchesTags } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
 import { entriesByExercise } from "../lib/exercises.js";
+import { routineOptions } from "../lib/routines.js";
 import { matchesSearch, exerciseSearchFields } from "../lib/search.js";
 import TagChip from "../ui/TagChip.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
@@ -11,6 +12,7 @@ import TagFilter from "../ui/TagFilter.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import ExerciseCard from "./ExerciseCard.jsx";
+import ExerciseHistorySheet from "./ExerciseHistorySheet.jsx";
 import { primaryBtnStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent2"; // matches Routines/Techniques, the other library-style tabs
@@ -25,7 +27,7 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", activ
 // straight off this list by querying tags, which is why the tag vocabulary
 // here is worth keeping clean (reuse existing tags via the suggestions below
 // rather than typing near-duplicates).
-export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [] }) {
+export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [], folders = [] }) {
   const [search, setSearch] = useState("");
   const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
@@ -37,6 +39,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   const [expanded, setExpanded] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
+  const [historyId, setHistoryId] = useState(null); // exercise whose history sheet is open
   const [form, setForm] = useState(emptyForm());
   const [tagDraft, setTagDraft] = useState("");
 
@@ -48,6 +51,9 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   const sessionsByExercise = useMemo(() => entriesByExercise(sessions), [sessions]);
   const journalsByExercise = useMemo(() => entriesByExercise(journals), [journals]);
   const routinesByExercise = useMemo(() => entriesByExercise(routines), [routines]);
+  // Folder-path labels ("Legs / Squat day") for the history sheet's routine list.
+  const routineLabels = useMemo(() => routineOptions(routines, folders), [routines, folders]);
+  const historyExercise = historyId ? exercises.find((e) => e.id === historyId) : null;
 
   const filtered = useMemo(() => {
     return exercises
@@ -198,6 +204,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
                 onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
                 onEdit={() => openEdit(e)}
                 onDelete={() => deleteExercise(e.id)}
+                onOpen={() => setHistoryId(e.id)}
                 activeTags={activeTags}
                 onTagClick={toggleTagFilter}
                 usedInSessions={sessionsByExercise.get(e.id) || []}
@@ -208,6 +215,17 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
           </div>
         )}
       </div>
+
+      {historyExercise && (
+        <ExerciseHistorySheet
+          exercise={historyExercise}
+          accent={ACCENT}
+          sessions={sessionsByExercise.get(historyExercise.id) || []}
+          journals={journalsByExercise.get(historyExercise.id) || []}
+          routines={routineLabels.filter((o) => (routinesByExercise.get(historyExercise.id) || []).some((r) => r.id === o.id))}
+          onClose={() => setHistoryId(null)}
+        />
+      )}
 
       {showComposer && (
         <EntryComposer

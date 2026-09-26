@@ -29,6 +29,29 @@ export function entriesByExercise(entries) {
   return map;
 }
 
+// One timeline of everything dated that links an exercise — sessions and
+// journal entries together, newest first, each tagged with its `kind` so the
+// timeline can label it. Ties on the same day list sessions first.
+export function exerciseHistory(sessions, journals) {
+  return [...sessions.map((entry) => ({ kind: "session", entry })), ...journals.map((entry) => ({ kind: "journal", entry }))].sort(
+    (a, b) => (a.entry.date < b.entry.date ? 1 : a.entry.date > b.entry.date ? -1 : a.kind === b.kind ? 0 : a.kind === "session" ? -1 : 1)
+  );
+}
+
+// The exercise card's one-line usage summary, e.g. "12 sessions · 3 journal
+// entries · 2 routines", with the most recent dated use (or null when it's
+// never been logged). Empty parts are left out; `text` is "" if it's used
+// nowhere.
+export function exerciseUsageSummary({ sessions = [], journals = [], routines = [] }) {
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const parts = [];
+  if (sessions.length) parts.push(plural(sessions.length, "session", "sessions"));
+  if (journals.length) parts.push(plural(journals.length, "journal entry", "journal entries"));
+  if (routines.length) parts.push(plural(routines.length, "routine", "routines"));
+  const lastDate = [...sessions, ...journals].reduce((latest, e) => (typeof e.date === "string" && e.date > latest ? e.date : latest), "");
+  return { text: parts.join(" · "), lastDate: lastDate || null };
+}
+
 // Shifts an ISO date string by `days` (negative to go back), local-time
 // based to match todayISO()/formatDate() elsewhere.
 function shiftISODate(iso, days) {
