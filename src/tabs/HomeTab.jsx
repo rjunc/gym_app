@@ -32,7 +32,7 @@ const SOURCE_META = {
 };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
 
-export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises }) {
+export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises, exerciseUsage }) {
   const today = todayISO();
   const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
@@ -195,6 +195,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           routines={routines}
           folders={folders}
           exercises={exercises}
+          exerciseUsage={exerciseUsage}
           entry={composer.entry}
           redo={composer.redo}
           // With one type filtered on, that's almost certainly what's being logged.

@@ -37,6 +37,8 @@ export default function FolderLibraryTab({
   showGiOnly = false,
   showExercises = false,
   exercises = [],
+  // Session usage counts (exerciseUsageCounts) that rank the Exercises picker.
+  exerciseUsage,
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
@@ -438,6 +440,7 @@ export default function FolderLibraryTab({
           showGiOnly={showGiOnly}
           showExercises={showExercises}
           exerciseOptions={exercises}
+          exerciseUsage={exerciseUsage}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : `Save ${itemNoun}`}

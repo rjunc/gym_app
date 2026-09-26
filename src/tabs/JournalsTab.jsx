@@ -1,6 +1,6 @@
 import SimpleEntryTab from "./SimpleEntryTab.jsx";
 
-export default function JournalsTab({ journals, setJournals, exercises, routines, folders }) {
+export default function JournalsTab({ journals, setJournals, exercises, exerciseUsage, routines, folders }) {
   return (
     <SimpleEntryTab
       entries={journals}
@@ -14,6 +14,7 @@ export default function JournalsTab({ journals, setJournals, exercises, routines
       accent="--accent3"
       showExercises
       exercises={exercises}
+      exerciseUsage={exerciseUsage}
       showRoutines
       routines={routines}
       folders={folders}

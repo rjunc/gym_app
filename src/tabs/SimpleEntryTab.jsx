@@ -3,7 +3,6 @@ import { Plus } from "lucide-react";
 import { uid, todayISO } from "../lib/id.js";
 import { matchesTags, redoFields } from "../lib/activity.js";
 import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
-import { recentExerciseCounts } from "../lib/exercises.js";
 import { routineOptions } from "../lib/routines.js";
 import { matchesSearch, entrySearchFields, exerciseNameMap } from "../lib/search.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
@@ -30,6 +29,9 @@ export default function SimpleEntryTab({
   // get this field at all, not even an empty one).
   showExercises = false,
   exercises = [],
+  // How much each exercise is used in sessions (exerciseUsageCounts), to rank
+  // the Exercises picker. Always session-based, even on the Journals tab.
+  exerciseUsage,
   // Offers a picker that copies routines into the entry (Sessions and Journals).
   showRoutines = false,
   routines = [],
@@ -47,12 +49,6 @@ export default function SimpleEntryTab({
   const [tagDraft, setTagDraft] = useState("");
 
   const tagSuggestions = useMemo(() => tagCounts(entries), [entries]);
-  // Only meaningful with showExercises; ranks the Exercises picker by what's
-  // actually been linked in this tab's entries in the last 30 days.
-  const exerciseRecentCounts = useMemo(
-    () => (showExercises ? recentExerciseCounts(entries, todayISO()) : undefined),
-    [entries, showExercises]
-  );
 
   const routineChoices = useMemo(() => (showRoutines ? routineOptions(routines, folders) : []), [showRoutines, routines, folders]);
 
@@ -208,7 +204,7 @@ export default function SimpleEntryTab({
           routineOptions={routineChoices}
           showExercises={showExercises}
           exerciseOptions={exercises}
-          exerciseRecentCounts={exerciseRecentCounts}
+          exerciseUsage={exerciseUsage}
           textLabel={textLabel}
           textPlaceholder={textPlaceholder}
           saveLabel={editingId ? "Save changes" : "Save entry"}

@@ -1,6 +1,6 @@
 import FolderLibraryTab from "./FolderLibraryTab.jsx";
 
-export default function RoutinesTab({ folders, setFolders, routines, setRoutines, exercises }) {
+export default function RoutinesTab({ folders, setFolders, routines, setRoutines, exercises, exerciseUsage }) {
   return (
     <FolderLibraryTab
       items={routines}
@@ -18,6 +18,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
       accent="--accent2"
       showExercises
       exercises={exercises}
+      exerciseUsage={exerciseUsage}
     />
   );
 }

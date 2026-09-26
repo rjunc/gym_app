@@ -1,6 +1,6 @@
 import SimpleEntryTab from "./SimpleEntryTab.jsx";
 
-export default function SessionsTab({ sessions, setSessions, exercises, routines, folders }) {
+export default function SessionsTab({ sessions, setSessions, exercises, exerciseUsage, routines, folders }) {
   return (
     <SimpleEntryTab
       entries={sessions}
@@ -14,6 +14,7 @@ export default function SessionsTab({ sessions, setSessions, exercises, routines
       textPlaceholder="Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with..."
       showExercises
       exercises={exercises}
+      exerciseUsage={exerciseUsage}
       showRoutines
       routines={routines}
       folders={folders}

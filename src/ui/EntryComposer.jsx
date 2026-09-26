@@ -51,10 +51,10 @@ export default function EntryComposer({
   // Library can show you back which sessions/routines use a given exercise.
   showExercises,
   exerciseOptions = [],
-  // Optional Map of exercise id -> count in the last 30 days (see
-  // lib/exercises.js), used to rank the picker's suggestions by recent
-  // frequency instead of alphabetically. Sessions and journals pass this; routines don't.
-  exerciseRecentCounts,
+  // Optional exerciseUsageCounts output (see lib/exercises.js), used to rank
+  // the picker's suggestions by how much each exercise is used in sessions
+  // instead of alphabetically.
+  exerciseUsage,
   // A picker that copies routines (tags, exercises, text) into the form, any
   // number of them (Sessions and Journals). `routineOptions` is routineOptions()
   // output; `routines` are the records it points at.
@@ -123,7 +123,7 @@ export default function EntryComposer({
         {showRoutines && <RoutinesField setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} />}
 
         {showExercises && (
-          <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} recentCounts={exerciseRecentCounts} />
+          <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} usage={exerciseUsage} />
         )}
 
         <TagsField

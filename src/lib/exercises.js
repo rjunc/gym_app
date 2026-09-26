@@ -1,15 +1,27 @@
-// How often each Library exercise appears in sessions logged in the last
-// `days` days (default 30), keyed by exercise id. Used to sort the
-// "Exercises" picker's suggestions by what's actually been trained lately,
-// instead of alphabetically.
-export function recentExerciseCounts(sessions, todayISO, days = 30) {
+// How often each Library exercise appears in sessions, keyed by exercise id:
+// `recent` counts sessions from the last `days` days (default 30), `total`
+// counts every session ever. Only sessions count — not journal entries or
+// routines — since this is meant to reflect actual training. Feeds the
+// Exercises picker's ordering everywhere it appears (see compareByUsage).
+export function exerciseUsageCounts(sessions, todayISO, days = 30) {
   const cutoff = shiftISODate(todayISO, -days);
   const counts = new Map();
   sessions.forEach((s) => {
-    if (typeof s.date !== "string" || s.date < cutoff) return;
-    (s.exerciseIds || []).forEach((id) => counts.set(id, (counts.get(id) || 0) + 1));
+    const isRecent = typeof s.date === "string" && s.date >= cutoff;
+    (s.exerciseIds || []).forEach((id) => {
+      const c = counts.get(id) || { recent: 0, total: 0 };
+      counts.set(id, { recent: c.recent + (isRecent ? 1 : 0), total: c.total + 1 });
+    });
   });
   return counts;
+}
+
+// Sort comparator for exercises given exerciseUsageCounts output: most used in
+// the last 30 days first, then most used all-time (so older staples still come
+// before never-done exercises), then alphabetical.
+export function compareByUsage(usage) {
+  const of = (id) => usage.get(id) || { recent: 0, total: 0 };
+  return (a, b) => of(b.id).recent - of(a.id).recent || of(b.id).total - of(a.id).total || a.name.localeCompare(b.name);
 }
 
 // Backlinks from Library exercises to the entries that link them: a Map of

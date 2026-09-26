@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Menu } from "lucide-react";
 import { todayISO } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
+import { exerciseUsageCounts } from "./lib/exercises.js";
 import { subscribeToLog, saveLog } from "./lib/firestoreLog.js";
 import Shell from "./ui/Shell.jsx";
 import Sidebar from "./ui/Sidebar.jsx";
@@ -41,6 +42,9 @@ export default function App({ uid, userEmail, onLogout }) {
   const [loaded, setLoaded] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [importError, setImportError] = useState("");
+  // How much each exercise is used in sessions, shared by every Exercises
+  // picker (Sessions, Journals, Home, Routines) so they all rank the same way.
+  const exerciseUsage = useMemo(() => exerciseUsageCounts(sessions, todayISO()), [sessions]);
   const saveTimer = useRef(null);
   const fileInputRef = useRef(null);
   // Set right before a Firestore snapshot updates local state, so the save
@@ -171,13 +175,14 @@ export default function App({ uid, userEmail, onLogout }) {
               routines={routines}
               folders={folders}
               exercises={exercises}
+              exerciseUsage={exerciseUsage}
             />
           ) : page === "sessions" ? (
-            <SessionsTab sessions={sessions} setSessions={setSessions} exercises={exercises} routines={routines} folders={folders} />
+            <SessionsTab sessions={sessions} setSessions={setSessions} exercises={exercises} exerciseUsage={exerciseUsage} routines={routines} folders={folders} />
           ) : page === "journals" ? (
-            <JournalsTab journals={journals} setJournals={setJournals} exercises={exercises} routines={routines} folders={folders} />
+            <JournalsTab journals={journals} setJournals={setJournals} exercises={exercises} exerciseUsage={exerciseUsage} routines={routines} folders={folders} />
           ) : page === "routines" ? (
-            <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} exercises={exercises} />
+            <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} exercises={exercises} exerciseUsage={exerciseUsage} />
           ) : page === "library" ? (
             <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} folders={folders} />
           ) : page === "rolls" ? (

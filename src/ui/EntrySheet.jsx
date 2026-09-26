@@ -1,9 +1,7 @@
 import { useState, useMemo } from "react";
 import { addTagsFromDraft, tagCounts } from "../lib/tags.js";
 import { routineOptions } from "../lib/routines.js";
-import { recentExerciseCounts } from "../lib/exercises.js";
 import { redoFields } from "../lib/activity.js";
-import { todayISO } from "../lib/id.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
@@ -16,10 +14,10 @@ import { labelStyle } from "./styles.js";
 // `showRoutines` offer a picker for adding routines into the form (any number,
 // in add, edit or redo alike) fed by `routines` and `folders`. Types flagged
 // `showExercises` (sessions only) offer the Library exercise picker, fed by
-// `exercises`. Pass `entry` to edit, or `redo` (an existing entry) to add a new
-// one copied from it and dated `initialDate`; with neither, it starts blank on
-// `initialType` and `initialDate`.
-export default function EntrySheet({ types, entriesByType, routines, folders, exercises = [], entry, redo, initialType, initialDate, onSave, onClose }) {
+// `exercises` and ranked by `exerciseUsage`. Pass `entry` to edit, or `redo`
+// (an existing entry) to add a new one copied from it and dated `initialDate`;
+// with neither, it starts blank on `initialType` and `initialDate`.
+export default function EntrySheet({ types, entriesByType, routines, folders, exercises = [], exerciseUsage, entry, redo, initialType, initialDate, onSave, onClose }) {
   const isEdit = !!entry;
   const [type, setType] = useState(isEdit ? entry.source : redo ? redo.source : initialType);
   const [form, setForm] = useState(
@@ -42,12 +40,6 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
   // Sessions and rolls have different vocabularies (legs vs. guard), so suggest
   // from the type being logged.
   const tagSuggestions = useMemo(() => tagCounts(entriesByType[type]), [entriesByType, type]);
-  // Only meaningful for sessions (meta.showExercises); ranks the Exercises
-  // picker by what's actually been trained in the last 30 days.
-  const exerciseRecentCounts = useMemo(
-    () => (meta.showExercises ? recentExerciseCounts(entriesByType[type] || [], todayISO()) : undefined),
-    [entriesByType, type, meta.showExercises]
-  );
 
   const routineChoices = useMemo(() => routineOptions(routines, folders), [routines, folders]);
 
@@ -97,7 +89,7 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
       routineOptions={routineChoices}
       showExercises={meta.showExercises}
       exerciseOptions={exercises}
-      exerciseRecentCounts={exerciseRecentCounts}
+      exerciseUsage={exerciseUsage}
       textLabel={meta.textLabel}
       textPlaceholder={meta.textPlaceholder}
       saveLabel={isEdit ? "Save changes" : "Save entry"}
