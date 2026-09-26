@@ -5,8 +5,22 @@ import { folderPath } from "./folders.js";
 // "squat legs" matches squat in the text plus a "legs" tag). `mode` "all"
 // needs every word to be found somewhere; "any" needs just one. Matching is
 // case-insensitive and substring-based ("squ" finds "squat").
+//
+// Quoting keeps words together as one exact phrase: `"back squat" legs` is two
+// terms, "back squat" and "legs", so it won't match "back" and "squat" found in
+// separate places. Straight and curly quotes both work (iOS types curly ones by
+// default), and a quote left open runs to the end of the query, so a phrase
+// already behaves as one while it's still being typed.
+const QUOTE = `"“”`;
+const TERM = new RegExp(`[${QUOTE}]([^${QUOTE}]*)[${QUOTE}]?|([^\\s${QUOTE}]+)`, "g");
+
 export function searchWords(query) {
-  return (query || "").toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = [];
+  for (const [, phrase, word] of (query || "").toLowerCase().matchAll(TERM)) {
+    const term = phrase !== undefined ? phrase.trim().replace(/\s+/g, " ") : word;
+    if (term) terms.push(term);
+  }
+  return terms;
 }
 
 export function matchesSearch(fields, query, mode = "all") {

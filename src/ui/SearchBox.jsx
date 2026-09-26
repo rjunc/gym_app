@@ -4,9 +4,10 @@ import SegmentedToggle from "./SegmentedToggle.jsx";
 import { inputStyle } from "./styles.js";
 
 // The search input on every list page (see lib/search.js for what it matches).
-// Once two or more words are typed, an All words / Any word toggle appears
-// underneath — with a single word the two modes mean the same thing, so the
-// toggle stays out of the way until it matters.
+// Once two or more terms are typed (a "quoted phrase" counts as one), an All
+// words / Any word toggle appears underneath — with a single term the two
+// modes mean the same thing, so the toggle stays out of the way until it
+// matters.
 export default function SearchBox({ value, setValue, matchMode, setMatchMode, placeholder, accent = "--accent" }) {
   const multiWord = searchWords(value).length > 1;
   return (

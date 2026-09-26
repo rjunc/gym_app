@@ -15,6 +15,36 @@ test("searchWords lowercases and splits on any whitespace", () => {
   assert.deepEqual(searchWords(undefined), []);
 });
 
+test("searchWords keeps a quoted phrase together as one term", () => {
+  assert.deepEqual(searchWords('"Back Squat" legs'), ["back squat", "legs"]);
+  assert.deepEqual(searchWords('legs "back   squat"'), ["legs", "back squat"]);
+  assert.deepEqual(searchWords('"upper body""back squat"'), ["upper body", "back squat"]);
+});
+
+test("searchWords accepts curly quotes, as typed by iOS", () => {
+  assert.deepEqual(searchWords("“back squat” legs"), ["back squat", "legs"]);
+});
+
+test("searchWords treats an unclosed quote as a phrase running to the end", () => {
+  assert.deepEqual(searchWords('legs "back sq'), ["legs", "back sq"]);
+});
+
+test("searchWords drops empty quotes", () => {
+  assert.deepEqual(searchWords('"" legs " "'), ["legs"]);
+  assert.deepEqual(searchWords('"'), []);
+});
+
+test("matchesSearch: a quoted phrase must appear as-is within a single field", () => {
+  const linked = ["Morning", "felt good", ["legs"], ["Back squat"]];
+  const scattered = ["Back from vacation", "light front squats", ["legs"], []];
+  assert.equal(matchesSearch(linked, '"back squat"'), true);
+  assert.equal(matchesSearch(scattered, '"back squat"'), false);
+  assert.equal(matchesSearch(scattered, "back squat"), true, "unquoted still matches words in separate fields");
+  assert.equal(matchesSearch(linked, '"back squat" legs'), true);
+  assert.equal(matchesSearch(linked, '"back squat" arms'), false);
+  assert.equal(matchesSearch(scattered, '"back squat" legs', "any"), true);
+});
+
 test("matchesSearch: an empty query matches everything", () => {
   assert.equal(matchesSearch(["anything"], ""), true);
   assert.equal(matchesSearch([], "   "), true);

@@ -126,7 +126,8 @@ Data** if you want to fully remove a test account's footprint.
   Home too, e.g. as a third opt-in type alongside Sessions/Rolls.
 - **Search gaps, left alone on purpose (2026-09-25).** Every list page's
   search box now shares one matcher (`src/lib/search.js`: words matched
-  across all of an item's fields, with an All words / Any word toggle).
+  across all of an item's fields, `"quoted phrases"` kept together, with an
+  All words / Any word toggle).
   Deliberately not included: dates (the Home calendar covers that, and
   number searches like "225" would start matching them), a text search on
   Home or Flow (both stay tag/position filtering only), and the in-form
