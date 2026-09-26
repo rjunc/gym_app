@@ -12,10 +12,11 @@ import ExerciseLibraryTab from "../tabs/ExerciseLibraryTab.jsx";
 //   addedIds      what's already in the entry, shown as "Added"
 //   onAdd(record) adds one to the entry — also called for anything created
 //                 from here, since that's why it was created
+//   onRemove(id)  takes one back out, the same as its pill's X in the form
 //   initialQuery  what was typed in the form's field, to start the search from
-export default function PagePicker({ kind, addedIds, onAdd, onDone, initialQuery = "" }) {
+export default function PagePicker({ kind, addedIds, onAdd, onRemove, onDone, initialQuery = "" }) {
   const log = useLog();
-  const pick = { addedIds, onAdd, onDone, initialQuery };
+  const pick = { addedIds, onAdd, onRemove, onDone, initialQuery };
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "var(--bg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {kind === "routines" ? (

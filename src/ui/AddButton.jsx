@@ -1,12 +1,12 @@
-import { Plus, Check } from "lucide-react";
+import { Plus, Check, X } from "lucide-react";
 import { primaryBtnStyle, secondaryBtnStyle } from "./styles.js";
 
 // A card's "Add" button when its page is opened for picking (see PagePicker);
-// "Added" once it's in the entry, and inert — take it back off in the form.
-export default function AddButton({ added, onAdd, accent = "--accent" }) {
+// "Added" once it's in the entry, and tapping that takes it back out.
+export default function AddButton({ added, onAdd, onRemove, accent = "--accent" }) {
   return added ? (
-    <button disabled style={{ ...secondaryBtnStyle, padding: "6px 10px", color: `var(${accent})`, cursor: "default" }}>
-      <Check size={13} /> Added
+    <button onClick={onRemove} aria-label="Remove from entry" style={{ ...secondaryBtnStyle, padding: "6px 10px", color: `var(${accent})` }}>
+      <Check size={13} /> Added <X size={11} />
     </button>
   ) : (
     <button onClick={onAdd} style={{ ...primaryBtnStyle, background: `var(${accent})`, padding: "6px 10px" }}>

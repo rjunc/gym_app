@@ -34,7 +34,7 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", measu
 // rather than typing near-duplicates).
 //
 // `pick` opens the page for picking exercises into an entry (see PagePicker):
-// { addedIds, onAdd(exercise), onDone, initialQuery }. The page works exactly
+// { addedIds, onAdd(exercise), onRemove(id), onDone, initialQuery }. The page works exactly
 // as usual, except each card gets an Add button, Delete is hidden (so the
 // entry can't end up linking a deleted exercise), a bar with Done sits on
 // top, the search starts from what was typed in the entry's field, and a new
@@ -225,6 +225,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
                 onEdit={() => openEdit(e)}
                 onDelete={pick ? undefined : () => deleteExercise(e.id)}
                 onAdd={pick ? () => pick.onAdd(e) : undefined}
+                onRemove={pick ? () => pick.onRemove(e.id) : undefined}
                 added={pick ? pick.addedIds.includes(e.id) : false}
                 onOpen={() => setHistoryId(e.id)}
                 activeTags={activeTags}

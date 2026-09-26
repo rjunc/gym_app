@@ -19,9 +19,11 @@ export default function ExerciseCard({
   // a tag chip, show more) opens the exercise's history sheet.
   onOpen,
   // When the Library is opened for picking (see PagePicker): an Add button,
-  // shown as "Added" once `added`. Leave onDelete out to hide Delete.
+  // shown as "Added" once `added`, which onRemove takes back out. Leave
+  // onDelete out to hide Delete.
   onAdd,
   added,
+  onRemove,
   usedInSessions = [],
   usedInJournals = [],
   usedInRoutines = [],
@@ -67,7 +69,7 @@ export default function ExerciseCard({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-          {onAdd && <AddButton added={added} onAdd={onAdd} accent={accent} />}
+          {onAdd && <AddButton added={added} onAdd={onAdd} onRemove={onRemove} accent={accent} />}
           <IconBtn onClick={onEdit} label="Edit">
             <Pencil size={14} />
           </IconBtn>

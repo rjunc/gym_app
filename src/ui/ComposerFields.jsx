@@ -249,6 +249,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
           kind="exercises"
           addedIds={selectedIds}
           onAdd={(exercise) => addExercise(exercise.id)}
+          onRemove={removeExercise}
           onDone={() => setBrowsing(false)}
           initialQuery={query.trim()}
         />
@@ -332,7 +333,7 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
         </div>
       )}
       {browsing && (
-        <PagePicker kind="routines" addedIds={addedIds} onAdd={addRoutine} onDone={() => setBrowsing(false)} initialQuery={query.trim()} />
+        <PagePicker kind="routines" addedIds={addedIds} onAdd={addRoutine} onRemove={unlinkRoutine} onDone={() => setBrowsing(false)} initialQuery={query.trim()} />
       )}
     </div>
   );

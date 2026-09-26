@@ -25,9 +25,11 @@ export default function LibraryItemCard({
   // open a routine's history sheet.
   onOpen,
   // When the page is opened for picking (see PagePicker): an Add button,
-  // shown as "Added" once `added`. Leave onDelete out to hide Delete.
+  // shown as "Added" once `added`, which onRemove takes back out. Leave
+  // onDelete out to hide Delete.
   onAdd,
   added,
+  onRemove,
 }) {
   const isLong = (item.text || "").length > 220;
   return (
@@ -72,7 +74,7 @@ export default function LibraryItemCard({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-          {onAdd && <AddButton added={added} onAdd={onAdd} accent={accent} />}
+          {onAdd && <AddButton added={added} onAdd={onAdd} onRemove={onRemove} accent={accent} />}
           {onToggleStar && (
             <IconBtn onClick={onToggleStar} active={!!item.starred} label={item.starred ? "Unstar" : "Star as go-to"}>
               <Star size={14} fill={item.starred ? "currentColor" : "none"} />

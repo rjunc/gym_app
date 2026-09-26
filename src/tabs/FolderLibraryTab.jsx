@@ -50,7 +50,7 @@ export default function FolderLibraryTab({
   onOpenItem,
   deleteWarningFor,
   // Opens the page for picking items into an entry (see PagePicker):
-  // { addedIds, onAdd(item), onDone, initialQuery }. Everything works as
+  // { addedIds, onAdd(item), onRemove(id), onDone, initialQuery }. Everything works as
   // usual, except each card gets an Add button, deleting items and folders
   // is hidden (so the entry can't end up linking something deleted), a bar
   // with Done sits on top, the search starts from what was typed in the
@@ -349,6 +349,7 @@ export default function FolderLibraryTab({
                     onEdit={() => openEdit(r)}
                     onDelete={pick ? undefined : () => deleteItem(r.id)}
                     onAdd={pick ? () => pick.onAdd(r) : undefined}
+                    onRemove={pick ? () => pick.onRemove(r.id) : undefined}
                     added={pick ? pick.addedIds.includes(r.id) : false}
                     onJump={() => {
                       setCurrentFolderId(r.folderId || null);
@@ -438,6 +439,7 @@ export default function FolderLibraryTab({
                     onEdit={() => openEdit(r)}
                     onDelete={pick ? undefined : () => deleteItem(r.id)}
                     onAdd={pick ? () => pick.onAdd(r) : undefined}
+                    onRemove={pick ? () => pick.onRemove(r.id) : undefined}
                     added={pick ? pick.addedIds.includes(r.id) : false}
                     onTagClick={toggleTagFilter}
                     activeTags={activeTags}
