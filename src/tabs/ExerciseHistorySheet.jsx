@@ -1,4 +1,4 @@
-import { MEASURES, measureOf, formatSets } from "../lib/sets.js";
+import { formatSets } from "../lib/sets.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { labelStyle } from "../ui/styles.js";
@@ -29,7 +29,6 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
         <>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{exercise.name}</div>
           {exercise.prescription && <div style={{ fontSize: 12, color: `var(${accent})`, fontWeight: 600 }}>{exercise.prescription}</div>}
-          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>Logged as {MEASURES[measureOf(exercise)].label.toLowerCase()}</div>
           {exercise.tags && exercise.tags.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {exercise.tags.map((t) => (

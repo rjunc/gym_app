@@ -13,16 +13,56 @@
 export const WEIGHT_UNIT = "lb";
 export const DISTANCE_UNIT = "mi";
 
-// How a Library exercise is measured, which decides the inputs each set row
-// shows. Stored on the exercise as `measure`.
+// The ways a set can be measured, each deciding the inputs a set row shows.
+// An exercise doesn't own one: it's picked on the session, per exercise, and
+// the logged sets themselves record which it was (see measureOfSets), so the
+// next session can start from it (see resolveMeasure).
 export const MEASURES = {
   weight_reps: { label: "Weight × reps", fields: ["weight", "reps"] },
   reps: { label: "Reps", fields: ["reps"] },
   time: { label: "Time", fields: ["seconds"] },
   distance: { label: "Distance", fields: ["distance", "seconds"] },
 };
-export const DEFAULT_MEASURE = "weight_reps";
-export const measureOf = (exercise) => (exercise && MEASURES[exercise.measure] ? exercise.measure : DEFAULT_MEASURE);
+
+// An exercise's `measure`, if it has a valid one, else null. Exercises made
+// before the measure moved onto the session still carry one; it's only used
+// as a starting point for one that has never been logged.
+export const measureOf = (exercise) => (exercise && MEASURES[exercise.measure] ? exercise.measure : null);
+
+const hasValue = (v) => typeof v === "number" || (typeof v === "string" && v.trim() !== "");
+
+// Which measure a list of sets (stored numbers or draft strings) was logged
+// as, read from the first set that has anything in it: distance, then weight,
+// then reps, then time alone. Null when nothing is filled in.
+export function measureOfSets(sets) {
+  const set = (sets || []).find((s) => s && SET_FIELDS.some((f) => hasValue(s[f])));
+  if (!set) return null;
+  if (hasValue(set.distance)) return "distance";
+  if (hasValue(set.weight)) return "weight_reps";
+  if (hasValue(set.reps)) return "reps";
+  return "time";
+}
+
+// The measure an exercise's set rows use on a session being logged: the one
+// picked on this session (`chosen`), else what its rows were logged as, else
+// what it was logged as last time (`lastSets`), else the exercise's old
+// measure. Null means it's never been logged and nothing was picked yet, so
+// the form asks.
+export function resolveMeasure({ chosen, rows, lastSets, exercise }) {
+  if (MEASURES[chosen]) return chosen;
+  return measureOfSets(rows) || measureOfSets(lastSets) || measureOf(exercise);
+}
+
+// Draft rows switched to another measure: each row keeps only the new
+// measure's fields, carrying over the values they share (reps stay reps when
+// going from weight × reps to reps).
+export function switchMeasure(rows, measure) {
+  return (rows || []).map((row) => {
+    const next = {};
+    MEASURES[measure].fields.forEach((f) => (next[f] = row[f] ?? ""));
+    return next;
+  });
+}
 
 // Every numeric field a set can have, in display/input order.
 export const SET_FIELDS = ["weight", "distance", "reps", "seconds"];
@@ -101,20 +141,20 @@ export function fromDraftSets(draft, exerciseIds) {
 // and no text).
 export const hasLoggedSets = (draft, exerciseIds) => Object.keys(fromDraftSets(draft, exerciseIds)).length > 0;
 
-// An empty draft row for an exercise's measure.
+// An empty draft row for a measure.
 export function blankRow(measure) {
   const row = {};
-  (MEASURES[measure] || MEASURES[DEFAULT_MEASURE]).fields.forEach((f) => (row[f] = ""));
+  ((MEASURES[measure] || {}).fields || []).forEach((f) => (row[f] = ""));
   return row;
 }
 
-// The inputs a draft row shows: its exercise's measure fields, plus any other
-// field the row already has a value in (e.g. logged before the exercise's
-// measure was changed), so nothing is ever hidden or silently dropped.
+// The inputs a draft row shows: its measure's fields, plus any other field the
+// row already has a value in (e.g. an old set logged some other way), so
+// nothing is ever hidden or silently dropped.
 export function rowFields(row, measure) {
-  const fields = new Set((MEASURES[measure] || MEASURES[DEFAULT_MEASURE]).fields);
+  const fields = new Set((MEASURES[measure] || {}).fields || []);
   SET_FIELDS.forEach((f) => {
-    if (row && String(row[f] ?? "").trim() !== "") fields.add(f);
+    if (row && hasValue(row[f])) fields.add(f);
   });
   return SET_FIELDS.filter((f) => fields.has(f));
 }

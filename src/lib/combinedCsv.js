@@ -2,7 +2,7 @@ import { csvEscape, parseCSV } from "./csv.js";
 import { folderPath, resolveFolderPath } from "./folders.js";
 import { uid, todayISO } from "./id.js";
 import { importedTimestamps } from "./records.js";
-import { formatSets, MEASURES, DEFAULT_MEASURE } from "./sets.js";
+import { formatSets, MEASURES } from "./sets.js";
 
 // The composer always lowercases tags on save, so the tag list (sorted with
 // a plain, case-sensitive .sort()) is naturally alphabetical. Imported data
@@ -189,7 +189,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
         tags,
         text,
         prescription: prescriptionIdx >= 0 ? r[prescriptionIdx] || "" : "",
-        measure: measureIdx >= 0 && MEASURES[r[measureIdx]] ? r[measureIdx] : DEFAULT_MEASURE,
+        ...(measureIdx >= 0 && MEASURES[r[measureIdx]] ? { measure: r[measureIdx] } : {}),
         active: activeIdx >= 0 ? r[activeIdx] !== "0" : true,
       });
     } else if (type === "routine") {

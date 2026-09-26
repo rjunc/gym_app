@@ -13,6 +13,9 @@ import {
   formatSets,
   normalizeSets,
   measureOf,
+  measureOfSets,
+  resolveMeasure,
+  switchMeasure,
 } from "../../src/lib/sets.js";
 
 const lb = (weight, reps) => ({ weight, weightUnit: "lb", reps });
@@ -71,16 +74,43 @@ test("hasLoggedSets is true only when something would actually be saved", () => 
 
 test("blankRow and rowFields follow the measure, and never hide a field that has a value", () => {
   assert.deepEqual(blankRow("weight_reps"), { weight: "", reps: "" });
-  assert.deepEqual(blankRow("nonsense"), { weight: "", reps: "" });
+  assert.deepEqual(blankRow("nonsense"), {});
   assert.deepEqual(rowFields({ seconds: "" }, "time"), ["seconds"]);
   assert.deepEqual(rowFields({ weight: "100", reps: "5", seconds: "" }, "time"), ["weight", "reps", "seconds"]);
+  assert.deepEqual(rowFields({ reps: "5" }, null), ["reps"]);
 });
 
-test("measureOf defaults to weight × reps", () => {
+test("measureOf is an exercise's old measure, or null", () => {
   assert.equal(measureOf({ measure: "time" }), "time");
-  assert.equal(measureOf({}), "weight_reps");
-  assert.equal(measureOf({ measure: "bogus" }), "weight_reps");
-  assert.equal(measureOf(undefined), "weight_reps");
+  assert.equal(measureOf({}), null);
+  assert.equal(measureOf({ measure: "bogus" }), null);
+  assert.equal(measureOf(undefined), null);
+});
+
+test("measureOfSets reads how sets were logged, from stored numbers or draft strings", () => {
+  assert.equal(measureOfSets([lb(225, 5)]), "weight_reps");
+  assert.equal(measureOfSets([{ reps: 12 }]), "reps");
+  assert.equal(measureOfSets([{ seconds: 60 }]), "time");
+  assert.equal(measureOfSets([{ distance: 3.1, seconds: 1680 }]), "distance");
+  assert.equal(measureOfSets([{ weight: "", reps: "" }, { reps: "8" }]), "reps");
+  assert.equal(measureOfSets([{ weight: "", reps: "" }]), null);
+  assert.equal(measureOfSets(undefined), null);
+});
+
+test("resolveMeasure: picked on the session, then the rows, then last time, then the exercise's old measure", () => {
+  const rows = [{ reps: "8" }];
+  const lastSets = [lb(25, 6)];
+  assert.equal(resolveMeasure({ chosen: "time", rows, lastSets, exercise: { measure: "distance" } }), "time");
+  assert.equal(resolveMeasure({ rows, lastSets, exercise: { measure: "distance" } }), "reps");
+  assert.equal(resolveMeasure({ rows: [], lastSets, exercise: { measure: "distance" } }), "weight_reps");
+  assert.equal(resolveMeasure({ rows: [], exercise: { measure: "distance" } }), "distance");
+  assert.equal(resolveMeasure({ rows: [], exercise: {} }), null);
+});
+
+test("switchMeasure keeps only the new measure's fields, carrying shared values over", () => {
+  assert.deepEqual(switchMeasure([{ weight: "25", reps: "6" }], "reps"), [{ reps: "6" }]);
+  assert.deepEqual(switchMeasure([{ reps: "8" }], "weight_reps"), [{ weight: "", reps: "8" }]);
+  assert.deepEqual(switchMeasure([], "time"), []);
 });
 
 test("lastSetsFor finds the most recent other session that logged the exercise, not after the given date", () => {

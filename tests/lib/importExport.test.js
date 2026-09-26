@@ -279,7 +279,7 @@ test("parseImportFile: JSON round trip preserves every field, every type", () =>
 test("parseImportFile: exercise defaults are applied (untitled name, active true, blank prescription)", () => {
   const json = JSON.stringify({ exercises: [{ id: "e1", tags: [] }] });
   const result = parseImportFile("export.json", json, [], []);
-  assert.deepEqual(result.exercises[0], { id: "e1", name: "Untitled exercise", tags: [], text: "", prescription: "", measure: "weight_reps", active: true });
+  assert.deepEqual(result.exercises[0], { id: "e1", name: "Untitled exercise", tags: [], text: "", prescription: "", active: true });
 });
 
 test("parseImportFile: exercise active:false survives, and an exercise-only JSON is recognized", () => {
@@ -497,11 +497,11 @@ test("parseImportFile: JSON round trip preserves sets exactly", () => {
   assert.deepEqual(parseImportFile("export.json", json, [], []).sessions[0].sets, loggedSession.sets);
 });
 
-test("parseImportFile: an entry without sets doesn't gain them, and an unknown measure falls back to weight × reps", () => {
+test("parseImportFile: an entry without sets doesn't gain them, and an unknown measure is dropped", () => {
   const json = JSON.stringify({ sessions: [{ id: "s1", tags: [], text: "a" }], exercises: [{ id: "e1", name: "X", tags: [], measure: "juggling" }] });
   const result = parseImportFile("export.json", json, [], []);
   assert.equal("sets" in result.sessions[0], false);
-  assert.equal(result.exercises[0].measure, "weight_reps");
+  assert.equal("measure" in result.exercises[0], false);
 });
 
 test("CSV lists a session's sets for reading, but import doesn't reconstruct them", () => {
@@ -511,7 +511,7 @@ test("CSV lists a session's sets for reading, but import doesn't reconstruct the
   assert.equal("sets" in combinedFromCSV(csv, [], []).sessions[0], false);
 });
 
-test("CSV without a measure column imports exercises as weight × reps", () => {
+test("CSV without a measure column imports exercises without one", () => {
   const csv = "type,id,name,tags\nexercise,e1,Squat,";
-  assert.equal(combinedFromCSV(csv, [], []).exercises[0].measure, "weight_reps");
+  assert.equal("measure" in combinedFromCSV(csv, [], []).exercises[0], false);
 });

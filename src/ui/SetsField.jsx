@@ -1,5 +1,5 @@
 import { Plus, X } from "lucide-react";
-import { MEASURES, measureOf, blankRow, rowFields, lastSetsFor, formatSets, toDraftSets, WEIGHT_UNIT, DISTANCE_UNIT } from "../lib/sets.js";
+import { MEASURES, resolveMeasure, switchMeasure, measureOfSets, blankRow, rowFields, lastSetsFor, formatSets, toDraftSets, WEIGHT_UNIT, DISTANCE_UNIT } from "../lib/sets.js";
 import { labelStyle, inputStyle, ghostLinkStyle } from "./styles.js";
 
 // How each set field's text box looks: keyboard, placeholder, and the unit
@@ -11,6 +11,28 @@ const FIELD_INPUT = {
   seconds: { inputMode: "numeric", placeholder: "m:ss", suffix: "" },
 };
 
+// The small "Reps ▾" switch in an exercise's header.
+const measureSelectStyle = {
+  background: "transparent",
+  border: "none",
+  color: "var(--text-dim)",
+  fontSize: 11,
+  fontFamily: "inherit",
+  cursor: "pointer",
+  padding: 0,
+};
+
+// One choice in the "Log as" row for an exercise never logged before.
+const measureChipStyle = {
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 999,
+  padding: "4px 10px",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
 const shortDate = (iso) => {
   const d = new Date(iso + "T00:00:00");
   return isNaN(d) ? iso : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -20,6 +42,11 @@ const shortDate = (iso) => {
 // table under the Exercises picker. Works on the form's draft (`form.sets`,
 // strings as typed — see toDraftSets/fromDraftSets); nothing is required, and
 // an exercise with no rows is saved as linked-but-no-numbers.
+// How each exercise is measured is picked here, not on the exercise: it
+// starts as whatever it was logged as last time, can be switched for this
+// session, and an exercise never logged before asks first ("Log as").
+// The pick lives on the draft as `form.setMeasures` ({ exerciseId: measure })
+// and isn't saved — the saved sets already say how they were logged.
 // "Add set" copies the previous row, so 5×5 is one row typed plus four taps.
 // "Last time" shows the most recent other session's sets for that exercise
 // (from `history`, not after the date being logged) and can copy them in.
@@ -33,19 +60,42 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
       return { ...f, sets: { ...sets, [exerciseId]: update(sets[exerciseId] || []) } };
     });
 
+  const setMeasure = (exerciseId, measure, update) =>
+    setForm((f) => {
+      const sets = f.sets || {};
+      return {
+        ...f,
+        setMeasures: { ...(f.setMeasures || {}), [exerciseId]: measure },
+        sets: { ...sets, [exerciseId]: update(sets[exerciseId] || []) },
+      };
+    });
+
   return (
     <div>
       <label style={labelStyle}>Sets (optional)</label>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {linked.map((exercise) => {
-          const measure = measureOf(exercise);
           const rows = (form.sets || {})[exercise.id] || [];
           const last = lastSetsFor(history, exercise.id, { excludeId: entryId, onOrBefore: form.date });
+          const measure = resolveMeasure({ chosen: (form.setMeasures || {})[exercise.id], rows, lastSets: last && last.sets, exercise });
           return (
             <div key={exercise.id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 10 }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontWeight: 700, fontSize: 13 }}>{exercise.name}</span>
-                <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{MEASURES[measure].label}</span>
+                {measure && (
+                  <select
+                    value={measure}
+                    onChange={(e) => setMeasure(exercise.id, e.target.value, (list) => switchMeasure(list, e.target.value))}
+                    aria-label={`How ${exercise.name} is logged`}
+                    style={measureSelectStyle}
+                  >
+                    {Object.entries(MEASURES).map(([key, m]) => (
+                      <option key={key} value={key}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {last && (
@@ -53,7 +103,10 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                   <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
                     Last ({shortDate(last.date)}): {formatSets(last.sets)}
                   </span>
-                  <button onClick={() => setRows(exercise.id, () => toDraftSets({ x: last.sets }).x)} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
+                  <button
+                    onClick={() => setMeasure(exercise.id, measureOfSets(last.sets), () => toDraftSets({ x: last.sets }).x)}
+                    style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}
+                  >
                     Use
                   </button>
                 </div>
@@ -96,12 +149,27 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                 </div>
               )}
 
-              <button
-                onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure)])}
-                style={{ ...ghostLinkStyle, color: `var(${accentVar})`, marginTop: 8 }}
-              >
-                <Plus size={13} /> Add set
-              </button>
+              {measure ? (
+                <button
+                  onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure)])}
+                  style={{ ...ghostLinkStyle, color: `var(${accentVar})`, marginTop: 8 }}
+                >
+                  <Plus size={13} /> Add set
+                </button>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Log as</span>
+                  {Object.entries(MEASURES).map(([key, m]) => (
+                    <button
+                      key={key}
+                      onClick={() => setMeasure(exercise.id, key, (list) => (list.length > 0 ? switchMeasure(list, key) : [blankRow(key)]))}
+                      style={{ ...measureChipStyle, color: `var(${accentVar})` }}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

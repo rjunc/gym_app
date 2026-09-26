@@ -1,7 +1,7 @@
 import { uid, todayISO } from "./id.js";
 import { normalizeTags } from "./combinedCsv.js";
 import { importedTimestamps } from "./records.js";
-import { normalizeSets, MEASURES, DEFAULT_MEASURE } from "./sets.js";
+import { normalizeSets, MEASURES } from "./sets.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
@@ -49,8 +49,8 @@ export function normalizeFolderItems(arr, defaultName, { techniqueExtras = false
 }
 
 // Library exercises: id/name/tags/text like a routine, plus an optional
-// prescription string, how sets are logged (measure, weight × reps unless
-// it's one of the known kinds) and an active flag (defaulting true, since most
+// prescription string, the measure older exercises carry (kept only if it's
+// one of the known kinds; see measureOf) and an active flag (defaulting true, since most
 // imported/older data predates the flag and should count as usable).
 export function normalizeExercises(arr) {
   return Array.isArray(arr)
@@ -60,7 +60,7 @@ export function normalizeExercises(arr) {
         tags: normalizeTags(e.tags),
         text: e.text || "",
         prescription: e.prescription || "",
-        measure: MEASURES[e.measure] ? e.measure : DEFAULT_MEASURE,
+        ...(MEASURES[e.measure] ? { measure: e.measure } : {}),
         active: e.active !== false,
         ...importedTimestamps(e),
       }))
