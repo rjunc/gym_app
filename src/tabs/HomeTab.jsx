@@ -9,31 +9,15 @@ import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
 import DayEntries from "../ui/DayEntries.jsx";
 import EntrySheet from "../ui/EntrySheet.jsx";
+import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import EntryDetailSheet from "../ui/EntryDetailSheet.jsx";
 import { cardStyle, labelStyle, primaryBtnStyle } from "../ui/styles.js";
 
-// Every kind of dated log the calendar can draw from. Order here is the order
-// entries are listed within a day. Routines and techniques have no dates, so
-// they can't appear on a calendar.
-const SOURCE_META = {
-  sessions: {
-    label: "Sessions",
-    singular: "Session",
-    accent: "--accent",
-    showRoutines: true, // routines are lifting templates; rolls have no equivalent
-    showExercises: true, // links to the exercise Library; rolls have no equivalent
-    showSets: true, // per-set numbers for those exercises
-    textLabel: "What did you do?",
-    textPlaceholder: "Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with...",
-  },
-  rolls: {
-    label: "Rolls",
-    singular: "Roll",
-    accent: "--accent4",
-    textLabel: "What did you work on?",
-    textPlaceholder: "Gi class, drilled scissor sweep to knee-on-belly, rolled 5 rounds, caught a triangle from closed guard...",
-  },
-};
+// Every kind of dated log the calendar can draw from, with its settings from
+// ENTRY_TYPES (shared with the Sessions/Rolls pages). Order here is the order
+// entries are listed within a day. Journals aren't training, so they're left
+// off the calendar; routines and techniques have no dates.
+const SOURCE_META = { sessions: ENTRY_TYPES.sessions, rolls: ENTRY_TYPES.rolls };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
 
 export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises, exerciseUsage, routineUsage }) {
@@ -218,10 +202,14 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
             setViewing(null);
             setComposer({ entry: viewedEntry });
           }}
-          onRedo={() => {
-            setViewing(null);
-            setComposer({ entry: null, redo: viewedEntry });
-          }}
+          onRedo={
+            SOURCE_META[viewedEntry.source].canRedo
+              ? () => {
+                  setViewing(null);
+                  setComposer({ entry: null, redo: viewedEntry });
+                }
+              : undefined
+          }
           onDelete={() => {
             if (deleteEntry(viewedEntry)) setViewing(null);
           }}

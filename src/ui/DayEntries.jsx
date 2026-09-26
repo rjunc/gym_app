@@ -1,93 +1,25 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Pencil, Repeat, Trash2 } from "lucide-react";
 import { formatDate } from "../lib/id.js";
-import TagChip from "./TagChip.jsx";
-import IconBtn from "./IconBtn.jsx";
-import { cardStyle, ghostLinkStyle } from "./styles.js";
-import SetsSummary from "./SetsSummary.jsx";
-import RoutineLinks from "./RoutineLinks.jsx";
+import EntryCard from "./EntryCard.jsx";
 
-function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById, routineNameById, onOpen }) {
-  const [open, setOpen] = useState(false);
-  const isLong = (entry.text || "").length > 220;
-  return (
-    // Tapping anywhere that isn't one of its buttons opens the entry's summary.
-    <div
-      onClick={(ev) => {
-        if (onOpen && !ev.target.closest("button")) onOpen(entry);
-      }}
-      style={{ ...cardStyle, borderLeft: `3px solid var(${accent})`, cursor: onOpen ? "pointer" : undefined }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: `var(${accent})` }}>
-            {sourceLabel}
-          </span>
-          {entry.title && <span style={{ fontWeight: 700, fontSize: 13 }}>{entry.title}</span>}
-        </div>
-        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-          <IconBtn onClick={() => onRedo(entry)} label="Redo">
-            <Repeat size={14} />
-          </IconBtn>
-          <IconBtn onClick={() => onEdit(entry)} label="Edit">
-            <Pencil size={14} />
-          </IconBtn>
-          <IconBtn onClick={() => onDelete(entry)} danger label="Delete">
-            <Trash2 size={14} />
-          </IconBtn>
-        </div>
-      </div>
-
-      <RoutineLinks entry={entry} routineNameById={routineNameById} style={{ marginBottom: 8 }} />
-
-      {entry.tags && entry.tags.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-          {entry.tags.map((t) => (
-            <TagChip key={t} label={t} small accent={accent} active={activeTags.includes(t)} onClick={() => onToggleTag(t)} />
-          ))}
-        </div>
-      )}
-
-      <SetsSummary entry={entry} exerciseNameById={exerciseNameById} accent={accent} style={{ marginBottom: entry.text ? 8 : 0 }} />
-
-      {entry.text && (
-        <p
-          style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 13,
-            lineHeight: 1.55,
-            margin: 0,
-            whiteSpace: "pre-wrap",
-            display: "-webkit-box",
-            WebkitLineClamp: open || !isLong ? "unset" : 5,
-            WebkitBoxOrient: "vertical",
-            overflow: open || !isLong ? "visible" : "hidden",
-          }}
-        >
-          {entry.text}
-        </p>
-      )}
-
-      {isLong && (
-        <button onClick={() => setOpen(!open)} style={{ ...ghostLinkStyle, marginTop: 6 }}>
-          {open ? (
-            <>
-              Show less <ChevronUp size={13} />
-            </>
-          ) : (
-            <>
-              Show more <ChevronDown size={13} />
-            </>
-          )}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// The entries logged on one day. `hiddenCount` is how many more exist that the
-// current filters are hiding, so a filtered view never quietly lies about a day.
-export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete, onOpen, exerciseNameById = new Map(), routineNameById = new Map() }) {
+// The entries logged on one day, as the same EntryCard the list pages use —
+// labelled with each entry's kind, since a day can mix sessions and rolls.
+// `hiddenCount` is how many more exist that the current filters are hiding,
+// so a filtered view never quietly lies about a day. `sourceMeta` maps each
+// entry's `source` to its ENTRY_TYPES entry. Handlers receive the entry.
+export default function DayEntries({
+  iso,
+  entries,
+  hiddenCount,
+  sourceMeta,
+  activeTags,
+  onToggleTag,
+  onEdit,
+  onRedo,
+  onDelete,
+  onOpen,
+  exerciseNameById = new Map(),
+  routineNameById = new Map(),
+}) {
   return (
     <div>
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{formatDate(iso)}</div>
@@ -98,22 +30,25 @@ export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, acti
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {entries.map((e) => (
-            <Entry
-              key={`${e.source}-${e.id}`}
-              entry={e}
-              sourceLabel={sourceMeta[e.source].singular}
-              accent={sourceMeta[e.source].accent}
-              activeTags={activeTags}
-              onToggleTag={onToggleTag}
-              onEdit={onEdit}
-              onRedo={onRedo}
-              onDelete={onDelete}
-              exerciseNameById={exerciseNameById}
-              routineNameById={routineNameById}
-              onOpen={onOpen}
-            />
-          ))}
+          {entries.map((e) => {
+            const meta = sourceMeta[e.source];
+            return (
+              <EntryCard
+                key={`${e.source}-${e.id}`}
+                entry={e}
+                kindLabel={meta.singular}
+                accent={meta.accent}
+                activeTags={activeTags}
+                onTagClick={onToggleTag}
+                onEdit={() => onEdit(e)}
+                onRedo={meta.canRedo ? () => onRedo(e) : undefined}
+                onDelete={() => onDelete(e)}
+                onOpen={() => onOpen(e)}
+                exerciseNameById={exerciseNameById}
+                routineNameById={routineNameById}
+              />
+            );
+          })}
         </div>
       )}
 

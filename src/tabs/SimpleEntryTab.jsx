@@ -7,39 +7,25 @@ import { matchesSearch, entrySearchFields, exerciseNameMap, nameMap } from "../l
 import EntrySheet from "../ui/EntrySheet.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
-import SimpleEntryCard from "./SimpleEntryCard.jsx";
+import EntryCard from "../ui/EntryCard.jsx";
 import EntryDetailSheet from "../ui/EntryDetailSheet.jsx";
 import { primaryBtnStyle } from "../ui/styles.js";
 
 // Sessions, journals and rolls are each just a flat, most-recent-first list of
 // dated entries with tags — no folders. All three tabs are thin wrappers
-// around this. Adding and editing goes through EntrySheet, the same form Home
-// uses, with this page's one type (so no Session/Roll switch).
+// around this. `type` is that kind's entry in ENTRY_TYPES (lib/entryTypes.js)
+// — its wording, colour and which form fields it has — shared with Home so
+// the two can't drift apart. Adding and editing goes through EntrySheet and
+// cards are EntryCard, both the same as on Home, with this page's one type
+// (so no Session/Roll switch).
 export default function SimpleEntryTab({
   entries,
   setEntries,
-  eyebrow,
-  heading,
-  // What one entry is called on its summary sheet, e.g. "Session".
-  entryLabel = "Entry",
-  searchPlaceholder,
-  emptyLabel,
-  textLabel,
-  textPlaceholder,
-  accent = "--accent",
-  // Adds a "Redo" button to each entry that starts a new one from it, dated today.
-  canRedo = false,
-  // Links an entry to Library exercises (Sessions and Journals — Rolls don't
-  // get this field at all, not even an empty one).
-  showExercises = false,
-  // Per-set numbers for each linked exercise (Sessions only).
-  showSets = false,
+  type,
   exercises = [],
   // How much each exercise is used in sessions (exerciseUsageCounts), to rank
   // the Exercises picker. Always session-based, even on the Journals tab.
   exerciseUsage,
-  // Offers a picker that copies routines into the entry (Sessions and Journals).
-  showRoutines = false,
   routines = [],
   // How much each routine is used in sessions (routineUsageCounts), to rank
   // the Routines picker.
@@ -50,18 +36,15 @@ export default function SimpleEntryTab({
   const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
-  const [expanded, setExpanded] = useState(null);
   // null when closed; otherwise {} to add, { entry } to edit, { redo } to redo.
   const [composer, setComposer] = useState(null);
   // The entry whose read-only summary is open (by id, so it stays current).
   const [viewingId, setViewingId] = useState(null);
   const viewing = viewingId ? entries.find((e) => e.id === viewingId) : null;
 
+  const { accent, canRedo, singular, page } = type;
   // EntrySheet's single type for this page.
-  const types = useMemo(
-    () => ({ entry: { singular: heading, accent, textLabel, textPlaceholder, showRoutines, showExercises, showSets } }),
-    [heading, accent, textLabel, textPlaceholder, showRoutines, showExercises, showSets]
-  );
+  const types = useMemo(() => ({ entry: type }), [type]);
   const entriesByType = useMemo(() => ({ entry: entries }), [entries]);
 
   const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
@@ -102,8 +85,8 @@ export default function SimpleEntryTab({
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>{eyebrow}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>{heading}</div>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>{page.eyebrow}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>{page.heading}</div>
           </div>
           <button onClick={() => setComposer({})} style={{ ...primaryBtnStyle, background: `var(${accent})` }}>
             <Plus size={15} /> New entry
@@ -115,7 +98,7 @@ export default function SimpleEntryTab({
           setValue={setSearch}
           matchMode={searchMatchMode}
           setMatchMode={setSearchMatchMode}
-          placeholder={searchPlaceholder}
+          placeholder={page.searchPlaceholder}
           accent={accent}
         />
 
@@ -132,17 +115,16 @@ export default function SimpleEntryTab({
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "36px 10px", fontSize: 13 }}>
-            {entries.length === 0 ? emptyLabel : "Nothing matches that search or tag filter."}
+            {entries.length === 0 ? page.emptyLabel : "Nothing matches that search or tag filter."}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {filtered.map((s) => (
-              <SimpleEntryCard
+              <EntryCard
                 key={s.id}
                 entry={s}
                 accent={accent}
-                isOpen={expanded === s.id}
-                onToggle={() => setExpanded(expanded === s.id ? null : s.id)}
+                showDate
                 onEdit={() => setComposer({ entry: s })}
                 onDelete={() => deleteEntry(s.id)}
                 onRedo={canRedo ? () => setComposer({ redo: s }) : undefined}
@@ -160,7 +142,7 @@ export default function SimpleEntryTab({
       {viewing && (
         <EntryDetailSheet
           entry={viewing}
-          kindLabel={entryLabel}
+          kindLabel={singular}
           accent={accent}
           exerciseNameById={exerciseNameById}
           routineNameById={routineNameById}

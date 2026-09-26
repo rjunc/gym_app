@@ -2,14 +2,16 @@ import { useState } from "react";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import { entryHistory } from "../lib/links.js";
+import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import TagChip from "./TagChip.jsx";
 import BottomSheet from "./BottomSheet.jsx";
 import SheetActions from "./SheetActions.jsx";
 import { cardStyle, ghostLinkStyle, labelStyle } from "./styles.js";
 
+// entryHistory's kinds, with their label and colour from ENTRY_TYPES.
 const KIND_META = {
-  session: { label: "Session", accent: "--accent" },
-  journal: { label: "Journal", accent: "--accent3" },
+  session: { label: ENTRY_TYPES.sessions.singular, accent: ENTRY_TYPES.sessions.accent },
+  journal: { label: ENTRY_TYPES.journals.singular, accent: ENTRY_TYPES.journals.accent },
 };
 
 // Read-only bottom sheet for something that dated entries link to (a Library

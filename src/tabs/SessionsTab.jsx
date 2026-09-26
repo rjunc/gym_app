@@ -1,3 +1,4 @@
+import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import SimpleEntryTab from "./SimpleEntryTab.jsx";
 
 export default function SessionsTab({ sessions, setSessions, exercises, exerciseUsage, routines, routineUsage, folders }) {
@@ -5,19 +6,9 @@ export default function SessionsTab({ sessions, setSessions, exercises, exercise
     <SimpleEntryTab
       entries={sessions}
       setEntries={setSessions}
-      eyebrow="Training journal"
-      heading="Session Log"
-      entryLabel="Session"
-      searchPlaceholder="Search text, tags, exercises, routines…"
-      emptyLabel='No sessions logged yet. Tap "New entry" to write your first one.'
-      textLabel="What did you do?"
-      canRedo
-      textPlaceholder="Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with..."
-      showExercises
-      showSets
+      type={ENTRY_TYPES.sessions}
       exercises={exercises}
       exerciseUsage={exerciseUsage}
-      showRoutines
       routines={routines}
       routineUsage={routineUsage}
       folders={folders}
