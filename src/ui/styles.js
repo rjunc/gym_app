@@ -14,11 +14,18 @@ export const inputStyle = {
   outline: "none",
 };
 
+// A long unbroken run of text you typed (a link, a row of dashes) would
+// otherwise refuse to wrap and push the card or sheet wider than the screen,
+// making it scroll sideways. overflow-wrap is inherited, so setting it on the
+// containers covers every title, note and set line inside them.
+export const wrapAnywhere = { overflowWrap: "anywhere" };
+
 export const cardStyle = {
   background: "var(--surface)",
   border: "1px solid var(--border)",
   borderRadius: 12,
   padding: 14,
+  ...wrapAnywhere,
 };
 
 export const primaryBtnStyle = {

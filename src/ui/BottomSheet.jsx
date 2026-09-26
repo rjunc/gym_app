@@ -1,6 +1,8 @@
+import { wrapAnywhere } from "./styles.js";
+
 // The slide-up panel behind every form and summary: dims the page, sits at
-// the bottom, scrolls when tall, and closes on a tap outside it. `gap` is the
-// space between its direct children.
+// the bottom, scrolls down (never sideways) when tall, and closes on a tap
+// outside it. `gap` is the space between its direct children.
 export default function BottomSheet({ onClose, gap = 14, children }) {
   return (
     <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", zIndex: 10 }} onClick={onClose}>
@@ -17,6 +19,7 @@ export default function BottomSheet({ onClose, gap = 14, children }) {
           padding: 18,
           gap,
           overflowY: "auto",
+          ...wrapAnywhere,
         }}
       >
         {children}
