@@ -186,9 +186,6 @@ footprint.
   - **Sort same-day entries by the time they were logged** (today they're in
     newest-created-first order, which is close, but not shown).
   - **A "recently edited" view.**
-  - **Rank the Routines picker by use,** like the Exercises picker. It's
-    alphabetical today.
-  - **Show how often each routine was run,** and when last, on its card.
 - **Journals aren't on the Home calendar.** They were left out when Home's
   calendar was built, since a journal entry isn't training. The Sessions/
   Rolls/Journals tabs remain the only way to browse and search entries by
@@ -204,9 +201,11 @@ footprint.
   Home or Flow (both stay tag/position filtering only), and the in-form
   pickers, which stay name-only apart from the Exercises picker also
   matching exercise tags. Revisit any of these if they turn out to be missed.
-- **Jump from an exercise's history to the entry itself (2026-09-25).**
-  Tapping a Library exercise opens a read-only sheet of its routines and
-  every session/journal entry that links it. Tapping one of those entries
+- **Jump from an exercise's or routine's history to the entry itself
+  (2026-09-25).** Tapping a Library exercise opens a read-only sheet of its
+  routines and every session/journal entry that links it; tapping a routine
+  opens the same kind of sheet of every entry built from it (both share
+  `src/ui/HistorySheet.jsx`). Tapping one of those entries
   does nothing yet; it could jump to that entry on the Sessions/Journals
   page, or open it for editing. Left out because it needs cross-page
   navigation state (switch pages, then scroll to/open a specific entry)

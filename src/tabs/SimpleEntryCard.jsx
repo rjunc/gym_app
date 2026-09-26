@@ -4,8 +4,9 @@ import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
 import SetsSummary from "../ui/SetsSummary.jsx";
+import RoutineLinks from "../ui/RoutineLinks.jsx";
 
-export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdit, onDelete, onRedo, activeTags, onTagClick, exerciseNameById = new Map() }) {
+export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdit, onDelete, onRedo, activeTags, onTagClick, exerciseNameById = new Map(), routineNameById = new Map() }) {
   const s = entry;
   const isLong = (s.text || "").length > 220;
   return (
@@ -20,6 +21,7 @@ export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdi
           ) : (
             <div style={{ fontWeight: 700, fontSize: 13 }}>{formatDate(s.date)}</div>
           )}
+          <RoutineLinks entry={s} routineNameById={routineNameById} />
           {s.tags && s.tags.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {s.tags.map((t) => (

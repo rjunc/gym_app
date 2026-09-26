@@ -132,3 +132,10 @@ test("prefixMatchesFirst leaves the order alone for a blank query", () => {
   const items = ["b", "a"];
   assert.equal(prefixMatchesFirst(items, "  ", (s) => [s]), items);
 });
+
+test("entrySearchFields matches the names of the routines an entry was built from, skipping deleted ones", () => {
+  const routineNameById = exerciseNameMap([{ id: "r1", name: "Push A" }]);
+  const session = { id: "s1", text: "", tags: [], routineIds: ["r1", "gone"] };
+  assert.equal(matchesSearch(entrySearchFields(session, exerciseNameById, routineNameById), "push a"), true);
+  assert.equal(matchesSearch(entrySearchFields(session, exerciseNameById), "push"), false);
+});

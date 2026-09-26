@@ -34,6 +34,7 @@ export default function EntrySheet({
   folders = [],
   exercises = [],
   exerciseUsage,
+  routineUsage,
   entry,
   redo,
   initialType,
@@ -119,6 +120,7 @@ export default function EntrySheet({
       showRoutines={meta.showRoutines}
       routines={routines}
       routineOptions={routineChoices}
+      routineUsage={routineUsage}
       showExercises={meta.showExercises}
       exerciseOptions={exercises}
       exerciseUsage={exerciseUsage}

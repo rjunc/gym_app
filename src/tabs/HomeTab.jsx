@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { newRecord, editById, editRecord } from "../lib/records.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
-import { exerciseNameMap } from "../lib/search.js";
+import { exerciseNameMap, nameMap } from "../lib/search.js";
 import TagChip from "../ui/TagChip.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
@@ -35,7 +35,7 @@ const SOURCE_META = {
 };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
 
-export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises, exerciseUsage }) {
+export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises, exerciseUsage, routineUsage }) {
   const today = todayISO();
   const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
@@ -49,6 +49,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
 
   const bySource = useMemo(() => ({ sessions, rolls }), [sessions, rolls]);
   const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
+  const routineNameById = useMemo(() => nameMap(routines), [routines]);
   const setters = { sessions: setSessions, rolls: setRolls };
 
   // Everything, regardless of filters — only used to say how much a day's
@@ -192,6 +193,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           onRedo={(redo) => setComposer({ entry: null, redo })}
           onDelete={deleteEntry}
           exerciseNameById={exerciseNameById}
+          routineNameById={routineNameById}
         />
       </div>
 
@@ -203,6 +205,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           folders={folders}
           exercises={exercises}
           exerciseUsage={exerciseUsage}
+          routineUsage={routineUsage}
           entry={composer.entry}
           redo={composer.redo}
           // With one type filtered on, that's almost certainly what's being logged.

@@ -45,23 +45,32 @@ export function prefixMatchesFirst(items, query, textsOf) {
   return [...items.filter(starts), ...items.filter((item) => !starts(item))];
 }
 
-// Names of the Library exercises an item links to, skipping any that have
-// since been deleted from the Library.
-function exerciseNames(item, exerciseNameById) {
-  return (item.exerciseIds || []).map((id) => exerciseNameById.get(id)).filter(Boolean);
+// Names of the records an item links to through `field` (exerciseIds,
+// routineIds), skipping any that have since been deleted.
+function linkedNames(item, field, nameById) {
+  return (item[field] || []).map((id) => nameById.get(id)).filter(Boolean);
 }
 
-export function exerciseNameMap(exercises) {
-  return new Map(exercises.map((e) => [e.id, e.name]));
+// id -> name for Library exercises or routines.
+export function nameMap(records) {
+  return new Map(records.map((r) => [r.id, r.name]));
 }
+export const exerciseNameMap = nameMap;
 
 // What's searchable on each kind of item. Dates are deliberately left out —
 // the Home calendar covers finding things by date, and number searches like
 // "225" shouldn't start matching them.
 
-// Sessions, journals and rolls.
-export function entrySearchFields(entry, exerciseNameById) {
-  return [entry.title, entry.text, entry.tags || [], exerciseNames(entry, exerciseNameById)];
+// Sessions, journals and rolls: the names of linked exercises and of the
+// routines an entry was built from are searchable too.
+export function entrySearchFields(entry, exerciseNameById, routineNameById = new Map()) {
+  return [
+    entry.title,
+    entry.text,
+    entry.tags || [],
+    linkedNames(entry, "exerciseIds", exerciseNameById),
+    linkedNames(entry, "routineIds", routineNameById),
+  ];
 }
 
 // Routines and techniques: the item's folder and every folder above it are
@@ -74,7 +83,7 @@ export function folderItemSearchFields(item, folders, exerciseNameById) {
     folderPath(folders, item.folderId).map((f) => f.name),
     item.position,
     item.toPosition,
-    exerciseNames(item, exerciseNameById),
+    linkedNames(item, "exerciseIds", exerciseNameById),
   ];
 }
 

@@ -1,5 +1,15 @@
 import { folderPath } from "./folders.js";
 import { addTagsFromDraft } from "./tags.js";
+import { linkUsageCounts, entriesByLink } from "./links.js";
+
+// How often each routine was used to build a session, keyed by routine id
+// (see linkUsageCounts). Sessions only, like exerciseUsageCounts, so the
+// Routines picker ranks by actual training.
+export const routineUsageCounts = (sessions, todayISO, days = 30) => linkUsageCounts(sessions, "routineIds", todayISO, days);
+
+// Backlinks from routines to the sessions/journal entries built from them,
+// newest first (see entriesByLink).
+export const entriesByRoutine = (entries) => entriesByLink(entries, "routineIds");
 
 // Routines as picker options: "Folder / Subfolder / Name" (just "Name" at the
 // top level), sorted so a routine sits next to its folder-mates.

@@ -1,6 +1,6 @@
 import { Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDate } from "../lib/id.js";
-import { exerciseUsageSummary } from "../lib/exercises.js";
+import { usageSummary } from "../lib/links.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
@@ -24,7 +24,7 @@ export default function ExerciseCard({
   const e = exercise;
   const isLong = (e.text || "").length > 220;
   const inactive = e.active === false;
-  const usage = exerciseUsageSummary({ sessions: usedInSessions, journals: usedInJournals, routines: usedInRoutines });
+  const usage = usageSummary({ sessions: usedInSessions, journals: usedInJournals, routines: usedInRoutines });
   return (
     <div
       onClick={(ev) => {

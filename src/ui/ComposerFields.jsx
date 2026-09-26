@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Star, X } from "lucide-react";
 import { labelStyle, inputStyle, tagPillStyle } from "./styles.js";
 import { applyRoutine } from "../lib/routines.js";
-import { compareByUsage } from "../lib/exercises.js";
+import { compareByUsage } from "../lib/links.js";
 import { prefixMatchesFirst } from "../lib/search.js";
 import TagChip from "./TagChip.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
@@ -237,18 +237,22 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
 // to (including ones saved earlier, when editing). Removing one only drops the
 // link — what the routine brought in has already merged with everything else
 // in the form, so it stays. A deleted routine's leftover id just isn't shown.
-// `options` is routineOptions() output, already sorted alphabetically by
-// folder path. Routines stay A–Z rather than most-used like the other pickers.
-// While typing, routines whose name or folder path starts with the query move
-// ahead of the rest.
-export function RoutinesField({ form, setForm, routines, options, accentVar }) {
+// `options` is routineOptions() output. `usage` (routineUsageCounts, see
+// lib/routines.js) is optional: when given, suggestions rank by session use
+// like the Exercises picker — last 30 days first, then all-time, then A–Z by
+// folder path. Without it they're plain A–Z. While typing, routines whose name
+// or folder path starts with the query move ahead of the rest.
+export function RoutinesField({ form, setForm, routines, options, accentVar, usage }) {
   const [query, setQuery] = useState("");
   const addedIds = form.routineIds || [];
   const added = addedIds.map((id) => options.find((o) => o.id === id)).filter(Boolean);
 
   const q = query.trim().toLowerCase();
   const nameOf = (o) => routines.find((r) => r.id === o.id)?.name || "";
-  const matching = options.filter((o) => !addedIds.includes(o.id)).filter((o) => q === "" || o.label.toLowerCase().includes(q));
+  const matching = options
+    .filter((o) => !addedIds.includes(o.id))
+    .filter((o) => q === "" || o.label.toLowerCase().includes(q))
+    .sort(compareByUsage(usage || new Map(), (o) => o.label));
   const suggestions = prefixMatchesFirst(matching, q, (o) => [nameOf(o), o.label]).slice(0, 8);
 
   const addRoutine = (id) => {
@@ -287,7 +291,7 @@ export function RoutinesField({ form, setForm, routines, options, accentVar }) {
       />
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching" : "A–Z"}</span>
+          <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching" : usage ? "Most used" : "A–Z"}</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {suggestions.map((o) => (
               <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(o.id)} />

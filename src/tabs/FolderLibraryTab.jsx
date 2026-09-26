@@ -41,6 +41,12 @@ export default function FolderLibraryTab({
   exercises = [],
   // Session usage counts (exerciseUsageCounts) that rank the Exercises picker.
   exerciseUsage,
+  // Optional, for items that dated entries link to (routines): the item's
+  // usageSummary for its card, what tapping the card does, and a sentence
+  // added to the delete confirmation (e.g. "Used in 8 sessions.").
+  usageFor,
+  onOpenItem,
+  deleteWarningFor,
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
@@ -216,7 +222,8 @@ export default function FolderLibraryTab({
   };
 
   const deleteItem = (id) => {
-    if (!window.confirm(`Delete this ${itemNoun}? This can't be undone.`)) return;
+    const warning = deleteWarningFor ? deleteWarningFor(items.find((r) => r.id === id)) : "";
+    if (!window.confirm(`Delete this ${itemNoun}?${warning ? ` ${warning}` : ""} This can't be undone.`)) return;
     setItems((prev) => prev.filter((r) => r.id !== id));
   };
 
@@ -331,6 +338,8 @@ export default function FolderLibraryTab({
                     onTagClick={toggleTagFilter}
                     activeTags={activeTags}
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
+                    usage={usageFor ? usageFor(r) : undefined}
+                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
                   />
                 ))}
               </div>
@@ -411,6 +420,8 @@ export default function FolderLibraryTab({
                     onTagClick={toggleTagFilter}
                     activeTags={activeTags}
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
+                    usage={usageFor ? usageFor(r) : undefined}
+                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
                   />
                 ))}
               </div>

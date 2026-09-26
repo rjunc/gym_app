@@ -5,8 +5,9 @@ import TagChip from "./TagChip.jsx";
 import IconBtn from "./IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "./styles.js";
 import SetsSummary from "./SetsSummary.jsx";
+import RoutineLinks from "./RoutineLinks.jsx";
 
-function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById }) {
+function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById, routineNameById }) {
   const [open, setOpen] = useState(false);
   const isLong = (entry.text || "").length > 220;
   return (
@@ -30,6 +31,8 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, on
           </IconBtn>
         </div>
       </div>
+
+      <RoutineLinks entry={entry} routineNameById={routineNameById} style={{ marginBottom: 8 }} />
 
       {entry.tags && entry.tags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
@@ -78,7 +81,7 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, on
 
 // The entries logged on one day. `hiddenCount` is how many more exist that the
 // current filters are hiding, so a filtered view never quietly lies about a day.
-export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById = new Map() }) {
+export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById = new Map(), routineNameById = new Map() }) {
   return (
     <div>
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{formatDate(iso)}</div>
@@ -101,6 +104,7 @@ export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, acti
               onRedo={onRedo}
               onDelete={onDelete}
               exerciseNameById={exerciseNameById}
+              routineNameById={routineNameById}
             />
           ))}
         </div>

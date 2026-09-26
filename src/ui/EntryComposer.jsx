@@ -72,6 +72,8 @@ export default function EntryComposer({
   showRoutines,
   routines = [],
   routineOptions = [],
+  // Optional routineUsageCounts output, ranking the Routines picker by use.
+  routineUsage,
   textLabel,
   textPlaceholder,
   saveLabel,
@@ -133,7 +135,7 @@ export default function EntryComposer({
 
         {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
 
-        {showRoutines && <RoutinesField form={form} setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} />}
+        {showRoutines && <RoutinesField form={form} setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} usage={routineUsage} />}
 
         {showExercises && (
           <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} usage={exerciseUsage} />

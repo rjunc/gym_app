@@ -1,4 +1,5 @@
 import { Folder, Pencil, Trash2, ChevronDown, ChevronUp, MoveRight, Shirt, Star } from "lucide-react";
+import { formatDate } from "../lib/id.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
@@ -15,10 +16,26 @@ export default function LibraryItemCard({
   activeTags,
   onToggleStar,
   accent = "--accent2",
+  // Optional usageSummary output (see lib/links.js) — "8 sessions · last …" —
+  // shown under the text, for routines.
+  usage,
+  // Optional: tapping anywhere on the card that isn't one of its buttons
+  // (edit, delete, star, folder, a tag chip, show more) calls this, e.g. to
+  // open a routine's history sheet.
+  onOpen,
 }) {
   const isLong = (item.text || "").length > 220;
   return (
-    <div style={cardStyle}>
+    <div
+      onClick={
+        onOpen
+          ? (ev) => {
+              if (!ev.target.closest("button")) onOpen();
+            }
+          : undefined
+      }
+      style={{ ...cardStyle, cursor: onOpen ? "pointer" : undefined }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -55,10 +72,10 @@ export default function LibraryItemCard({
               <Star size={14} fill={item.starred ? "currentColor" : "none"} />
             </IconBtn>
           )}
-          <IconBtn onClick={onEdit}>
+          <IconBtn onClick={onEdit} label="Edit">
             <Pencil size={14} />
           </IconBtn>
-          <IconBtn onClick={onDelete} danger>
+          <IconBtn onClick={onDelete} danger label="Delete">
             <Trash2 size={14} />
           </IconBtn>
         </div>
@@ -96,6 +113,13 @@ export default function LibraryItemCard({
             </>
           )}
         </button>
+      )}
+
+      {usage && usage.text && (
+        <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-dim)", fontWeight: 600 }}>
+          {usage.text}
+          {usage.lastDate && <span style={{ fontWeight: 500 }}> · last {formatDate(usage.lastDate)}</span>}
+        </div>
       )}
     </div>
   );

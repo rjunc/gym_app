@@ -5,6 +5,7 @@ import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
 import { exerciseUsageCounts } from "./lib/exercises.js";
+import { routineUsageCounts } from "./lib/routines.js";
 import { useSyncedCollection } from "./lib/useSyncedCollection.js";
 import Shell from "./ui/Shell.jsx";
 import { primaryBtnStyle } from "./ui/styles.js";
@@ -51,6 +52,8 @@ export default function App({ uid, userEmail, onLogout }) {
   // How much each exercise is used in sessions, shared by every Exercises
   // picker (Sessions, Journals, Home, Routines) so they all rank the same way.
   const exerciseUsage = useMemo(() => exerciseUsageCounts(sessions, todayISO()), [sessions]);
+  // Same for routines, ranking the Routines picker (Sessions, Journals, Home).
+  const routineUsage = useMemo(() => routineUsageCounts(sessions, todayISO()), [sessions]);
   const fileInputRef = useRef(null);
 
   const exportJSON = () =>
@@ -157,13 +160,39 @@ export default function App({ uid, userEmail, onLogout }) {
               folders={folders}
               exercises={exercises}
               exerciseUsage={exerciseUsage}
+              routineUsage={routineUsage}
             />
           ) : page === "sessions" ? (
-            <SessionsTab sessions={sessions} setSessions={setSessions} exercises={exercises} exerciseUsage={exerciseUsage} routines={routines} folders={folders} />
+            <SessionsTab
+              sessions={sessions}
+              setSessions={setSessions}
+              exercises={exercises}
+              exerciseUsage={exerciseUsage}
+              routines={routines}
+              routineUsage={routineUsage}
+              folders={folders}
+            />
           ) : page === "journals" ? (
-            <JournalsTab journals={journals} setJournals={setJournals} exercises={exercises} exerciseUsage={exerciseUsage} routines={routines} folders={folders} />
+            <JournalsTab
+              journals={journals}
+              setJournals={setJournals}
+              exercises={exercises}
+              exerciseUsage={exerciseUsage}
+              routines={routines}
+              routineUsage={routineUsage}
+              folders={folders}
+            />
           ) : page === "routines" ? (
-            <RoutinesTab folders={folders} setFolders={setFolders} routines={routines} setRoutines={setRoutines} exercises={exercises} exerciseUsage={exerciseUsage} />
+            <RoutinesTab
+              folders={folders}
+              setFolders={setFolders}
+              routines={routines}
+              setRoutines={setRoutines}
+              exercises={exercises}
+              exerciseUsage={exerciseUsage}
+              sessions={sessions}
+              journals={journals}
+            />
           ) : page === "library" ? (
             <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} folders={folders} />
           ) : page === "rolls" ? (

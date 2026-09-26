@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
 import { matchesTags } from "../lib/activity.js";
-import { matchesSearch, entrySearchFields, exerciseNameMap } from "../lib/search.js";
+import { matchesSearch, entrySearchFields, exerciseNameMap, nameMap } from "../lib/search.js";
 import EntrySheet from "../ui/EntrySheet.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
@@ -38,6 +38,9 @@ export default function SimpleEntryTab({
   // Offers a picker that copies routines into the entry (Sessions and Journals).
   showRoutines = false,
   routines = [],
+  // How much each routine is used in sessions (routineUsageCounts), to rank
+  // the Routines picker.
+  routineUsage,
   folders = [],
 }) {
   const [search, setSearch] = useState("");
@@ -56,17 +59,18 @@ export default function SimpleEntryTab({
   const entriesByType = useMemo(() => ({ entry: entries }), [entries]);
 
   const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
+  const routineNameById = useMemo(() => nameMap(routines), [routines]);
 
   const filtered = useMemo(() => {
     return entries
       .filter(
         (s) =>
-          matchesSearch(entrySearchFields(s, exerciseNameById), search, searchMatchMode) &&
+          matchesSearch(entrySearchFields(s, exerciseNameById, routineNameById), search, searchMatchMode) &&
           matchesTags(s.tags, activeTags, tagMatchMode)
       )
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [entries, search, searchMatchMode, exerciseNameById, activeTags, tagMatchMode]);
+  }, [entries, search, searchMatchMode, exerciseNameById, routineNameById, activeTags, tagMatchMode]);
 
   const saveEntry = (_type, fields) => {
     const editing = composer.entry;
@@ -137,6 +141,7 @@ export default function SimpleEntryTab({
                 activeTags={activeTags}
                 onTagClick={toggleTagFilter}
                 exerciseNameById={exerciseNameById}
+                routineNameById={routineNameById}
               />
             ))}
           </div>
@@ -151,6 +156,7 @@ export default function SimpleEntryTab({
           folders={folders}
           exercises={exercises}
           exerciseUsage={exerciseUsage}
+          routineUsage={routineUsage}
           entry={composer.entry}
           redo={composer.redo}
           initialType="entry"
