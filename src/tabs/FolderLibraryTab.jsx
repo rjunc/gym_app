@@ -3,6 +3,7 @@ import { Plus, FolderPlus, X } from "lucide-react";
 import { uid, todayISO } from "../lib/id.js";
 import { folderPath } from "../lib/folders.js";
 import { matchesSearch, folderItemSearchFields, exerciseNameMap } from "../lib/search.js";
+import { cleanFields } from "../lib/text.js";
 import { collectPositions } from "../lib/positions.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
@@ -202,11 +203,12 @@ export default function FolderLibraryTab({
   const removeFormTag = (t) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }));
 
   const saveItem = () => {
-    if (!form.name.trim()) return;
+    const fields = cleanFields(form);
+    if (!fields.name) return;
     if (editingId) {
-      setItems((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...form, name: form.name.trim() } : r)));
+      setItems((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...fields } : r)));
     } else {
-      setItems((prev) => [{ id: uid(), ...form, name: form.name.trim() }, ...prev]);
+      setItems((prev) => [{ id: uid(), ...fields }, ...prev]);
     }
     setShowComposer(false);
     resetForm();

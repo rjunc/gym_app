@@ -4,6 +4,7 @@ import { uid, todayISO } from "../lib/id.js";
 import { matchesTags, redoFields } from "../lib/activity.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { routineOptions } from "../lib/routines.js";
+import { cleanFields } from "../lib/text.js";
 import { matchesSearch, entrySearchFields, exerciseNameMap } from "../lib/search.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
@@ -106,11 +107,12 @@ export default function SimpleEntryTab({
   const removeFormTag = (t) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }));
 
   const saveEntry = () => {
-    if (!form.text.trim()) return;
+    const fields = cleanFields(form);
+    if (!fields.text) return;
     if (editingId) {
-      setEntries((prev) => prev.map((s) => (s.id === editingId ? { ...s, ...form } : s)));
+      setEntries((prev) => prev.map((s) => (s.id === editingId ? { ...s, ...fields } : s)));
     } else {
-      setEntries((prev) => [{ id: uid(), ...form }, ...prev]);
+      setEntries((prev) => [{ id: uid(), ...fields }, ...prev]);
     }
     setShowComposer(false);
     resetForm();

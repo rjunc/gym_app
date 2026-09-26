@@ -6,6 +6,7 @@ import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { entriesByExercise } from "../lib/exercises.js";
 import { routineOptions } from "../lib/routines.js";
 import { matchesSearch, exerciseSearchFields } from "../lib/search.js";
+import { cleanFields, cleanLine } from "../lib/text.js";
 import TagChip from "../ui/TagChip.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
@@ -106,17 +107,17 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   // Exercise names are compared case-insensitively so "Bench" and "bench"
   // count as the same exercise — otherwise the Library (and the Exercises
   // picker it feeds) quietly grows near-duplicates.
-  const trimmedName = form.name.trim();
+  const trimmedName = cleanLine(form.name);
   const isDuplicateName =
-    trimmedName !== "" && exercises.some((e) => e.id !== editingId && e.name.trim().toLowerCase() === trimmedName.toLowerCase());
+    trimmedName !== "" && exercises.some((e) => e.id !== editingId && cleanLine(e.name).toLowerCase() === trimmedName.toLowerCase());
 
   const saveExercise = () => {
-    const name = form.name.trim();
-    if (!name || isDuplicateName) return;
+    const fields = cleanFields(form);
+    if (!fields.name || isDuplicateName) return;
     if (editingId) {
-      setExercises((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...form, name } : e)));
+      setExercises((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...fields } : e)));
     } else {
-      setExercises((prev) => [{ id: uid(), ...form, name }, ...prev]);
+      setExercises((prev) => [{ id: uid(), ...fields }, ...prev]);
     }
     setShowComposer(false);
     resetForm();

@@ -3,6 +3,7 @@ import { ChevronRight, RotateCcw, Plus } from "lucide-react";
 import { uid, todayISO } from "../lib/id.js";
 import { collectPositions, techniquesFrom } from "../lib/positions.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
+import { cleanFields } from "../lib/text.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
@@ -99,8 +100,9 @@ export default function FlowTab({ techniques, setTechniques }) {
   const removeFormTag = (t) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }));
 
   const saveTechnique = () => {
-    if (!form.name.trim()) return;
-    setTechniques((prev) => [{ id: uid(), ...form, name: form.name.trim(), folderId: null }, ...prev]);
+    const fields = cleanFields(form);
+    if (!fields.name) return;
+    setTechniques((prev) => [{ id: uid(), ...fields, folderId: null }, ...prev]);
     setShowComposer(false);
   };
 

@@ -3,6 +3,7 @@ import { addTagsFromDraft, tagUsage } from "../lib/tags.js";
 import { routineOptions } from "../lib/routines.js";
 import { redoFields } from "../lib/activity.js";
 import { todayISO } from "../lib/id.js";
+import { cleanFields } from "../lib/text.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
@@ -53,7 +54,7 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
     if (!canSave) return;
     // A tag typed but never confirmed with Enter/Add would otherwise be lost.
     const tags = addTagsFromDraft(form.tags, tagDraft);
-    const fields = { date: form.date, title: form.title.trim(), tags, text: form.text };
+    const fields = cleanFields({ date: form.date, title: form.title, tags, text: form.text });
     if (meta.showExercises) fields.exerciseIds = form.exerciseIds || [];
     onSave(type, fields);
   };
