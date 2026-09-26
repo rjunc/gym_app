@@ -17,8 +17,10 @@ export const ENTRY_TYPES = {
     label: "Sessions",
     singular: "Session",
     accent: "--accent",
-    textLabel: "What did you do?",
-    textPlaceholder: "Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with...",
+    // The sets record what was done, so the text is for everything they
+    // can't: how it went, how it was done, what to change.
+    textLabel: "Notes (optional)",
+    textPlaceholder: "How it felt, supersets, rest, last set AMRAP, what to change next time...",
     showRoutines: true,
     showExercises: true,
     showSets: true,
