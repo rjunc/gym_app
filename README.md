@@ -102,6 +102,31 @@ footprint.
   comes from the Firebase SDK. Harmless for a personal app at this scale;
   only worth addressing (via code-splitting) if load time ever becomes
   noticeable.
+- **The ceiling to watch is daily reads, not storage (2026-09-25).** With one
+  document per record, Firestore's 1 MiB limit applies to a single entry
+  (a long session is ~2–5 KB, one logged set ~50 bytes), so it's
+  effectively gone. What grows instead is reads: opening the app after more
+  than ~30 minutes away re-reads every record in every collection (the local
+  cache makes it fast, but Firestore still counts it), and the free plan
+  allows 50,000 reads a day. Rough math at ~500 records a year plus a few
+  hundred Library/routine items:
+
+  | Log age  | Records | Opens/day before the free limit |
+  |----------|---------|---------------------------------|
+  | 1 year   | ~800    | ~60                             |
+  | 3 years  | ~1,800  | ~27                             |
+  | 10 years | ~5,500  | ~9                              |
+
+  Going over on the free plan blocks reads until the daily reset. The app
+  then shows its "Couldn't load your log" screen, with nothing lost. On the
+  paid pay-as-you-go plan it costs about 6¢ per 100,000 reads. Fixes, when it
+  ever matters: switch to the paid plan (simplest), or load only recent
+  entries (e.g. the last 12 months) at startup and fetch older ones when
+  scrolling back or searching (a moderate change to `useSyncedCollection`
+  and the pages). The other limits aren't close: 1 GiB storage (the log
+  stays in the tens of MB), 20,000 writes a day (only a huge import could
+  hit it), and holding everything in memory for client-side filtering is
+  fine into the thousands of records.
 - **Back up by exporting JSON, regularly.** Nothing is backed up
   automatically, and deleting a record deletes its Firestore document for
   good. JSON is the only complete export: it keeps sets, exercise links and
