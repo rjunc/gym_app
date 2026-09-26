@@ -4,6 +4,7 @@ import { todayISO } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
+import { generateDemoData, isDemoRecord } from "./lib/demoData.js"; // TEMPORARY: pilot test data
 import { exerciseUsageCounts } from "./lib/exercises.js";
 import { routineUsageCounts } from "./lib/routines.js";
 import { useSyncedCollection } from "./lib/useSyncedCollection.js";
@@ -101,6 +102,32 @@ export default function App({ uid, userEmail, onLogout }) {
       setImportError("Couldn't read that file. Make sure it's a CSV or JSON export from this app.");
     }
     e.target.value = "";
+  };
+
+  // TEMPORARY: pilot test data (see lib/demoData.js). Adds a months-long,
+  // fully linked log to this account, or removes exactly that again — only
+  // records whose id starts with "demo-", never anything typed in by hand.
+  const collections = [
+    [sessions, setSessions, "sessions"],
+    [folders, setFolders, "folders"],
+    [routines, setRoutines, "routines"],
+    [journals, setJournals, "journals"],
+    [rolls, setRolls, "rolls"],
+    [techniques, setTechniques, "techniques"],
+    [jitsFolders, setJitsFolders, "jitsFolders"],
+    [exercises, setExercises, "exercises"],
+  ];
+  const hasDemoData = collections.some(([list]) => list.some(isDemoRecord));
+  const toggleDemoData = () => {
+    if (hasDemoData) {
+      if (!window.confirm("Remove all test data? Only the generated test records are deleted; anything you added yourself stays.")) return;
+      collections.forEach(([, set]) => set((prev) => prev.filter((r) => !isDemoRecord(r))));
+    } else {
+      if (!window.confirm("Add test data? This adds about 300 made-up exercises, routines, sessions, journal entries, rolls and techniques to this account. You can remove them all again from here.")) return;
+      const demo = generateDemoData();
+      collections.forEach(([, set, key]) => set((prev) => mergeById(prev, demo[key])));
+    }
+    setSidebarOpen(false);
   };
 
   if (loadFailed) {
@@ -225,6 +252,8 @@ export default function App({ uid, userEmail, onLogout }) {
             onExportCSV={exportCSV}
             onExportJSON={exportJSON}
             onImportClick={() => fileInputRef.current?.click()}
+            hasDemoData={hasDemoData}
+            onToggleDemoData={toggleDemoData}
             onLogout={onLogout}
           />
         </div>

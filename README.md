@@ -95,6 +95,18 @@ footprint.
 
 ## Open considerations (not urgent — revisit whenever)
 
+- **Temporary "Add test data" button in the sidebar (added 2026-09-26).**
+  For pilot testing: it fills the signed-in account with ~300 made-up,
+  fully linked records (9 months of sessions with sets and notes, routines
+  in folders, a Library covering every way of logging sets, journals, rolls,
+  techniques that chain into a Flow). Every generated record's id starts
+  with `demo-`, and the same button then reads "Remove test data" and
+  deletes exactly those, leaving anything typed in by hand. It writes to
+  real Firestore, so each add costs ~300 writes and makes every later app
+  open read ~300 more records (see the reads note below). To take it out:
+  delete `src/lib/demoData.js` and the code marked `TEMPORARY` in
+  `src/App.jsx` and `src/ui/Sidebar.jsx`.
+
 - **Sign-up is currently open to anyone.** Any visitor who finds the URL can
   create their own account via the sign-up form. This isn't a data leak —
   Firestore rules mean each account only ever sees its own (empty) log — but

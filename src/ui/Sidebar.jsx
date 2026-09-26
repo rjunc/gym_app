@@ -11,6 +11,7 @@ import {
   Download,
   Upload,
   LogOut,
+  FlaskConical,
 } from "lucide-react";
 import { secondaryBtnStyle } from "./styles.js";
 
@@ -77,6 +78,8 @@ export default function Sidebar({
   onExportCSV,
   onExportJSON,
   onImportClick,
+  hasDemoData,
+  onToggleDemoData,
   onLogout,
 }) {
   return (
@@ -168,6 +171,10 @@ export default function Sidebar({
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
           {syncError && <div style={{ color: "var(--danger)", fontSize: 12 }}>{syncError}</div>}
           {importError && <div style={{ color: "var(--danger)", fontSize: 12 }}>{importError}</div>}
+          {/* TEMPORARY: pilot test data (see lib/demoData.js). */}
+          <button onClick={onToggleDemoData} style={{ ...secondaryBtnStyle, justifyContent: "center", borderStyle: "dashed" }}>
+            <FlaskConical size={14} /> {hasDemoData ? "Remove test data" : "Add test data"}
+          </button>
           <div style={{ fontSize: 10, color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {userEmail}
           </div>
