@@ -16,6 +16,8 @@ import {
   measureOfSets,
   resolveMeasure,
   switchMeasure,
+  distanceUnitOfSets,
+  setDistanceUnit,
 } from "../../src/lib/sets.js";
 
 const lb = (weight, reps) => ({ weight, weightUnit: "lb", reps });
@@ -92,8 +94,10 @@ test("measureOfSets reads how sets were logged, from stored numbers or draft str
   assert.equal(measureOfSets([{ reps: 12 }]), "reps");
   assert.equal(measureOfSets([{ seconds: 60 }]), "time");
   assert.equal(measureOfSets([{ distance: 3.1, seconds: 1680 }]), "distance");
-  assert.equal(measureOfSets([{ weight: "", reps: "" }, { reps: "8" }]), "reps");
-  assert.equal(measureOfSets([{ weight: "", reps: "" }]), null);
+  assert.equal(measureOfSets([{ weight: "", reps: "" }]), "weight_reps");
+  assert.equal(measureOfSets([{ weight: "80", distance: "", distanceUnit: "m" }]), "weight_distance");
+  assert.equal(measureOfSets([{ distance: "", seconds: "1:00", distanceUnit: "mi" }]), "distance");
+  assert.equal(measureOfSets([{}]), null);
   assert.equal(measureOfSets(undefined), null);
 });
 
@@ -151,4 +155,39 @@ test("normalizeSets keeps valid numeric sets and drops anything else", () => {
   assert.deepEqual(normalizeSets(raw), { e1: [lb(225, 5)], e3: [{ distance: 2, distanceUnit: "km" }] });
   assert.equal(normalizeSets(null), undefined);
   assert.equal(normalizeSets([1, 2]), undefined);
+});
+
+/* ======================= weight/reps × time, carries, units ======================= */
+
+test("measureOfSets tells the timed and loaded kinds apart", () => {
+  assert.equal(measureOfSets([{ weight: 50, weightUnit: "lb", seconds: 60 }]), "weight_time");
+  assert.equal(measureOfSets([{ weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }]), "weight_distance");
+  assert.equal(measureOfSets([{ reps: 20, seconds: 60 }]), "reps_time");
+  assert.equal(measureOfSets([{ weight: "50", seconds: "" }]), "weight_time");
+});
+
+test("formatSet words the new kinds", () => {
+  assert.equal(formatSet({ weight: 50, weightUnit: "lb", seconds: 60 }), "50 lb for 1:00");
+  assert.equal(formatSet({ weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }), "50 lb × 40 m");
+  assert.equal(formatSet({ reps: 20, seconds: 60 }), "20 reps in 1:00");
+  assert.equal(formatSets([{ weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }, { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }]), "2 × 50 lb × 40 m");
+});
+
+test("distance units: blank rows get one, switching sets every row, and it's saved and read back", () => {
+  assert.deepEqual(blankRow("weight_distance", "m"), { weight: "", distance: "", distanceUnit: "m" });
+  assert.deepEqual(blankRow("distance"), { distance: "", seconds: "", distanceUnit: "mi" });
+  assert.deepEqual(blankRow("reps", "m"), { reps: "" });
+  const rows = [{ weight: "50", distance: "40", distanceUnit: "m" }, { weight: "50", distance: "40", distanceUnit: "m" }];
+  assert.deepEqual(setDistanceUnit(rows, "yd").map((r) => r.distanceUnit), ["yd", "yd"]);
+  assert.deepEqual(setDistanceUnit([{ reps: "5" }], "yd"), [{ reps: "5" }]);
+  const saved = fromDraftSets({ e1: setDistanceUnit(rows, "yd") }, ["e1"]);
+  assert.deepEqual(saved.e1[0], { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "yd" });
+  assert.deepEqual(toDraftSets(saved).e1[0], { weight: "50", distance: "40", distanceUnit: "yd" });
+  assert.equal(distanceUnitOfSets(saved.e1), "yd");
+  assert.equal(distanceUnitOfSets([{ reps: 5 }]), null);
+});
+
+test("switchMeasure gives rows that gain a distance the given unit, and keeps one they had", () => {
+  assert.deepEqual(switchMeasure([{ weight: "50", seconds: "1:00" }], "weight_distance", "m"), [{ weight: "50", distance: "", distanceUnit: "m" }]);
+  assert.deepEqual(switchMeasure([{ distance: "2", seconds: "", distanceUnit: "km" }], "weight_distance", "m"), [{ weight: "", distance: "2", distanceUnit: "km" }]);
 });

@@ -6,12 +6,17 @@
 //   { reps: 12 }                                  reps only (bodyweight)
 //   { seconds: 60 }                               time (holds, planks)
 //   { distance: 3.1, distanceUnit: "mi", seconds: 1680 }   distance, time optional
+//   { weight: 50, weightUnit: "lb", seconds: 60 }  weight × time (loaded holds)
+//   { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }  carries, sleds
+//   { reps: 20, seconds: 60 }                     reps × time (max reps in 1:00)
 // Units are saved on every set that has a weight or distance, so changing the
-// app's unit later can't reinterpret old numbers. Sets are optional: an
+// app's unit later can't reinterpret old numbers. Distance can be in any of
+// DISTANCE_UNITS, picked per exercise while logging. Sets are optional: an
 // exercise in exerciseIds with no entry here is just "did it, no numbers".
 
 export const WEIGHT_UNIT = "lb";
-export const DISTANCE_UNIT = "mi";
+export const DISTANCE_UNIT = "mi"; // for an exercise never logged with a distance
+export const DISTANCE_UNITS = ["mi", "km", "m", "yd"];
 
 // The ways a set can be measured, each deciding the inputs a set row shows.
 // An exercise doesn't own one: it's picked on the session, per exercise, and
@@ -22,6 +27,9 @@ export const MEASURES = {
   reps: { label: "Reps", fields: ["reps"] },
   time: { label: "Time", fields: ["seconds"] },
   distance: { label: "Distance", fields: ["distance", "seconds"] },
+  weight_time: { label: "Weight × time", fields: ["weight", "seconds"] },
+  weight_distance: { label: "Weight × distance", fields: ["weight", "distance"] },
+  reps_time: { label: "Reps × time", fields: ["reps", "seconds"] },
 };
 
 // An exercise's `measure`, if it has a valid one, else null. Exercises made
@@ -31,16 +39,27 @@ export const measureOf = (exercise) => (exercise && MEASURES[exercise.measure] ?
 
 const hasValue = (v) => typeof v === "number" || (typeof v === "string" && v.trim() !== "");
 
-// Which measure a list of sets (stored numbers or draft strings) was logged
-// as, read from the first set that has anything in it: distance, then weight,
-// then reps, then time alone. Null when nothing is filled in.
+// Which measure a list of sets was logged as, read from the fields the first
+// set has. For stored sets those are the numbers logged; for draft rows, the
+// boxes the row was made with, even while still empty — so half-typing a
+// row (weight in, distance not yet) doesn't change what it's logged as.
+// Null when there are no sets.
 export function measureOfSets(sets) {
-  const set = (sets || []).find((s) => s && SET_FIELDS.some((f) => hasValue(s[f])));
+  const hasField = (s, f) => s && s[f] !== undefined && s[f] !== null;
+  const set = (sets || []).find((s) => SET_FIELDS.some((f) => hasField(s, f)));
   if (!set) return null;
-  if (hasValue(set.distance)) return "distance";
-  if (hasValue(set.weight)) return "weight_reps";
-  if (hasValue(set.reps)) return "reps";
+  const has = (f) => hasField(set, f);
+  if (has("distance")) return has("weight") ? "weight_distance" : "distance";
+  if (has("weight")) return has("seconds") && !has("reps") ? "weight_time" : "weight_reps";
+  if (has("reps")) return has("seconds") ? "reps_time" : "reps";
   return "time";
+}
+
+// The distance unit a list of sets was logged in: the first one that has
+// one, or null.
+export function distanceUnitOfSets(sets) {
+  const set = (sets || []).find((s) => s && typeof s.distanceUnit === "string" && s.distanceUnit);
+  return set ? set.distanceUnit : null;
 }
 
 // The measure an exercise's set rows use on a session being logged: the one
@@ -55,10 +74,11 @@ export function resolveMeasure({ chosen, rows, lastSets, exercise }) {
 
 // Draft rows switched to another measure: each row keeps only the new
 // measure's fields, carrying over the values they share (reps stay reps when
-// going from weight × reps to reps).
-export function switchMeasure(rows, measure) {
+// going from weight × reps to reps). Rows that gain a distance get `unit`
+// unless they already had one.
+export function switchMeasure(rows, measure, unit = DISTANCE_UNIT) {
   return (rows || []).map((row) => {
-    const next = {};
+    const next = blankRow(measure, row.distanceUnit || unit);
     MEASURES[measure].fields.forEach((f) => (next[f] = row[f] ?? ""));
     return next;
   });
@@ -105,6 +125,7 @@ export function toDraftSets(sets) {
       SET_FIELDS.forEach((field) => {
         if (typeof set[field] === "number") row[field] = field === "seconds" ? formatDuration(set[field]) : String(set[field]);
       });
+      if (typeof set.distance === "number") row.distanceUnit = set.distanceUnit || DISTANCE_UNIT;
       return row;
     });
   });
@@ -119,7 +140,7 @@ function toStoredSet(row) {
   const reps = parseAmount(row.reps, { whole: true });
   const seconds = parseDuration(row.seconds);
   if (weight !== null) Object.assign(set, { weight, weightUnit: WEIGHT_UNIT });
-  if (distance !== null) Object.assign(set, { distance, distanceUnit: DISTANCE_UNIT });
+  if (distance !== null) Object.assign(set, { distance, distanceUnit: row.distanceUnit || DISTANCE_UNIT });
   if (reps !== null) set.reps = reps;
   if (seconds !== null) set.seconds = seconds;
   return Object.keys(set).length > 0 ? set : null;
@@ -127,7 +148,8 @@ function toStoredSet(row) {
 
 // The form's draft -> what's saved: only exercises still in `exerciseIds`,
 // only rows with at least one usable number, and no empty exercise entries.
-// Units come from WEIGHT_UNIT/DISTANCE_UNIT at save time.
+// Weight is saved in WEIGHT_UNIT; distance in the row's `distanceUnit`
+// (DISTANCE_UNIT if it has none).
 export function fromDraftSets(draft, exerciseIds) {
   const out = {};
   (exerciseIds || []).forEach((id) => {
@@ -141,12 +163,19 @@ export function fromDraftSets(draft, exerciseIds) {
 // and no text).
 export const hasLoggedSets = (draft, exerciseIds) => Object.keys(fromDraftSets(draft, exerciseIds)).length > 0;
 
-// An empty draft row for a measure.
-export function blankRow(measure) {
+// An empty draft row for a measure, with `unit` as its distance unit if the
+// measure has a distance.
+export function blankRow(measure, unit = DISTANCE_UNIT) {
   const row = {};
-  ((MEASURES[measure] || {}).fields || []).forEach((f) => (row[f] = ""));
+  const fields = (MEASURES[measure] || {}).fields || [];
+  fields.forEach((f) => (row[f] = ""));
+  if (fields.includes("distance")) row.distanceUnit = unit;
   return row;
 }
+
+// Draft rows with every distance switched to `unit` (one unit per exercise
+// per session).
+export const setDistanceUnit = (rows, unit) => (rows || []).map((row) => ("distance" in row ? { ...row, distanceUnit: unit } : row));
 
 // The inputs a draft row shows: its measure's fields, plus any other field the
 // row already has a value in (e.g. an old set logged some other way), so
@@ -176,19 +205,19 @@ export function lastSetsFor(sessions, exerciseId, { excludeId, onOrBefore } = {}
 
 const trimNumber = (n) => String(Math.round(n * 100) / 100);
 
-// One set as text: "225 lb × 5", "12 reps", "1:00", "3.1 mi in 28:00".
+// One set as text: "225 lb × 5", "12 reps", "1:00", "3.1 mi in 28:00",
+// "50 lb for 1:00", "50 lb × 40 m", "20 reps in 1:00".
 export function formatSet(set) {
   const weight = typeof set.weight === "number" ? `${trimNumber(set.weight)} ${set.weightUnit || WEIGHT_UNIT}` : null;
   const distance = typeof set.distance === "number" ? `${trimNumber(set.distance)} ${set.distanceUnit || DISTANCE_UNIT}` : null;
   const time = typeof set.seconds === "number" ? formatDuration(set.seconds) : null;
   const reps = typeof set.reps === "number" ? set.reps : null;
-  const parts = [];
-  if (weight && reps !== null) parts.push(`${weight} × ${reps}`);
-  else if (weight) parts.push(weight);
-  else if (reps !== null) parts.push(`${reps} ${reps === 1 ? "rep" : "reps"}`);
-  if (distance) parts.push(distance);
-  if (time) parts.push(parts.length > 0 ? `in ${time}` : time);
-  return parts.join(" ");
+  let text = weight || "";
+  if (reps !== null) text = text ? `${text} × ${reps}` : `${reps} ${reps === 1 ? "rep" : "reps"}`;
+  if (distance) text = text ? `${text} × ${distance}` : distance;
+  // A weight held for a time reads "for"; anything done within a time, "in".
+  if (time) text = !text ? time : `${text} ${weight && reps === null && !distance ? "for" : "in"} ${time}`;
+  return text;
 }
 
 const sameSet = (a, b) => SET_FIELDS.every((f) => a[f] === b[f]) && a.weightUnit === b.weightUnit && a.distanceUnit === b.distanceUnit;

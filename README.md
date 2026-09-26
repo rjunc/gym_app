@@ -59,12 +59,15 @@ exactly what the app works with (see `src/lib/firestoreLog.js`).
 **Logged sets.** A session can carry per-set numbers for each linked Library
 exercise, as `sets: { [exerciseId]: [{ reps, weight, weightUnit }, …] }`.
 Which fields a set has depends on how it was logged (weight × reps, reps,
-time as `seconds`, or `distance` with optional time). That's picked per
+time as `seconds`, `distance` with optional time, weight × time,
+weight × distance, or reps × time). That's picked per
 session, not on the exercise: it starts from however the exercise was logged
 last time, and an exercise never logged before asks. Older exercises may
 still carry a `measure`, used only as the starting point before their first
 logged session. Weights are
-in lb and distances in miles, and the unit is saved on every set. Sets
+in lb. Distance is in mi, km, m or yd, picked per exercise while logging
+(starting from the unit it was last logged in), and the unit is saved on
+every set. Sets
 are optional, so an exercise with no entry is just "done, no numbers".
 See `src/lib/sets.js`.
 

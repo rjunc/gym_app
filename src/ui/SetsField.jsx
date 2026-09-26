@@ -1,17 +1,33 @@
 import { Plus, X } from "lucide-react";
-import { MEASURES, resolveMeasure, switchMeasure, measureOfSets, blankRow, rowFields, lastSetsFor, formatSets, toDraftSets, WEIGHT_UNIT, DISTANCE_UNIT } from "../lib/sets.js";
+import {
+  MEASURES,
+  DISTANCE_UNITS,
+  resolveMeasure,
+  switchMeasure,
+  measureOfSets,
+  distanceUnitOfSets,
+  setDistanceUnit,
+  blankRow,
+  rowFields,
+  lastSetsFor,
+  formatSets,
+  toDraftSets,
+  WEIGHT_UNIT,
+  DISTANCE_UNIT,
+} from "../lib/sets.js";
 import { labelStyle, inputStyle, ghostLinkStyle } from "./styles.js";
 
 // How each set field's text box looks: keyboard, placeholder, and the unit
-// shown after it.
+// shown after it (distance's is a switch instead, see the row below).
 const FIELD_INPUT = {
   weight: { inputMode: "decimal", placeholder: "0", suffix: WEIGHT_UNIT },
-  distance: { inputMode: "decimal", placeholder: "0", suffix: DISTANCE_UNIT },
+  distance: { inputMode: "decimal", placeholder: "0", suffix: "" },
   reps: { inputMode: "numeric", placeholder: "0", suffix: "reps" },
   seconds: { inputMode: "numeric", placeholder: "m:ss", suffix: "" },
 };
 
-// The small "Reps ▾" switch in an exercise's header.
+// The small "Reps ▾" switch in an exercise's header, and the "m ▾" one after
+// a distance.
 const measureSelectStyle = {
   background: "transparent",
   border: "none",
@@ -47,6 +63,9 @@ const shortDate = (iso) => {
 // session, and an exercise never logged before asks first ("Log as").
 // The pick lives on the draft as `form.setMeasures` ({ exerciseId: measure })
 // and isn't saved — the saved sets already say how they were logged.
+// Distance units work the same way: tapping the unit after a distance
+// switches every row of that exercise, and new rows start in the unit it was
+// last logged in (see distanceUnitOfSets).
 // "Add set" copies the previous row, so 5×5 is one row typed plus four taps.
 // "Last time" shows the most recent other session's sets for that exercise
 // (from `history`, not after the date being logged) and can copy them in.
@@ -78,6 +97,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
           const rows = (form.sets || {})[exercise.id] || [];
           const last = lastSetsFor(history, exercise.id, { excludeId: entryId, onOrBefore: form.date });
           const measure = resolveMeasure({ chosen: (form.setMeasures || {})[exercise.id], rows, lastSets: last && last.sets, exercise });
+          const unit = distanceUnitOfSets(rows) || distanceUnitOfSets(last && last.sets) || DISTANCE_UNIT;
           return (
             <div key={exercise.id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 10 }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -85,7 +105,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                 {measure && (
                   <select
                     value={measure}
-                    onChange={(e) => setMeasure(exercise.id, e.target.value, (list) => switchMeasure(list, e.target.value))}
+                    onChange={(e) => setMeasure(exercise.id, e.target.value, (list) => switchMeasure(list, e.target.value, unit))}
                     aria-label={`How ${exercise.name} is logged`}
                     style={measureSelectStyle}
                   >
@@ -121,7 +141,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                         const meta = FIELD_INPUT[field];
                         return (
                           <div key={field} style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
-                            {j > 0 && field === "reps" && <span style={{ fontSize: 12, color: "var(--text-dim)" }}>×</span>}
+                            {j > 0 && (field === "reps" || field === "distance") && <span style={{ fontSize: 12, color: "var(--text-dim)" }}>×</span>}
                             <input
                               value={row[field] ?? ""}
                               onChange={(e) => {
@@ -134,6 +154,20 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                               style={{ ...inputStyle, padding: "7px 8px", minWidth: 0, flex: 1 }}
                             />
                             {meta.suffix && <span style={{ fontSize: 11, color: "var(--text-dim)", flexShrink: 0 }}>{meta.suffix}</span>}
+                            {field === "distance" && (
+                              <select
+                                value={row.distanceUnit || DISTANCE_UNIT}
+                                onChange={(e) => setRows(exercise.id, (list) => setDistanceUnit(list, e.target.value))}
+                                aria-label={`${exercise.name} distance unit`}
+                                style={{ ...measureSelectStyle, flexShrink: 0 }}
+                              >
+                                {DISTANCE_UNITS.map((u) => (
+                                  <option key={u} value={u}>
+                                    {u}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </div>
                         );
                       })}
@@ -151,7 +185,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
 
               {measure ? (
                 <button
-                  onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure)])}
+                  onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure, unit)])}
                   style={{ ...ghostLinkStyle, color: `var(${accentVar})`, marginTop: 8 }}
                 >
                   <Plus size={13} /> Add set
@@ -162,7 +196,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                   {Object.entries(MEASURES).map(([key, m]) => (
                     <button
                       key={key}
-                      onClick={() => setMeasure(exercise.id, key, (list) => (list.length > 0 ? switchMeasure(list, key) : [blankRow(key)]))}
+                      onClick={() => setMeasure(exercise.id, key, (list) => (list.length > 0 ? switchMeasure(list, key, unit) : [blankRow(key, unit)]))}
                       style={{ ...measureChipStyle, color: `var(${accentVar})` }}
                     >
                       {m.label}
