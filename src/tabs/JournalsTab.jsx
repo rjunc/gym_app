@@ -5,6 +5,7 @@ export default function JournalsTab({ journals, setJournals, exercises, exercise
   return (
     <SimpleEntryTab
       entries={journals}
+      source="journals"
       setEntries={setJournals}
       type={ENTRY_TYPES.journals}
       exercises={exercises}

@@ -1,6 +1,7 @@
 import { formatSets, exerciseNoteOf } from "../lib/sets.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
+import { SheetLink } from "../ui/SheetNav.jsx";
 import { labelStyle } from "../ui/styles.js";
 
 // Read-only bottom sheet opened by tapping an exercise in the Library: the
@@ -8,15 +9,15 @@ import { labelStyle } from "../ui/styles.js";
 // it as one newest-first timeline, with the sets logged for this exercise
 // each time. `routines` arrive as { id, label } with the folder path already
 // in the label (see routineOptions).
-export default function ExerciseHistorySheet({ exercise, accent, sessions, journals, routines, exerciseNameById, routineNameById, onEdit, onDelete, onClose }) {
+// Its routines are links to their own sheets (see SheetStack).
+export default function ExerciseHistorySheet({ exercise, accent, sessions, journals, routines, onEdit, onDelete, onBack, onClose }) {
   return (
     <HistorySheet
       sessions={sessions}
       journals={journals}
-      exerciseNameById={exerciseNameById}
-      routineNameById={routineNameById}
       onEdit={onEdit}
       onDelete={onDelete}
+      onBack={onBack}
       onClose={onClose}
       emptyLabel="Not used in any sessions or journal entries yet."
       detail={(entry, entryAccent) => {
@@ -49,7 +50,7 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {routines.map((r) => (
               <div key={r.id} style={{ fontSize: 13 }}>
-                {r.label}
+                <SheetLink sheet={{ kind: "routine", id: r.id }}>{r.label}</SheetLink>
               </div>
             ))}
           </div>

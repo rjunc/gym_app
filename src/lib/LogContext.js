@@ -5,8 +5,9 @@ import { createContext, useContext } from "react";
 // down through every layer — e.g. the entry form opening the real Routines or
 // Library page to pick from (see PagePicker). Pages themselves still take
 // their data as props from App.
-//   { sessions, setSessions, journals, setJournals, routines, setRoutines,
-//     folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage }
+//   { sessions, setSessions, journals, setJournals, rolls, setRolls,
+//     routines, setRoutines, folders, setFolders, exercises, setExercises,
+//     exerciseUsage, routineUsage }
 export const LogContext = createContext(null);
 
 export const useLog = () => useContext(LogContext);

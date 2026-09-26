@@ -6,11 +6,14 @@ import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import TagChip from "./TagChip.jsx";
 import BottomSheet from "./BottomSheet.jsx";
 import SheetActions from "./SheetActions.jsx";
-import EntryDetailSheet from "./EntryDetailSheet.jsx";
+import { useSheets } from "../lib/SheetStack.js";
+import { BackButton } from "./SheetNav.jsx";
 import { cardStyle, ghostLinkStyle, labelStyle } from "./styles.js";
 
-// entryHistory's kinds, with their settings from ENTRY_TYPES.
+// entryHistory's kinds, with their settings from ENTRY_TYPES and the log
+// each lives in.
 const KIND_META = { session: ENTRY_TYPES.sessions, journal: ENTRY_TYPES.journals };
+const KIND_SOURCE = { session: "sessions", journal: "journals" };
 
 // Read-only bottom sheet for something that dated entries link to (a Library
 // exercise, a routine): `header` at the top next to the close button,
@@ -19,31 +22,21 @@ const KIND_META = { session: ENTRY_TYPES.sessions, journal: ENTRY_TYPES.journals
 // specific to this kind of link under each entry's title (e.g. the sets
 // logged for an exercise); `emptyLabel` shows when nothing links it yet.
 // `onEdit`/`onDelete` add those buttons under the header.
-// Tapping an entry in the timeline opens its full summary (EntryDetailSheet)
-// on top, read-only — editing stays on the Sessions/Journals pages, which own
-// that data. `exerciseNameById`/`routineNameById` name its links there.
-export default function HistorySheet({
-  header,
-  sessions,
-  journals,
-  detail,
-  emptyLabel,
-  exerciseNameById = new Map(),
-  routineNameById = new Map(),
-  onEdit,
-  onDelete,
-  onClose,
-  children,
-}) {
+// Tapping an entry in the timeline opens its full summary on top (see
+// SheetStack), where it can be edited too. `onBack` adds a Back button when
+// this sheet is itself on top of another.
+export default function HistorySheet({ header, sessions, journals, detail, emptyLabel, onEdit, onDelete, onBack, onClose, children }) {
   const history = entryHistory(sessions, journals);
-  // The timeline entry whose summary is open, as { kind, entry }.
-  const [viewing, setViewing] = useState(null);
+  const sheets = useSheets();
 
   return (
     <>
       <BottomSheet onClose={onClose}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>{header}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+            {onBack && <BackButton onBack={onBack} />}
+            {header}
+          </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", flexShrink: 0 }}>
             <X size={18} />
           </button>
@@ -62,23 +55,19 @@ export default function HistorySheet({
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {history.map(({ kind, entry }) => (
-                <HistoryEntry key={`${kind}-${entry.id}`} kind={kind} entry={entry} detail={detail} onOpen={() => setViewing({ kind, entry })} />
+                <HistoryEntry
+                  key={`${kind}-${entry.id}`}
+                  kind={kind}
+                  entry={entry}
+                  detail={detail}
+                  onOpen={sheets ? () => sheets.open({ kind: "entry", source: KIND_SOURCE[kind], id: entry.id }) : undefined}
+                />
               ))}
             </div>
           )}
         </div>
       </BottomSheet>
 
-      {viewing && (
-        <EntryDetailSheet
-          entry={viewing.entry}
-          kindLabel={KIND_META[viewing.kind].singular}
-          accent={KIND_META[viewing.kind].accent}
-          exerciseNameById={exerciseNameById}
-          routineNameById={routineNameById}
-          onClose={() => setViewing(null)}
-        />
-      )}
     </>
   );
 }
@@ -94,7 +83,7 @@ function HistoryEntry({ kind, entry, detail, onOpen }) {
   return (
     <div
       onClick={(ev) => {
-        if (!ev.target.closest("button")) onOpen();
+        if (onOpen && !ev.target.closest("button")) onOpen();
       }}
       style={{ ...cardStyle, background: "var(--surface-2)", cursor: "pointer" }}
     >

@@ -63,7 +63,6 @@ export default function PagePicker({ kind, addedIds, onAdd, onRemove, onDone, in
           sessions={log.sessions}
           journals={log.journals}
           routines={log.routines}
-          folders={log.folders}
           pick={pick}
         />
       )}

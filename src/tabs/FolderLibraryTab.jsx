@@ -1,16 +1,12 @@
 import { useState, useMemo } from "react";
 import { Plus, FolderPlus, X } from "lucide-react";
-import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
 import { folderPath } from "../lib/folders.js";
 import { matchesSearch, folderItemSearchFields, exerciseNameMap } from "../lib/search.js";
-import { cleanFields } from "../lib/text.js";
-import { collectPositions } from "../lib/positions.js";
-import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
-import EntryComposer from "../ui/EntryComposer.jsx";
+import FolderItemEditor from "./FolderItemEditor.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
@@ -43,9 +39,9 @@ export default function FolderLibraryTab({
   // Session usage counts (exerciseUsageCounts) that rank the Exercises picker.
   exerciseUsage,
   // Optional, for items that dated entries link to (routines): the item's
-  // usageSummary for its card, what tapping the card does — called with the
-  // item and { edit, remove } so a summary sheet can offer those — and a
-  // sentence added to the delete confirmation (e.g. "Used in 8 sessions.").
+  // usageSummary for its card, what tapping the card does (onOpenItem(item),
+  // e.g. open its summary sheet), and a sentence added to the delete
+  // confirmation (e.g. "Used in 8 sessions.").
   usageFor,
   onOpenItem,
   deleteWarningFor,
@@ -65,21 +61,9 @@ export default function FolderLibraryTab({
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [giMode, setGiMode] = useState("gi");
   const [expanded, setExpanded] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [showComposer, setShowComposer] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    tags: [],
-    text: "",
-    folderId: null,
-    position: "",
-    toPosition: "",
-    starred: false,
-    giOnly: false,
-    ...(showExercises ? { exerciseIds: [] } : {}),
-  });
-  const [tagDraft, setTagDraft] = useState("");
-  const tagSuggestions = useMemo(() => tagUsage(items, todayISO()), [items]);
+  // The new/edit form: null when closed, else { item } to edit or
+  // { defaults } to create (see FolderItemEditor).
+  const [composer, setComposer] = useState(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [addingFolder, setAddingFolder] = useState(false);
   const [folderError, setFolderError] = useState("");
@@ -174,67 +158,11 @@ export default function FolderLibraryTab({
     setFolders((prev) => prev.filter((f) => f.id !== folder.id));
   };
 
-  const resetForm = () => {
-    setForm({
-      name: "",
-      tags: [],
-      text: "",
-      folderId: currentFolderId,
-      position: "",
-      toPosition: "",
-      starred: false,
-      giOnly: false,
-      ...(showExercises ? { exerciseIds: [] } : {}),
-    });
-    setTagDraft("");
-    setEditingId(null);
-  };
-
-  const openNewComposer = () => {
-    resetForm();
+  const openNewComposer = () =>
     // Picking and couldn't find it: start the new item from the search.
-    if (pick && search.trim()) setForm((f) => ({ ...f, name: search.trim() }));
-    setShowComposer(true);
-  };
+    setComposer({ defaults: { folderId: currentFolderId, name: pick ? search.trim() : "" } });
 
-  const openEdit = (item) => {
-    setForm({
-      name: item.name,
-      tags: [...(item.tags || [])],
-      text: item.text || "",
-      folderId: item.folderId || null,
-      position: item.position || "",
-      toPosition: item.toPosition || "",
-      starred: !!item.starred,
-      giOnly: !!item.giOnly,
-      ...(showExercises ? { exerciseIds: [...(item.exerciseIds || [])] } : {}),
-    });
-    setEditingId(item.id);
-    setShowComposer(true);
-    setTagDraft("");
-  };
-
-  const addTagFromDraft = () => {
-    setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tagDraft) }));
-    setTagDraft("");
-  };
-
-  const removeFormTag = (t) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }));
-
-  const saveItem = () => {
-    const fields = cleanFields(form);
-    if (!fields.name) return;
-    if (editingId) {
-      setItems((prev) => editById(prev, editingId, fields));
-    } else {
-      const created = newRecord(fields);
-      setItems((prev) => [created, ...prev]);
-      // Created while picking for an entry: that's what it's for.
-      if (pick) pick.onAdd(created);
-    }
-    setShowComposer(false);
-    resetForm();
-  };
+  const openEdit = (item) => setComposer({ item });
 
   // Returns whether it was deleted (the confirmation can be cancelled).
   const deleteItem = (id) => {
@@ -245,20 +173,6 @@ export default function FolderLibraryTab({
   };
 
   const toggleStar = (id) => setItems((prev) => editById(prev, id, { starred: !prev.find((r) => r.id === id)?.starred }));
-
-  const positionOptions = useMemo(() => (showPositions ? collectPositions(items) : []), [items, showPositions]);
-
-  const folderOptions = useMemo(() => {
-    const opts = [{ id: null, label: "No folder (top level)" }];
-    folders
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach((f) => {
-        const path = folderPath(folders, f.id).map((p) => p.name).join(" / ");
-        opts.push({ id: f.id, label: path });
-      });
-    return opts;
-  }, [folders]);
 
   return (
     <>
@@ -271,7 +185,7 @@ export default function FolderLibraryTab({
           onRemove={pick.onRemove}
           onOpen={(id) => {
             const r = items.find((x) => x.id === id);
-            if (r && onOpenItem) onOpenItem(r, { edit: () => openEdit(r), remove: () => deleteItem(r.id) });
+            if (r && onOpenItem) onOpenItem(r);
           }}
         />
       )}
@@ -372,7 +286,7 @@ export default function FolderLibraryTab({
                     activeTags={activeTags}
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                     usage={usageFor ? usageFor(r) : undefined}
-                    onOpen={onOpenItem ? () => onOpenItem(r, { edit: () => openEdit(r), remove: () => deleteItem(r.id) }) : undefined}
+                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
                   />
                 ))}
               </div>
@@ -457,7 +371,7 @@ export default function FolderLibraryTab({
                     activeTags={activeTags}
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                     usage={usageFor ? usageFor(r) : undefined}
-                    onOpen={onOpenItem ? () => onOpenItem(r, { edit: () => openEdit(r), remove: () => deleteItem(r.id) }) : undefined}
+                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
                   />
                 ))}
               </div>
@@ -466,36 +380,21 @@ export default function FolderLibraryTab({
         )}
       </div>
 
-      {showComposer && (
-        <EntryComposer
-          title={editingId ? `Edit ${itemNoun}` : `New ${itemNoun}`}
-          form={form}
-          setForm={setForm}
-          tagDraft={tagDraft}
-          setTagDraft={setTagDraft}
-          onAddTag={addTagFromDraft}
-          onRemoveTag={removeFormTag}
-          onSave={saveItem}
-          onClose={() => {
-            setShowComposer(false);
-            resetForm();
-          }}
-          showName
-          namePlaceholder={namePlaceholder}
-          showFolder
-          folderOptions={folderOptions}
-          showPositions={showPositions}
-          positionOptions={positionOptions}
-          showStar={showStar}
-          showGiOnly={showGiOnly}
-          showExercises={showExercises}
-          exerciseOptions={exercises}
+      {composer && (
+        <FolderItemEditor
+          item={composer.item}
+          defaults={composer.defaults}
+          items={items}
+          setItems={setItems}
+          folders={folders}
+          config={{ itemNoun, namePlaceholder, textLabel, textPlaceholder, accent, showPositions, showStar, showGiOnly, showExercises }}
+          exercises={exercises}
           exerciseUsage={exerciseUsage}
-          textLabel={textLabel}
-          textPlaceholder={textPlaceholder}
-          saveLabel={editingId ? "Save changes" : `Save ${itemNoun}`}
-          tagSuggestions={tagSuggestions}
-          accent={accent}
+          // Created while picking for an entry: that's what it's for.
+          onSaved={(saved) => {
+            if (!composer.item && pick) pick.onAdd(saved);
+          }}
+          onClose={() => setComposer(null)}
         />
       )}
     </>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { Plus } from "lucide-react";
 import { todayISO } from "../lib/id.js";
+import { useSheets } from "../lib/SheetStack.js";
 import { newRecord, editById, editRecord } from "../lib/records.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
 import { exerciseNameMap, nameMap } from "../lib/search.js";
@@ -10,7 +11,6 @@ import ActivityCalendar from "../ui/ActivityCalendar.jsx";
 import DayEntries from "../ui/DayEntries.jsx";
 import EntrySheet from "../ui/EntrySheet.jsx";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
-import EntryDetailSheet from "../ui/EntryDetailSheet.jsx";
 import { cardStyle, labelStyle, primaryBtnStyle } from "../ui/styles.js";
 
 // Every kind of dated log the calendar can draw from, with its settings from
@@ -30,9 +30,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   // null when closed; { entry: null } to add, { entry } to edit that entry, or
   // { entry: null, redo } to add a new one copied from `redo`.
   const [composer, setComposer] = useState(null);
-  // The entry whose read-only summary is open, as { source, id } so it stays
-  // current after an edit elsewhere.
-  const [viewing, setViewing] = useState(null);
+  const sheets = useSheets();
   const detailRef = useRef(null);
 
   const bySource = useMemo(() => ({ sessions, rolls }), [sessions, rolls]);
@@ -113,9 +111,6 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
     return true;
   };
 
-  const viewedRecord = viewing && bySource[viewing.source].find((e) => e.id === viewing.id);
-  const viewedEntry = viewedRecord && { ...viewedRecord, source: viewing.source };
-
   const selectDay = (iso) => {
     setSelected(iso);
     // The list sits below the fold on a phone; bring it into view.
@@ -185,37 +180,11 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           onEdit={(entry) => setComposer({ entry })}
           onRedo={(redo) => setComposer({ entry: null, redo })}
           onDelete={deleteEntry}
-          onOpen={(entry) => setViewing({ source: entry.source, id: entry.id })}
+          onOpen={(entry) => sheets.open({ kind: "entry", source: entry.source, id: entry.id })}
           exerciseNameById={exerciseNameById}
           routineNameById={routineNameById}
         />
       </div>
-
-      {viewedEntry && (
-        <EntryDetailSheet
-          entry={viewedEntry}
-          kindLabel={SOURCE_META[viewedEntry.source].singular}
-          accent={SOURCE_META[viewedEntry.source].accent}
-          exerciseNameById={exerciseNameById}
-          routineNameById={routineNameById}
-          onEdit={() => {
-            setViewing(null);
-            setComposer({ entry: viewedEntry });
-          }}
-          onRedo={
-            SOURCE_META[viewedEntry.source].canRedo
-              ? () => {
-                  setViewing(null);
-                  setComposer({ entry: null, redo: viewedEntry });
-                }
-              : undefined
-          }
-          onDelete={() => {
-            if (deleteEntry(viewedEntry)) setViewing(null);
-          }}
-          onClose={() => setViewing(null)}
-        />
-      )}
 
       {composer && (
         <EntrySheet

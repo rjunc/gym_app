@@ -4,6 +4,7 @@ import { formatSet, exerciseNoteOf } from "../lib/sets.js";
 import TagChip from "./TagChip.jsx";
 import BottomSheet from "./BottomSheet.jsx";
 import SheetActions from "./SheetActions.jsx";
+import { BackButton, SheetLink } from "./SheetNav.jsx";
 import { labelStyle } from "./styles.js";
 
 // Read-only summary of one dated entry (session, journal entry or roll),
@@ -12,8 +13,11 @@ import { labelStyle } from "./styles.js";
 // numbered, tags, the full text (never clamped), and when it was logged and
 // last edited. Edit, Redo and Delete act on it from here; pass only the ones
 // that apply (e.g. no onRedo for journals).
-export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent", exerciseNameById = new Map(), routineNameById = new Map(), onEdit, onRedo, onDelete, onClose }) {
-  const routineNames = (entry.routineIds || []).map((id) => routineNameById.get(id)).filter(Boolean);
+// Its routines and exercises are links that open their own sheets on top
+// (see SheetStack); `onBack` adds a Back button when this sheet is itself on
+// top of another.
+export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent", exerciseNameById = new Map(), routineNameById = new Map(), onEdit, onRedo, onDelete, onBack, onClose }) {
+  const routineIds = (entry.routineIds || []).filter((id) => routineNameById.has(id));
   const sets = entry.sets || {};
   // Linked exercises in their order, then any with sets whose link was since
   // removed (so logged numbers are never hidden). Deleted Library exercises
@@ -27,6 +31,7 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
     <BottomSheet onClose={onClose}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+          {onBack && <BackButton onBack={onBack} />}
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: `var(${accent})` }}>{kindLabel}</span>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{entry.title || formatDate(entry.date)}</div>
           {entry.title && <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{formatDate(entry.date)}</div>}
@@ -38,13 +43,13 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
 
       <SheetActions onEdit={onEdit} onRedo={onRedo} onDelete={onDelete} />
 
-      {routineNames.length > 0 && (
+      {routineIds.length > 0 && (
         <div>
           <span style={labelStyle}>Built from</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {routineNames.map((name, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--accent2)", fontWeight: 600 }}>
-                <BookOpen size={12} /> {name}
+            {routineIds.map((id) => (
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--accent2)", fontWeight: 600 }}>
+                <BookOpen size={12} /> <SheetLink sheet={{ kind: "routine", id }}>{routineNameById.get(id)}</SheetLink>
               </div>
             ))}
           </div>
@@ -60,7 +65,9 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
               const note = exerciseNoteOf(entry, id);
               return (
                 <div key={id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px" }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: `var(${accent})` }}>{exerciseNameById.get(id) || "Deleted exercise"}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: `var(${accent})` }}>
+                    {exerciseNameById.has(id) ? <SheetLink sheet={{ kind: "exercise", id }}>{exerciseNameById.get(id)}</SheetLink> : "Deleted exercise"}
+                  </div>
                   {list.length === 0 ? (
                     !note && <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 2 }}>No sets logged</div>
                   ) : (

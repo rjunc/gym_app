@@ -2,6 +2,7 @@ import { formatDateTime, wasEdited } from "../lib/id.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import SetsSummary from "../ui/SetsSummary.jsx";
+import { SheetLink } from "../ui/SheetNav.jsx";
 import { labelStyle } from "../ui/styles.js";
 
 // Read-only bottom sheet opened by tapping a routine: the routine itself (its
@@ -9,18 +10,18 @@ import { labelStyle } from "../ui/styles.js";
 // journal entry built from it (see applyRoutine / routineIds), newest first,
 // with each session's logged sets — so you can see what you actually did each
 // time you ran it. Entries are what was saved then; editing the routine since
-// doesn't change them. `pathLabel` is the routine's folder path.
-export default function RoutineHistorySheet({ routine, pathLabel, accent, sessions, journals, exerciseNameById, routineNameById, onEdit, onDelete, onClose }) {
-  const exerciseNames = (routine.exerciseIds || []).map((id) => exerciseNameById.get(id)).filter(Boolean);
+// doesn't change them. `pathLabel` is the routine's folder path. Its
+// exercises are links to their own sheets (see SheetStack).
+export default function RoutineHistorySheet({ routine, pathLabel, accent, sessions, journals, exerciseNameById, onEdit, onDelete, onBack, onClose }) {
+  const exerciseIds = (routine.exerciseIds || []).filter((id) => exerciseNameById.has(id));
   const created = formatDateTime(routine.createdAt);
   return (
     <HistorySheet
       sessions={sessions}
       journals={journals}
-      exerciseNameById={exerciseNameById}
-      routineNameById={routineNameById}
       onEdit={onEdit}
       onDelete={onDelete}
+      onBack={onBack}
       onClose={onClose}
       emptyLabel="Not used in any sessions or journal entries yet. Add it to one with the Routines picker when logging."
       detail={(entry, entryAccent) => <SetsSummary entry={entry} exerciseNameById={exerciseNameById} accent={entryAccent} style={{ marginTop: 6 }} />}
@@ -38,13 +39,13 @@ export default function RoutineHistorySheet({ routine, pathLabel, accent, sessio
         </>
       }
     >
-      {exerciseNames.length > 0 && (
+      {exerciseIds.length > 0 && (
         <div>
           <span style={labelStyle}>Exercises</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {exerciseNames.map((name, i) => (
-              <div key={i} style={{ fontSize: 13, fontWeight: 600, color: `var(${accent})` }}>
-                {name}
+            {exerciseIds.map((id) => (
+              <div key={id} style={{ fontSize: 13, fontWeight: 600, color: `var(${accent})` }}>
+                <SheetLink sheet={{ kind: "exercise", id }}>{exerciseNameById.get(id)}</SheetLink>
               </div>
             ))}
           </div>

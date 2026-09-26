@@ -5,6 +5,7 @@ export default function SessionsTab({ sessions, setSessions, exercises, exercise
   return (
     <SimpleEntryTab
       entries={sessions}
+      source="sessions"
       setEntries={setSessions}
       type={ENTRY_TYPES.sessions}
       exercises={exercises}

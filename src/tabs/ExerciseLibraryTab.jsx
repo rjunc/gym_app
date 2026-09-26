@@ -1,27 +1,19 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
-import { todayISO } from "../lib/id.js";
-import { newRecord, editById } from "../lib/records.js";
 import { matchesTags } from "../lib/activity.js";
-import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
-import { entriesByExercise } from "../lib/exercises.js";
-import { usageList } from "../lib/links.js";
-import { routineOptions } from "../lib/routines.js";
-import { matchesSearch, exerciseSearchFields, nameMap } from "../lib/search.js";
-import { cleanFields, cleanLine } from "../lib/text.js";
+import { entriesByExercise, exerciseDeleteWarning } from "../lib/exercises.js";
+import { matchesSearch, exerciseSearchFields } from "../lib/search.js";
+import { useSheets } from "../lib/SheetStack.js";
 import TagChip from "../ui/TagChip.jsx";
-import EntryComposer from "../ui/EntryComposer.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import ExerciseCard from "./ExerciseCard.jsx";
-import ExerciseHistorySheet from "./ExerciseHistorySheet.jsx";
+import ExerciseEditor from "./ExerciseEditor.jsx";
 import PickBar from "../ui/PickBar.jsx";
 import { primaryBtnStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent2"; // matches Routines/Techniques, the other library-style tabs
-
-const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", active: true });
 
 // A flat, taggable list of every exercise you know — no folders, because one
 // exercise (e.g. a kettlebell swing) can belong under several categories
@@ -38,7 +30,10 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", activ
 // entry can't end up linking a deleted exercise), a bar with Done sits on
 // top, the search starts from what was typed in the entry's field, and a new
 // exercise starts with that name and is added to the entry once saved.
-export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [], folders = [], pick }) {
+// Tapping an exercise opens its summary sheet on the app's sheet stack (see
+// SheetStack).
+export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [], pick }) {
+  const sheets = useSheets();
   const [search, setSearch] = useState(pick?.initialQuery || "");
   const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
@@ -48,13 +43,9 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   // select, because they have no category tag to be found by.
   const [untaggedOnly, setUntaggedOnly] = useState(false);
   const [expanded, setExpanded] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [showComposer, setShowComposer] = useState(false);
-  const [historyId, setHistoryId] = useState(null); // exercise whose history sheet is open
-  const [form, setForm] = useState(emptyForm());
-  const [tagDraft, setTagDraft] = useState("");
-
-  const tagSuggestions = useMemo(() => tagUsage(exercises, todayISO()), [exercises]);
+  // The new/edit form: null when closed, else { exercise } to edit or
+  // { initialName } to create (see ExerciseEditor).
+  const [composer, setComposer] = useState(null);
   const untaggedCount = useMemo(() => exercises.filter((e) => (e.tags || []).length === 0).length, [exercises]);
 
   // Backlinks for "which sessions/journal entries/routines use this
@@ -62,12 +53,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   const sessionsByExercise = useMemo(() => entriesByExercise(sessions), [sessions]);
   const journalsByExercise = useMemo(() => entriesByExercise(journals), [journals]);
   const routinesByExercise = useMemo(() => entriesByExercise(routines), [routines]);
-  // Folder-path labels ("Legs / Squat day") for the history sheet's routine list.
-  const routineLabels = useMemo(() => routineOptions(routines, folders), [routines, folders]);
-  // Names for an entry's links when its summary opens from the history sheet.
-  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
-  const routineNameById = useMemo(() => nameMap(routines), [routines]);
-  const historyExercise = historyId ? exercises.find((e) => e.id === historyId) : null;
+  const openSheet = (id) => sheets.open({ kind: "exercise", id, ...(pick ? { hideDelete: true } : {}) });
 
   const filtered = useMemo(() => {
     return exercises
@@ -86,68 +72,13 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
       });
   }, [exercises, search, searchMatchMode, activeTags, tagMatchMode, status, untaggedOnly]);
 
-  const resetForm = () => {
-    setForm(emptyForm());
-    setTagDraft("");
-    setEditingId(null);
-  };
+  // Picking and couldn't find it: start the new exercise from the search.
+  const openNewComposer = () => setComposer({ initialName: pick ? search.trim() : "" });
 
-  const openNewComposer = () => {
-    resetForm();
-    // Picking and couldn't find it: start the new exercise from the search.
-    if (pick && search.trim()) setForm((f) => ({ ...f, name: search.trim() }));
-    setShowComposer(true);
-  };
-
-  const openEdit = (exercise) => {
-    setForm({
-      name: exercise.name || "",
-      tags: [...(exercise.tags || [])],
-      text: exercise.text || "",
-      prescription: exercise.prescription || "",
-      active: exercise.active !== false,
-    });
-    setEditingId(exercise.id);
-    setShowComposer(true);
-    setTagDraft("");
-  };
-
-  const addTagFromDraft = () => {
-    setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tagDraft) }));
-    setTagDraft("");
-  };
-
-  const removeFormTag = (t) => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }));
-
-  // Exercise names are compared case-insensitively so "Bench" and "bench"
-  // count as the same exercise — otherwise the Library (and the Exercises
-  // picker it feeds) quietly grows near-duplicates.
-  const trimmedName = cleanLine(form.name);
-  const isDuplicateName =
-    trimmedName !== "" && exercises.some((e) => e.id !== editingId && cleanLine(e.name).toLowerCase() === trimmedName.toLowerCase());
-
-  const saveExercise = () => {
-    const fields = cleanFields(form);
-    if (!fields.name || isDuplicateName) return;
-    if (editingId) {
-      setExercises((prev) => editById(prev, editingId, fields));
-    } else {
-      const created = newRecord(fields);
-      setExercises((prev) => [created, ...prev]);
-      // Created while picking for an entry: that's what it's for.
-      if (pick) pick.onAdd(created);
-    }
-    setShowComposer(false);
-    resetForm();
-  };
+  const openEdit = (exercise) => setComposer({ exercise });
 
   const deleteExercise = (id) => {
-    const list = usageList({
-      sessions: sessionsByExercise.get(id),
-      journals: journalsByExercise.get(id),
-      routines: routinesByExercise.get(id),
-    });
-    const warning = list ? ` Used in ${list}.` : "";
+    const warning = exerciseDeleteWarning(id, sessions, journals, routines);
     if (!window.confirm(`Delete this exercise?${warning} This can't be undone.`)) return false;
     setExercises((prev) => prev.filter((e) => e.id !== id));
     return true;
@@ -158,7 +89,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   return (
     <>
       {pick && (
-        <PickBar noun="exercises" onDone={pick.onDone} accent={ACCENT} chosen={pick.chosen} onRemove={pick.onRemove} onOpen={setHistoryId} />
+        <PickBar noun="exercises" onDone={pick.onDone} accent={ACCENT} chosen={pick.chosen} onRemove={pick.onRemove} onOpen={openSheet} />
       )}
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
@@ -227,7 +158,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
                 onAdd={pick ? () => pick.onAdd(e) : undefined}
                 onRemove={pick ? () => pick.onRemove(e.id) : undefined}
                 added={pick ? pick.addedIds.includes(e.id) : false}
-                onOpen={() => setHistoryId(e.id)}
+                onOpen={() => openSheet(e.id)}
                 activeTags={activeTags}
                 onTagClick={toggleTagFilter}
                 usedInSessions={sessionsByExercise.get(e.id) || []}
@@ -239,57 +170,17 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
         )}
       </div>
 
-      {historyExercise && (
-        <ExerciseHistorySheet
-          exercise={historyExercise}
-          accent={ACCENT}
-          sessions={sessionsByExercise.get(historyExercise.id) || []}
-          journals={journalsByExercise.get(historyExercise.id) || []}
-          routines={routineLabels.filter((o) => (routinesByExercise.get(historyExercise.id) || []).some((r) => r.id === o.id))}
-          exerciseNameById={exerciseNameById}
-          routineNameById={routineNameById}
-          onEdit={() => {
-            setHistoryId(null);
-            openEdit(historyExercise);
+      {composer && (
+        <ExerciseEditor
+          exercise={composer.exercise}
+          initialName={composer.initialName}
+          exercises={exercises}
+          setExercises={setExercises}
+          // Created while picking for an entry: that's what it's for.
+          onSaved={(saved) => {
+            if (!composer.exercise && pick) pick.onAdd(saved);
           }}
-          onDelete={
-            pick
-              ? undefined
-              : () => {
-                  if (deleteExercise(historyExercise.id)) setHistoryId(null);
-                }
-          }
-          onClose={() => setHistoryId(null)}
-        />
-      )}
-
-      {showComposer && (
-        <EntryComposer
-          title={editingId ? "Edit exercise" : "New exercise"}
-          form={form}
-          setForm={setForm}
-          tagDraft={tagDraft}
-          setTagDraft={setTagDraft}
-          onAddTag={addTagFromDraft}
-          onRemoveTag={removeFormTag}
-          onSave={saveExercise}
-          onClose={() => {
-            setShowComposer(false);
-            resetForm();
-          }}
-          saveDisabled={!form.name.trim() || isDuplicateName}
-          showName
-          nameField="name"
-          nameLabel="Name"
-          namePlaceholder="Goblet squat, cat-cow, jump rope…"
-          nameError={isDuplicateName ? "An exercise with this name already exists." : undefined}
-          showPrescription
-          showActive
-          textLabel="Notes (optional)"
-          textPlaceholder="Cues, setup, how to scale…"
-          saveLabel={editingId ? "Save changes" : "Save exercise"}
-          tagSuggestions={tagSuggestions}
-          accent={ACCENT}
+          onClose={() => setComposer(null)}
         />
       )}
     </>

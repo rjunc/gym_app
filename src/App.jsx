@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import { Menu } from "lucide-react";
-import { todayISO } from "./lib/id.js";
+// `uid` is taken by the signed-in user's id below, so the id helper is newKey.
+import { todayISO, uid as newKey } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
@@ -9,9 +10,11 @@ import { exerciseUsageCounts } from "./lib/exercises.js";
 import { routineUsageCounts } from "./lib/routines.js";
 import { useSyncedCollection } from "./lib/useSyncedCollection.js";
 import { LogContext } from "./lib/LogContext.js";
+import { SheetStackContext } from "./lib/SheetStack.js";
 import Shell from "./ui/Shell.jsx";
 import { primaryBtnStyle } from "./ui/styles.js";
 import Sidebar from "./ui/Sidebar.jsx";
+import SheetStack from "./ui/SheetStack.jsx";
 import HomeTab from "./tabs/HomeTab.jsx";
 import SessionsTab from "./tabs/SessionsTab.jsx";
 import JournalsTab from "./tabs/JournalsTab.jsx";
@@ -60,8 +63,19 @@ export default function App({ uid, userEmail, onLogout }) {
   // The log for components that open a full page from inside a form (see
   // LogContext).
   const log = useMemo(
-    () => ({ sessions, setSessions, journals, setJournals, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage }),
-    [sessions, setSessions, journals, setJournals, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage]
+    () => ({ sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage }),
+    [sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage]
+  );
+  // The summary sheets open on top of the page, drawn by SheetStack (see
+  // lib/SheetStack.js).
+  const [sheetStack, setSheetStack] = useState([]);
+  const sheets = useMemo(
+    () => ({
+      open: (sheet) => setSheetStack((s) => [...s, { ...sheet, key: newKey() }]),
+      back: () => setSheetStack((s) => s.slice(0, -1)),
+      closeAll: () => setSheetStack([]),
+    }),
+    []
   );
 
   const exportJSON = () =>
@@ -167,11 +181,13 @@ export default function App({ uid, userEmail, onLogout }) {
 
   const navigate = (nextPage) => {
     setPage(nextPage);
+    setSheetStack([]);
     setSidebarOpen(false);
   };
 
   return (
     <LogContext.Provider value={log}>
+      <SheetStackContext.Provider value={sheets}>
       <Shell>
         <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
@@ -229,7 +245,7 @@ export default function App({ uid, userEmail, onLogout }) {
                 journals={journals}
               />
             ) : page === "library" ? (
-              <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} folders={folders} />
+              <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} />
             ) : page === "rolls" ? (
               <RollsTab rolls={rolls} setRolls={setRolls} />
             ) : page === "techniques" ? (
@@ -240,6 +256,8 @@ export default function App({ uid, userEmail, onLogout }) {
           </div>
 
           <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" style={{ display: "none" }} onChange={handleFile} />
+
+          <SheetStack stack={sheetStack} setStack={setSheetStack} />
 
           <Sidebar
             open={sidebarOpen}
@@ -258,6 +276,7 @@ export default function App({ uid, userEmail, onLogout }) {
           />
         </div>
       </Shell>
+      </SheetStackContext.Provider>
     </LogContext.Provider>
   );
 }

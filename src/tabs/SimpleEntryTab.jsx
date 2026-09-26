@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { todayISO } from "../lib/id.js";
+import { useSheets } from "../lib/SheetStack.js";
 import { newRecord, editById } from "../lib/records.js";
 import { matchesTags } from "../lib/activity.js";
 import { matchesSearch, entrySearchFields, exerciseNameMap, nameMap } from "../lib/search.js";
@@ -8,7 +9,6 @@ import EntrySheet from "../ui/EntrySheet.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
 import EntryCard from "../ui/EntryCard.jsx";
-import EntryDetailSheet from "../ui/EntryDetailSheet.jsx";
 import { primaryBtnStyle } from "../ui/styles.js";
 
 // Sessions, journals and rolls are each just a flat, most-recent-first list of
@@ -17,10 +17,13 @@ import { primaryBtnStyle } from "../ui/styles.js";
 // — its wording, colour and which form fields it has — shared with Home so
 // the two can't drift apart. Adding and editing goes through EntrySheet and
 // cards are EntryCard, both the same as on Home, with this page's one type
-// (so no Session/Roll switch).
+// (so no Session/Roll switch). Tapping a card opens its summary on the app's
+// sheet stack (see SheetStack); `source` is which log this page shows
+// ("sessions", "journals" or "rolls"), so the sheet can find it.
 export default function SimpleEntryTab({
   entries,
   setEntries,
+  source,
   type,
   exercises = [],
   // How much each exercise is used in sessions (exerciseUsageCounts), to rank
@@ -38,11 +41,9 @@ export default function SimpleEntryTab({
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   // null when closed; otherwise {} to add, { entry } to edit, { redo } to redo.
   const [composer, setComposer] = useState(null);
-  // The entry whose read-only summary is open (by id, so it stays current).
-  const [viewingId, setViewingId] = useState(null);
-  const viewing = viewingId ? entries.find((e) => e.id === viewingId) : null;
+  const sheets = useSheets();
 
-  const { accent, canRedo, singular, page } = type;
+  const { accent, canRedo, page } = type;
   // EntrySheet's single type for this page.
   const types = useMemo(() => ({ entry: type }), [type]);
   const entriesByType = useMemo(() => ({ entry: entries }), [entries]);
@@ -132,38 +133,12 @@ export default function SimpleEntryTab({
                 onTagClick={toggleTagFilter}
                 exerciseNameById={exerciseNameById}
                 routineNameById={routineNameById}
-                onOpen={() => setViewingId(s.id)}
+                onOpen={() => sheets.open({ kind: "entry", source, id: s.id })}
               />
             ))}
           </div>
         )}
       </div>
-
-      {viewing && (
-        <EntryDetailSheet
-          entry={viewing}
-          kindLabel={singular}
-          accent={accent}
-          exerciseNameById={exerciseNameById}
-          routineNameById={routineNameById}
-          onEdit={() => {
-            setViewingId(null);
-            setComposer({ entry: viewing });
-          }}
-          onRedo={
-            canRedo
-              ? () => {
-                  setViewingId(null);
-                  setComposer({ redo: viewing });
-                }
-              : undefined
-          }
-          onDelete={() => {
-            if (deleteEntry(viewing.id)) setViewingId(null);
-          }}
-          onClose={() => setViewingId(null)}
-        />
-      )}
 
       {composer && (
         <EntrySheet
