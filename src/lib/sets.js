@@ -14,12 +14,21 @@
 // next to other sets of the same exercise.
 // Units are saved on every set that has a weight or distance, so changing the
 // app's unit later can't reinterpret old numbers. Distance can be in any of
-// DISTANCE_UNITS, picked per exercise while logging. Sets are optional: an
+// DISTANCE_UNITS, picked per exercise while logging. Time is always saved in
+// seconds; `timeUnit` ("min" or "sec") only records how it was typed, so a
+// plain "20" means what it meant then and the next session starts the same
+// way. Sets logged before it existed have none and were typed as seconds.
+// Sets are optional: an
 // exercise in exerciseIds with no entry here is just "did it, no numbers".
 
 export const WEIGHT_UNIT = "lb";
 export const DISTANCE_UNIT = "mi"; // for an exercise never logged with a distance
 export const DISTANCE_UNITS = ["mi", "km", "m", "yd"];
+export const TIME_UNITS = ["min", "sec"];
+
+// How a never-logged exercise's time is typed: minutes for cardio (a run, a
+// stairmaster), seconds for holds and short efforts.
+export const defaultTimeUnit = (measure) => (measure === "distance" || measure === "time_level" ? "min" : "sec");
 
 // The ways a set can be measured, each deciding the inputs a set row shows.
 // An exercise doesn't own one: it's picked on the session, per exercise, and
@@ -60,12 +69,14 @@ export function measureOfSets(sets) {
   return "time";
 }
 
-// The distance unit a list of sets was logged in: the first one that has
-// one, or null.
-export function distanceUnitOfSets(sets) {
-  const set = (sets || []).find((s) => s && typeof s.distanceUnit === "string" && s.distanceUnit);
-  return set ? set.distanceUnit : null;
-}
+// The distance unit / time unit a list of sets was logged in: the first one
+// that has one, or null.
+const unitOfSets = (key) => (sets) => {
+  const set = (sets || []).find((s) => s && typeof s[key] === "string" && s[key]);
+  return set ? set[key] : null;
+};
+export const distanceUnitOfSets = unitOfSets("distanceUnit");
+export const timeUnitOfSets = unitOfSets("timeUnit");
 
 // The measure an exercise's set rows use on a session being logged: the one
 // picked on this session (`chosen`), else what its rows were logged as, else
@@ -79,11 +90,14 @@ export function resolveMeasure({ chosen, rows, lastSets, exercise }) {
 
 // Draft rows switched to another measure: each row keeps only the new
 // measure's fields, carrying over the values they share (reps stay reps when
-// going from weight × reps to reps). Rows that gain a distance get `unit`
-// unless they already had one.
-export function switchMeasure(rows, measure, unit = DISTANCE_UNIT) {
+// going from weight × reps to reps). Rows that gain a distance or time get
+// the given `units` ({ distanceUnit, timeUnit }) unless they already had one.
+export function switchMeasure(rows, measure, units = {}) {
   return (rows || []).map((row) => {
-    const next = blankRow(measure, row.distanceUnit || unit);
+    const next = blankRow(measure, {
+      distanceUnit: row.distanceUnit || units.distanceUnit,
+      timeUnit: row.timeUnit || units.timeUnit,
+    });
     MEASURES[measure].fields.forEach((f) => (next[f] = row[f] ?? ""));
     return next;
   });
@@ -93,9 +107,15 @@ export function switchMeasure(rows, measure, unit = DISTANCE_UNIT) {
 export const SET_FIELDS = ["weight", "distance", "reps", "seconds", "level"];
 
 // "90" -> 90, "1:30" -> 90, "1:02:05" -> 3725. Blank or unreadable -> null.
-export function parseDuration(text) {
+// With unit "min", a plain number is minutes ("20" -> 1200, "2.5" -> 150);
+// anything with a colon reads the same either way.
+export function parseDuration(text, unit = "sec") {
   const s = String(text ?? "").trim();
   if (!s) return null;
+  if (unit === "min" && !s.includes(":")) {
+    const minutes = parseAmount(s);
+    return minutes === null ? null : Math.round(minutes * 60) || null;
+  }
   const parts = s.split(":");
   if (parts.length > 3 || parts.some((p) => !/^\d+(\.\d+)?$/.test(p))) return null;
   const total = parts.reduce((acc, p) => acc * 60 + Number(p), 0);
@@ -120,17 +140,28 @@ function parseAmount(text, { whole = false } = {}) {
   return whole ? Math.round(n) : n;
 }
 
+// A stored time as its text box shows it: whole minutes as "20" when typed in
+// minutes, under a minute as "45" when typed in seconds (or before time units
+// existed — so an old "20" meant as minutes is fixed by switching to min),
+// otherwise "m:ss".
+function draftDuration(seconds, unit) {
+  if (unit === "min" && seconds % 60 === 0) return String(seconds / 60);
+  if (unit !== "min" && seconds < 60) return String(seconds);
+  return formatDuration(seconds);
+}
+
 // Stored sets -> the form's editable draft: the same shape, with every value
-// as the string its text box shows (time as "m:ss").
+// as the string its text box shows (see draftDuration for time).
 export function toDraftSets(sets) {
   const draft = {};
   Object.entries(sets || {}).forEach(([exerciseId, list]) => {
     draft[exerciseId] = (list || []).map((set) => {
       const row = {};
       SET_FIELDS.forEach((field) => {
-        if (typeof set[field] === "number") row[field] = field === "seconds" ? formatDuration(set[field]) : String(set[field]);
+        if (typeof set[field] === "number") row[field] = field === "seconds" ? draftDuration(set[field], set.timeUnit) : String(set[field]);
       });
       if (typeof set.distance === "number") row.distanceUnit = set.distanceUnit || DISTANCE_UNIT;
+      if (typeof set.seconds === "number" && TIME_UNITS.includes(set.timeUnit)) row.timeUnit = set.timeUnit;
       return row;
     });
   });
@@ -143,12 +174,13 @@ function toStoredSet(row) {
   const weight = parseAmount(row.weight);
   const distance = parseAmount(row.distance);
   const reps = parseAmount(row.reps, { whole: true });
-  const seconds = parseDuration(row.seconds);
+  const seconds = parseDuration(row.seconds, row.timeUnit);
   const level = parseAmount(row.level);
   if (weight !== null) Object.assign(set, { weight, weightUnit: WEIGHT_UNIT });
   if (distance !== null) Object.assign(set, { distance, distanceUnit: row.distanceUnit || DISTANCE_UNIT });
   if (reps !== null) set.reps = reps;
   if (seconds !== null) set.seconds = seconds;
+  if (seconds !== null && TIME_UNITS.includes(row.timeUnit)) set.timeUnit = row.timeUnit;
   if (level !== null) set.level = level;
   return Object.keys(set).length > 0 ? set : null;
 }
@@ -156,7 +188,8 @@ function toStoredSet(row) {
 // The form's draft -> what's saved: only exercises still in `exerciseIds`,
 // only rows with at least one usable number, and no empty exercise entries.
 // Weight is saved in WEIGHT_UNIT; distance in the row's `distanceUnit`
-// (DISTANCE_UNIT if it has none).
+// (DISTANCE_UNIT if it has none); time in seconds, read in the row's
+// `timeUnit`.
 export function fromDraftSets(draft, exerciseIds) {
   const out = {};
   (exerciseIds || []).forEach((id) => {
@@ -170,19 +203,23 @@ export function fromDraftSets(draft, exerciseIds) {
 // and no text).
 export const hasLoggedSets = (draft, exerciseIds) => Object.keys(fromDraftSets(draft, exerciseIds)).length > 0;
 
-// An empty draft row for a measure, with `unit` as its distance unit if the
-// measure has a distance.
-export function blankRow(measure, unit = DISTANCE_UNIT) {
+// An empty draft row for a measure, with a distance unit if it has a
+// distance and a time unit if it has a time (the measure's default unless
+// given).
+export function blankRow(measure, { distanceUnit, timeUnit } = {}) {
   const row = {};
   const fields = (MEASURES[measure] || {}).fields || [];
   fields.forEach((f) => (row[f] = ""));
-  if (fields.includes("distance")) row.distanceUnit = unit;
+  if (fields.includes("distance")) row.distanceUnit = distanceUnit || DISTANCE_UNIT;
+  if (fields.includes("seconds")) row.timeUnit = timeUnit || defaultTimeUnit(measure);
   return row;
 }
 
-// Draft rows with every distance switched to `unit` (one unit per exercise
-// per session).
+// Draft rows with every distance / time switched to `unit` (one of each per
+// exercise per session). Typed times are kept as typed, so a "20" entered
+// under the wrong unit is fixed by switching it.
 export const setDistanceUnit = (rows, unit) => (rows || []).map((row) => ("distance" in row ? { ...row, distanceUnit: unit } : row));
+export const setTimeUnit = (rows, unit) => (rows || []).map((row) => ("seconds" in row ? { ...row, timeUnit: unit } : row));
 
 // The inputs a draft row shows: its measure's fields, plus any other field the
 // row already has a value in (e.g. an old set logged some other way), so
@@ -267,6 +304,7 @@ export function normalizeSets(raw) {
         });
         if ("weight" in set) set.weightUnit = typeof s.weightUnit === "string" ? s.weightUnit : WEIGHT_UNIT;
         if ("distance" in set) set.distanceUnit = typeof s.distanceUnit === "string" ? s.distanceUnit : DISTANCE_UNIT;
+        if ("seconds" in set && TIME_UNITS.includes(s.timeUnit)) set.timeUnit = s.timeUnit;
         return set;
       })
       .filter((s) => Object.keys(s).length > 0);

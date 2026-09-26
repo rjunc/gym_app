@@ -18,6 +18,9 @@ import {
   switchMeasure,
   distanceUnitOfSets,
   setDistanceUnit,
+  timeUnitOfSets,
+  setTimeUnit,
+  defaultTimeUnit,
 } from "../../src/lib/sets.js";
 
 const lb = (weight, reps) => ({ weight, weightUnit: "lb", reps });
@@ -174,9 +177,9 @@ test("formatSet words the new kinds", () => {
 });
 
 test("distance units: blank rows get one, switching sets every row, and it's saved and read back", () => {
-  assert.deepEqual(blankRow("weight_distance", "m"), { weight: "", distance: "", distanceUnit: "m" });
-  assert.deepEqual(blankRow("distance"), { distance: "", seconds: "", distanceUnit: "mi" });
-  assert.deepEqual(blankRow("reps", "m"), { reps: "" });
+  assert.deepEqual(blankRow("weight_distance", { distanceUnit: "m" }), { weight: "", distance: "", distanceUnit: "m" });
+  assert.deepEqual(blankRow("distance"), { distance: "", seconds: "", distanceUnit: "mi", timeUnit: "min" });
+  assert.deepEqual(blankRow("reps", { distanceUnit: "m" }), { reps: "" });
   const rows = [{ weight: "50", distance: "40", distanceUnit: "m" }, { weight: "50", distance: "40", distanceUnit: "m" }];
   assert.deepEqual(setDistanceUnit(rows, "yd").map((r) => r.distanceUnit), ["yd", "yd"]);
   assert.deepEqual(setDistanceUnit([{ reps: "5" }], "yd"), [{ reps: "5" }]);
@@ -188,8 +191,10 @@ test("distance units: blank rows get one, switching sets every row, and it's sav
 });
 
 test("switchMeasure gives rows that gain a distance the given unit, and keeps one they had", () => {
-  assert.deepEqual(switchMeasure([{ weight: "50", seconds: "1:00" }], "weight_distance", "m"), [{ weight: "50", distance: "", distanceUnit: "m" }]);
-  assert.deepEqual(switchMeasure([{ distance: "2", seconds: "", distanceUnit: "km" }], "weight_distance", "m"), [{ weight: "", distance: "2", distanceUnit: "km" }]);
+  assert.deepEqual(switchMeasure([{ weight: "50", seconds: "1:00" }], "weight_distance", { distanceUnit: "m" }), [{ weight: "50", distance: "", distanceUnit: "m" }]);
+  assert.deepEqual(switchMeasure([{ distance: "2", seconds: "", distanceUnit: "km" }], "weight_distance", { distanceUnit: "m" }), [{ weight: "", distance: "2", distanceUnit: "km" }]);
+  assert.deepEqual(switchMeasure([{ reps: "20" }], "reps_time", { timeUnit: "min" }), [{ reps: "20", seconds: "", timeUnit: "min" }]);
+  assert.deepEqual(switchMeasure([{ seconds: "20", timeUnit: "min" }], "time_level", { timeUnit: "sec" }), [{ seconds: "20", level: "", timeUnit: "min" }]);
 });
 
 /* ================================ time @ level ================================ */
@@ -197,7 +202,7 @@ test("switchMeasure gives rows that gain a distance the given unit, and keeps on
 test("time @ level: read back, worded, saved and restored", () => {
   assert.equal(measureOfSets([{ seconds: 1200, level: 7 }]), "time_level");
   assert.equal(measureOfSets([{ seconds: "", level: "" }]), "time_level");
-  assert.deepEqual(blankRow("time_level"), { seconds: "", level: "" });
+  assert.deepEqual(blankRow("time_level"), { seconds: "", level: "", timeUnit: "min" });
   assert.equal(formatSet({ seconds: 1200, level: 7 }), "20:00 @ level 7");
   assert.equal(formatSet({ level: 7.5 }), "level 7.5");
   assert.equal(formatSets([{ seconds: 600, level: 7 }, { seconds: 600, level: 7 }, { seconds: 600, level: 8 }]), "2 × 10:00 @ level 7, 10:00 @ level 8");
@@ -205,4 +210,53 @@ test("time @ level: read back, worded, saved and restored", () => {
   assert.deepEqual(saved, { e1: [{ seconds: 1200, level: 7.5 }] });
   assert.deepEqual(toDraftSets(saved).e1[0], { seconds: "20:00", level: "7.5" });
   assert.deepEqual(normalizeSets({ e1: [{ seconds: 1200, level: 7 }] }), { e1: [{ seconds: 1200, level: 7 }] });
+});
+
+/* ================================= min / sec ================================= */
+
+test("parseDuration reads a plain number as minutes when the unit is min", () => {
+  assert.equal(parseDuration("20", "min"), 1200);
+  assert.equal(parseDuration("2.5", "min"), 150);
+  assert.equal(parseDuration("20:30", "min"), 1230);
+  assert.equal(parseDuration("20", "sec"), 20);
+  assert.equal(parseDuration("20"), 20);
+  assert.equal(parseDuration("0", "min"), null);
+  assert.equal(parseDuration("abc", "min"), null);
+});
+
+test("cardio defaults to minutes, holds and short efforts to seconds", () => {
+  assert.equal(defaultTimeUnit("time_level"), "min");
+  assert.equal(defaultTimeUnit("distance"), "min");
+  assert.equal(defaultTimeUnit("time"), "sec");
+  assert.equal(defaultTimeUnit("weight_time"), "sec");
+  assert.equal(defaultTimeUnit("reps_time"), "sec");
+});
+
+test("time unit: saved with the set, read back as typed, and remembered", () => {
+  const saved = fromDraftSets({ e1: [{ seconds: "20", level: "7", timeUnit: "min" }], e2: [{ seconds: "45", timeUnit: "sec" }] }, ["e1", "e2"]);
+  assert.deepEqual(saved, { e1: [{ seconds: 1200, timeUnit: "min", level: 7 }], e2: [{ seconds: 45, timeUnit: "sec" }] });
+  const draft = toDraftSets(saved);
+  assert.deepEqual(draft.e1[0], { seconds: "20", level: "7", timeUnit: "min" });
+  assert.deepEqual(draft.e2[0], { seconds: "45", timeUnit: "sec" });
+  assert.equal(toDraftSets({ e1: [{ seconds: 1230, timeUnit: "min" }] }).e1[0].seconds, "20:30");
+  assert.equal(timeUnitOfSets(saved.e1), "min");
+  assert.equal(timeUnitOfSets([{ seconds: 60 }]), null);
+  assert.equal(formatSet(saved.e1[0]), "20:00 @ level 7");
+  assert.deepEqual(normalizeSets({ e1: [{ seconds: 1200, timeUnit: "min" }, { seconds: 5, timeUnit: "hours" }] }), { e1: [{ seconds: 1200, timeUnit: "min" }, { seconds: 5 }] });
+});
+
+test("switching the time unit keeps what was typed, so a wrong-unit 20 is fixed in one tap", () => {
+  const rows = setTimeUnit([{ seconds: "20", level: "7", timeUnit: "sec" }, { reps: "5" }], "min");
+  assert.deepEqual(rows, [{ seconds: "20", level: "7", timeUnit: "min" }, { reps: "5" }]);
+  assert.deepEqual(fromDraftSets({ e1: rows }, ["e1"]).e1[0], { seconds: 1200, timeUnit: "min", level: 7 });
+});
+
+test("sets logged before time units still read and save as seconds", () => {
+  const draft = toDraftSets({ e1: [{ seconds: 90 }] });
+  assert.deepEqual(draft.e1[0], { seconds: "1:30" });
+  assert.deepEqual(fromDraftSets(draft, ["e1"]), { e1: [{ seconds: 90 }] });
+  // An old stairmaster "20" that saved as 0:20 opens as "20", so switching to min fixes it.
+  const old = toDraftSets({ e1: [{ seconds: 20, level: 7 }] });
+  assert.deepEqual(old.e1[0], { seconds: "20", level: "7" });
+  assert.equal(fromDraftSets({ e1: setTimeUnit(old.e1, "min") }, ["e1"]).e1[0].seconds, 1200);
 });

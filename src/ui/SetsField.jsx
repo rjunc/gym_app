@@ -6,7 +6,11 @@ import {
   switchMeasure,
   measureOfSets,
   distanceUnitOfSets,
+  timeUnitOfSets,
+  defaultTimeUnit,
   setDistanceUnit,
+  setTimeUnit,
+  TIME_UNITS,
   blankRow,
   rowFields,
   lastSetsFor,
@@ -18,12 +22,13 @@ import {
 import { labelStyle, inputStyle, ghostLinkStyle } from "./styles.js";
 
 // How each set field's text box looks: keyboard, placeholder, and the word
-// shown before it or the unit after it (distance's is a switch instead, see the row below).
+// shown before it or the unit after it (distance's and time's are switches
+// instead, see the row below).
 const FIELD_INPUT = {
   weight: { inputMode: "decimal", placeholder: "0", suffix: WEIGHT_UNIT },
   distance: { inputMode: "decimal", placeholder: "0", suffix: "" },
   reps: { inputMode: "numeric", placeholder: "0", suffix: "reps" },
-  seconds: { inputMode: "numeric", placeholder: "m:ss", suffix: "" },
+  seconds: { inputMode: "decimal", placeholder: "0", suffix: "" },
   level: { inputMode: "decimal", placeholder: "0", prefix: "level", suffix: "" },
 };
 
@@ -64,9 +69,9 @@ const shortDate = (iso) => {
 // session, and an exercise never logged before asks first ("Log as").
 // The pick lives on the draft as `form.setMeasures` ({ exerciseId: measure })
 // and isn't saved — the saved sets already say how they were logged.
-// Distance units work the same way: tapping the unit after a distance
-// switches every row of that exercise, and new rows start in the unit it was
-// last logged in (see distanceUnitOfSets).
+// Distance and time units work the same way: tapping the unit after a
+// distance (mi/km/m/yd) or time (min/sec) switches every row of that
+// exercise, and new rows start in the unit it was last logged in.
 // "Add set" copies the previous row, so 5×5 is one row typed plus four taps.
 // "Last time" shows the most recent other session's sets for that exercise
 // (from `history`, not after the date being logged) and can copy them in.
@@ -98,7 +103,10 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
           const rows = (form.sets || {})[exercise.id] || [];
           const last = lastSetsFor(history, exercise.id, { excludeId: entryId, onOrBefore: form.date });
           const measure = resolveMeasure({ chosen: (form.setMeasures || {})[exercise.id], rows, lastSets: last && last.sets, exercise });
-          const unit = distanceUnitOfSets(rows) || distanceUnitOfSets(last && last.sets) || DISTANCE_UNIT;
+          const units = {
+            distanceUnit: distanceUnitOfSets(rows) || distanceUnitOfSets(last && last.sets) || DISTANCE_UNIT,
+            timeUnit: timeUnitOfSets(rows) || timeUnitOfSets(last && last.sets) || defaultTimeUnit(measure),
+          };
           return (
             <div key={exercise.id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 10 }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -106,7 +114,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                 {measure && (
                   <select
                     value={measure}
-                    onChange={(e) => setMeasure(exercise.id, e.target.value, (list) => switchMeasure(list, e.target.value, unit))}
+                    onChange={(e) => setMeasure(exercise.id, e.target.value, (list) => switchMeasure(list, e.target.value, units))}
                     aria-label={`How ${exercise.name} is logged`}
                     style={measureSelectStyle}
                   >
@@ -156,6 +164,20 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                               style={{ ...inputStyle, padding: "7px 8px", minWidth: 0, flex: 1 }}
                             />
                             {meta.suffix && <span style={{ fontSize: 11, color: "var(--text-dim)", flexShrink: 0 }}>{meta.suffix}</span>}
+                            {field === "seconds" && (
+                              <select
+                                value={row.timeUnit || "sec"}
+                                onChange={(e) => setRows(exercise.id, (list) => setTimeUnit(list, e.target.value))}
+                                aria-label={`${exercise.name} time unit`}
+                                style={{ ...measureSelectStyle, flexShrink: 0 }}
+                              >
+                                {TIME_UNITS.map((u) => (
+                                  <option key={u} value={u}>
+                                    {u}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                             {field === "distance" && (
                               <select
                                 value={row.distanceUnit || DISTANCE_UNIT}
@@ -187,7 +209,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
 
               {measure ? (
                 <button
-                  onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure, unit)])}
+                  onClick={() => setRows(exercise.id, (list) => [...list, list.length > 0 ? { ...list[list.length - 1] } : blankRow(measure, units)])}
                   style={{ ...ghostLinkStyle, color: `var(${accentVar})`, marginTop: 8 }}
                 >
                   <Plus size={13} /> Add set
@@ -198,7 +220,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                   {Object.entries(MEASURES).map(([key, m]) => (
                     <button
                       key={key}
-                      onClick={() => setMeasure(exercise.id, key, (list) => (list.length > 0 ? switchMeasure(list, key, unit) : [blankRow(key, unit)]))}
+                      onClick={() => setMeasure(exercise.id, key, (list) => (list.length > 0 ? switchMeasure(list, key, units) : [blankRow(key, { ...units, timeUnit: timeUnitOfSets(list) || defaultTimeUnit(key) })]))}
                       style={{ ...measureChipStyle, color: `var(${accentVar})` }}
                     >
                       {m.label}

@@ -68,7 +68,8 @@ still carry a `measure`, used only as the starting point before their first
 logged session. Weights are
 in lb. Distance is in mi, km, m or yd, picked per exercise while logging
 (starting from the unit it was last logged in), and the unit is saved on
-every set. Sets
+every set. Time is saved in seconds, typed in min or sec the same way
+(cardio starts in min, holds in sec); `timeUnit` on the set records which. Sets
 are optional, so an exercise with no entry is just "done, no numbers".
 See `src/lib/sets.js`.
 
