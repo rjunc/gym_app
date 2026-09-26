@@ -34,7 +34,7 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", measu
 // rather than typing near-duplicates).
 //
 // `pick` opens the page for picking exercises into an entry (see PagePicker):
-// { addedIds, onAdd(exercise), onRemove(id), onDone, initialQuery }. The page works exactly
+// { addedIds, chosen, onAdd(exercise), onRemove(id), onDone, initialQuery }. The page works exactly
 // as usual, except each card gets an Add button, Delete is hidden (so the
 // entry can't end up linking a deleted exercise), a bar with Done sits on
 // top, the search starts from what was typed in the entry's field, and a new
@@ -159,7 +159,9 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
 
   return (
     <>
-      {pick && <PickBar noun="exercises" onDone={pick.onDone} accent={ACCENT} />}
+      {pick && (
+        <PickBar noun="exercises" onDone={pick.onDone} accent={ACCENT} chosen={pick.chosen} onRemove={pick.onRemove} onOpen={setHistoryId} />
+      )}
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div>

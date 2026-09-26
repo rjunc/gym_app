@@ -23,14 +23,21 @@ import ExerciseLibraryTab from "../tabs/ExerciseLibraryTab.jsx";
 export default function PagePicker({ kind, addedIds, onAdd, onRemove, onDone, initialQuery = "" }) {
   const log = useLog();
   const [held, setHeld] = useState([]);
+  const current = kind === "routines" ? log.routines : log.exercises;
+  const latest = (r) => current.find((c) => c.id === r.id) || r;
+  // For the bar's chips: what the entry will have after Done, in order.
+  const chosen = [
+    ...addedIds.map((id) => current.find((c) => c.id === id)).filter(Boolean).map((r) => ({ id: r.id, name: r.name, isNew: false })),
+    ...held.map(latest).map((r) => ({ id: r.id, name: r.name, isNew: true })),
+  ];
   const pick = {
     addedIds: [...addedIds, ...held.map((r) => r.id)],
+    chosen,
     onAdd: (record) => setHeld((h) => (h.some((r) => r.id === record.id) ? h : [...h, record])),
     onRemove: (id) => (held.some((r) => r.id === id) ? setHeld((h) => h.filter((r) => r.id !== id)) : onRemove(id)),
     // The latest version of each, in case it was edited after being added.
     onDone: () => {
-      const current = kind === "routines" ? log.routines : log.exercises;
-      held.forEach((r) => onAdd(current.find((c) => c.id === r.id) || r));
+      held.map(latest).forEach(onAdd);
       onDone();
     },
     initialQuery,
