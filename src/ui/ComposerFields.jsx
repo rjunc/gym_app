@@ -5,6 +5,8 @@ import { applyRoutine } from "../lib/routines.js";
 import { compareByUsage } from "../lib/exercises.js";
 import { prefixMatchesFirst } from "../lib/search.js";
 import TagChip from "./TagChip.jsx";
+import SegmentedToggle from "./SegmentedToggle.jsx";
+import { MEASURES, DEFAULT_MEASURE } from "../lib/sets.js";
 
 export function NameField({ form, setForm, nameField, nameLabel, namePlaceholder }) {
   return (
@@ -138,6 +140,22 @@ export function PrescriptionField({ form, setForm }) {
         onChange={(e) => setForm((f) => ({ ...f, prescription: e.target.value }))}
         placeholder="3x8, 30s hold, 5 rounds…"
         style={inputStyle}
+      />
+    </div>
+  );
+}
+
+// How a Library exercise is measured when logging sets (see lib/sets.js),
+// which decides the inputs each set row shows in a session.
+export function MeasureField({ form, setForm, accentVar }) {
+  return (
+    <div>
+      <label style={labelStyle}>Logged as</label>
+      <SegmentedToggle
+        options={Object.entries(MEASURES).map(([key, m]) => ({ key, label: m.label }))}
+        value={form.measure || DEFAULT_MEASURE}
+        setValue={(measure) => setForm((f) => ({ ...f, measure }))}
+        accent={accentVar}
       />
     </div>
   );

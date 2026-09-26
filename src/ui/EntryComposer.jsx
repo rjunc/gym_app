@@ -8,11 +8,13 @@ import {
   StarField,
   GiOnlyField,
   PrescriptionField,
+  MeasureField,
   ActiveField,
   ExercisesField,
   RoutinesField,
 } from "./ComposerFields.jsx";
 import TagsField from "./TagsField.jsx";
+import SetsField from "./SetsField.jsx";
 
 export default function EntryComposer({
   title,
@@ -43,6 +45,9 @@ export default function EntryComposer({
   showGiOnly,
   // A free-text "how much" field (sets/reps/duration) for library exercises.
   showPrescription,
+  // How a Library exercise is measured when logging sets (weight × reps,
+  // reps, time, distance).
+  showMeasure,
   // A checkbox for whether this item should be picked when something
   // generates for you at random (e.g. a future routine builder).
   showActive,
@@ -55,6 +60,12 @@ export default function EntryComposer({
   // the picker's suggestions by how much each exercise is used in sessions
   // instead of alphabetically.
   exerciseUsage,
+  // Per-set numbers for each linked exercise (sessions only; see SetsField).
+  // `setsHistory` is the sessions the "Last time" hint looks through, and
+  // `entryId` the entry being edited, so it never suggests itself.
+  showSets,
+  setsHistory = [],
+  entryId,
   // A picker that copies routines (tags, exercises, text) into the form, any
   // number of them (Sessions and Journals). `routineOptions` is routineOptions()
   // output; `routines` are the records it points at.
@@ -118,12 +129,18 @@ export default function EntryComposer({
 
         {showPrescription && <PrescriptionField form={form} setForm={setForm} />}
 
+        {showMeasure && <MeasureField form={form} setForm={setForm} accentVar={accentVar} />}
+
         {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
 
         {showRoutines && <RoutinesField form={form} setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} />}
 
         {showExercises && (
           <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} usage={exerciseUsage} />
+        )}
+
+        {showExercises && showSets && (
+          <SetsField form={form} setForm={setForm} exercises={exerciseOptions} history={setsHistory} entryId={entryId} accentVar={accentVar} />
         )}
 
         <TagsField

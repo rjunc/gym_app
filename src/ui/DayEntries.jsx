@@ -4,8 +4,9 @@ import { formatDate } from "../lib/id.js";
 import TagChip from "./TagChip.jsx";
 import IconBtn from "./IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "./styles.js";
+import SetsSummary from "./SetsSummary.jsx";
 
-function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete }) {
+function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById }) {
   const [open, setOpen] = useState(false);
   const isLong = (entry.text || "").length > 220;
   return (
@@ -38,21 +39,25 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, on
         </div>
       )}
 
-      <p
-        style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 13,
-          lineHeight: 1.55,
-          margin: 0,
-          whiteSpace: "pre-wrap",
-          display: "-webkit-box",
-          WebkitLineClamp: open || !isLong ? "unset" : 5,
-          WebkitBoxOrient: "vertical",
-          overflow: open || !isLong ? "visible" : "hidden",
-        }}
-      >
-        {entry.text}
-      </p>
+      <SetsSummary entry={entry} exerciseNameById={exerciseNameById} accent={accent} style={{ marginBottom: entry.text ? 8 : 0 }} />
+
+      {entry.text && (
+        <p
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 13,
+            lineHeight: 1.55,
+            margin: 0,
+            whiteSpace: "pre-wrap",
+            display: "-webkit-box",
+            WebkitLineClamp: open || !isLong ? "unset" : 5,
+            WebkitBoxOrient: "vertical",
+            overflow: open || !isLong ? "visible" : "hidden",
+          }}
+        >
+          {entry.text}
+        </p>
+      )}
 
       {isLong && (
         <button onClick={() => setOpen(!open)} style={{ ...ghostLinkStyle, marginTop: 6 }}>
@@ -73,7 +78,7 @@ function Entry({ entry, sourceLabel, accent, activeTags, onToggleTag, onEdit, on
 
 // The entries logged on one day. `hiddenCount` is how many more exist that the
 // current filters are hiding, so a filtered view never quietly lies about a day.
-export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete }) {
+export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, activeTags, onToggleTag, onEdit, onRedo, onDelete, exerciseNameById = new Map() }) {
   return (
     <div>
       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{formatDate(iso)}</div>
@@ -95,6 +100,7 @@ export default function DayEntries({ iso, entries, hiddenCount, sourceMeta, acti
               onEdit={onEdit}
               onRedo={onRedo}
               onDelete={onDelete}
+              exerciseNameById={exerciseNameById}
             />
           ))}
         </div>

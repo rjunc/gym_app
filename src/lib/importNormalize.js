@@ -1,11 +1,13 @@
 import { uid, todayISO } from "./id.js";
 import { normalizeTags } from "./combinedCsv.js";
 import { importedTimestamps } from "./records.js";
+import { normalizeSets, MEASURES, DEFAULT_MEASURE } from "./sets.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
 // Sessions and journals carry exerciseIds and routineIds (rolls don't); they
 // round-trip for any of the three if present, same as everything else here.
+// Sessions also carry per-set numbers (sets), validated by normalizeSets.
 // Every normalizer below keeps createdAt/updatedAt when the record has them.
 export function normalizeSimpleEntries(arr) {
   return Array.isArray(arr)
@@ -17,6 +19,7 @@ export function normalizeSimpleEntries(arr) {
         text: s.text || "",
         ...(Array.isArray(s.exerciseIds) ? { exerciseIds: s.exerciseIds.filter((id) => typeof id === "string") } : {}),
         ...(Array.isArray(s.routineIds) ? { routineIds: s.routineIds.filter((id) => typeof id === "string") } : {}),
+        ...(normalizeSets(s.sets) ? { sets: normalizeSets(s.sets) } : {}),
         ...importedTimestamps(s),
       }))
     : [];
@@ -46,7 +49,8 @@ export function normalizeFolderItems(arr, defaultName, { techniqueExtras = false
 }
 
 // Library exercises: id/name/tags/text like a routine, plus an optional
-// prescription string and an active flag (defaulting true, since most
+// prescription string, how sets are logged (measure, weight × reps unless
+// it's one of the known kinds) and an active flag (defaulting true, since most
 // imported/older data predates the flag and should count as usable).
 export function normalizeExercises(arr) {
   return Array.isArray(arr)
@@ -56,6 +60,7 @@ export function normalizeExercises(arr) {
         tags: normalizeTags(e.tags),
         text: e.text || "",
         prescription: e.prescription || "",
+        measure: MEASURES[e.measure] ? e.measure : DEFAULT_MEASURE,
         active: e.active !== false,
         ...importedTimestamps(e),
       }))

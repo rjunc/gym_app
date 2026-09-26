@@ -29,6 +29,8 @@ export default function SimpleEntryTab({
   // Links an entry to Library exercises (Sessions and Journals — Rolls don't
   // get this field at all, not even an empty one).
   showExercises = false,
+  // Per-set numbers for each linked exercise (Sessions only).
+  showSets = false,
   exercises = [],
   // How much each exercise is used in sessions (exerciseUsageCounts), to rank
   // the Exercises picker. Always session-based, even on the Journals tab.
@@ -48,8 +50,8 @@ export default function SimpleEntryTab({
 
   // EntrySheet's single type for this page.
   const types = useMemo(
-    () => ({ entry: { singular: heading, accent, textLabel, textPlaceholder, showRoutines, showExercises } }),
-    [heading, accent, textLabel, textPlaceholder, showRoutines, showExercises]
+    () => ({ entry: { singular: heading, accent, textLabel, textPlaceholder, showRoutines, showExercises, showSets } }),
+    [heading, accent, textLabel, textPlaceholder, showRoutines, showExercises, showSets]
   );
   const entriesByType = useMemo(() => ({ entry: entries }), [entries]);
 
@@ -134,6 +136,7 @@ export default function SimpleEntryTab({
                 onRedo={canRedo ? () => setComposer({ redo: s }) : undefined}
                 activeTags={activeTags}
                 onTagClick={toggleTagFilter}
+                exerciseNameById={exerciseNameById}
               />
             ))}
           </div>

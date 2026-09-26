@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
+import { DEFAULT_MEASURE, measureOf } from "../lib/sets.js";
 import { matchesTags } from "../lib/activity.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { entriesByExercise } from "../lib/exercises.js";
@@ -19,7 +20,7 @@ import { primaryBtnStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent2"; // matches Routines/Techniques, the other library-style tabs
 
-const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", active: true });
+const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", measure: DEFAULT_MEASURE, active: true });
 
 // A flat, taggable list of every exercise you know — no folders, because one
 // exercise (e.g. a kettlebell swing) can belong under several categories
@@ -91,6 +92,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
       tags: [...(exercise.tags || [])],
       text: exercise.text || "",
       prescription: exercise.prescription || "",
+      measure: measureOf(exercise),
       active: exercise.active !== false,
     });
     setEditingId(exercise.id);
@@ -250,6 +252,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
           namePlaceholder="Goblet squat, cat-cow, jump rope…"
           nameError={isDuplicateName ? "An exercise with this name already exists." : undefined}
           showPrescription
+          showMeasure
           showActive
           textLabel="Notes (optional)"
           textPlaceholder="Cues, setup, how to scale…"

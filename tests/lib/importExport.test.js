@@ -15,8 +15,8 @@ const journals = [{ id: "j1", date: "2026-09-02", title: "", tags: [], text: "Fe
 const rolls = [{ id: "ro1", date: "2026-09-03", title: "Gi class", tags: ["gi"], text: "Rolled 5 rounds" }];
 const routines = [{ id: "r1", name: "Push A", folderId: "f1", tags: ["push"], text: "Bench, OHP", createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" }];
 const exercises = [
-  { id: "e1", name: "Goblet squat", tags: ["strength", "legs"], text: "Hold at chest, sit between heels", prescription: "3x10", active: true, createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" },
-  { id: "e2", name: "Retired stretch", tags: ["mobility"], text: "", prescription: "", active: false },
+  { id: "e1", name: "Goblet squat", tags: ["strength", "legs"], text: "Hold at chest, sit between heels", prescription: "3x10", measure: "weight_reps", active: true, createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" },
+  { id: "e2", name: "Retired stretch", tags: ["mobility"], text: "", prescription: "", measure: "time", active: false },
 ];
 const techniques = [
   {
@@ -76,8 +76,8 @@ test("CSV export lists a journal entry's linked exercise names", () => {
   const linkedJournals = [{ id: "j1", date: "2026-09-01", title: "", tags: [], text: "Knee felt fine", exerciseIds: ["e1"] }];
   const csv = combinedToCSV([], [], linkedJournals, [], [], [], [], exercises);
   const journalLine = csv.split(/\r?\n/).find((line) => line.startsWith("journal,"));
-  // exercises is followed by the routines, created_at and updated_at columns (all empty here).
-  assert.ok(journalLine.endsWith("Goblet squat,,,"));
+  // exercises is followed by the routines, created_at, updated_at, measure and sets columns (all empty here).
+  assert.ok(journalLine.endsWith("Goblet squat,,,,,"));
 });
 
 test("CSV round trip survives commas, quotes, and embedded newlines", () => {
@@ -279,7 +279,7 @@ test("parseImportFile: JSON round trip preserves every field, every type", () =>
 test("parseImportFile: exercise defaults are applied (untitled name, active true, blank prescription)", () => {
   const json = JSON.stringify({ exercises: [{ id: "e1", tags: [] }] });
   const result = parseImportFile("export.json", json, [], []);
-  assert.deepEqual(result.exercises[0], { id: "e1", name: "Untitled exercise", tags: [], text: "", prescription: "", active: true });
+  assert.deepEqual(result.exercises[0], { id: "e1", name: "Untitled exercise", tags: [], text: "", prescription: "", measure: "weight_reps", active: true });
 });
 
 test("parseImportFile: exercise active:false survives, and an exercise-only JSON is recognized", () => {
@@ -475,4 +475,43 @@ test("parseImportFile: records without timestamps don't gain them, and non-strin
     assert.equal("createdAt" in s, false);
     assert.equal("updatedAt" in s, false);
   });
+});
+
+/* ============================== sets & measure ============================== */
+
+const loggedSession = {
+  id: "s9",
+  date: "2026-09-20",
+  title: "",
+  tags: [],
+  text: "",
+  exerciseIds: ["e1", "e2"],
+  sets: {
+    e1: [{ weight: 225, weightUnit: "lb", reps: 5 }, { weight: 225, weightUnit: "lb", reps: 5 }],
+    e2: [{ seconds: 60 }],
+  },
+};
+
+test("parseImportFile: JSON round trip preserves sets exactly", () => {
+  const json = JSON.stringify({ sessions: [loggedSession], exercises });
+  assert.deepEqual(parseImportFile("export.json", json, [], []).sessions[0].sets, loggedSession.sets);
+});
+
+test("parseImportFile: an entry without sets doesn't gain them, and an unknown measure falls back to weight × reps", () => {
+  const json = JSON.stringify({ sessions: [{ id: "s1", tags: [], text: "a" }], exercises: [{ id: "e1", name: "X", tags: [], measure: "juggling" }] });
+  const result = parseImportFile("export.json", json, [], []);
+  assert.equal("sets" in result.sessions[0], false);
+  assert.equal(result.exercises[0].measure, "weight_reps");
+});
+
+test("CSV lists a session's sets for reading, but import doesn't reconstruct them", () => {
+  const csv = combinedToCSV([loggedSession], [], [], [], [], [], [], exercises);
+  const sessionLine = csv.split(/\r?\n/).find((line) => line.startsWith("session,"));
+  assert.ok(sessionLine.endsWith("Goblet squat: 2×5 @ 225 lb; Retired stretch: 1:00"));
+  assert.equal("sets" in combinedFromCSV(csv, [], []).sessions[0], false);
+});
+
+test("CSV without a measure column imports exercises as weight × reps", () => {
+  const csv = "type,id,name,tags\nexercise,e1,Squat,";
+  assert.equal(combinedFromCSV(csv, [], []).exercises[0].measure, "weight_reps");
 });

@@ -56,7 +56,16 @@ exactly what the app works with (see `src/lib/firestoreLog.js`).
   fails, the app shows a Reload screen instead of an empty log that could
   be typed over.
 
-CSV/JSON export and import live in the sidebar.
+**Logged sets.** A session can carry per-set numbers for each linked Library
+exercise, as `sets: { [exerciseId]: [{ reps, weight, weightUnit }, …] }`.
+Which fields a set has follows the exercise's `measure` (weight × reps,
+reps, time as `seconds`, or `distance` with optional time). Weights are
+in lb and distances in miles, and the unit is saved on every set. Sets
+are optional, so an exercise with no entry is just "done, no numbers".
+See `src/lib/sets.js`.
+
+CSV/JSON export and import live in the sidebar. JSON keeps sets exactly.
+CSV lists them in a `sets` column for reading only, like exercise names.
 
 ## Managing accounts
 

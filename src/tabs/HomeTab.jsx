@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { newRecord, editById, editRecord } from "../lib/records.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
+import { exerciseNameMap } from "../lib/search.js";
 import TagChip from "../ui/TagChip.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
@@ -20,6 +21,7 @@ const SOURCE_META = {
     accent: "--accent",
     showRoutines: true, // routines are lifting templates; rolls have no equivalent
     showExercises: true, // links to the exercise Library; rolls have no equivalent
+    showSets: true, // per-set numbers for those exercises
     textLabel: "What did you do?",
     textPlaceholder: "Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with...",
   },
@@ -46,6 +48,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   const detailRef = useRef(null);
 
   const bySource = useMemo(() => ({ sessions, rolls }), [sessions, rolls]);
+  const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
   const setters = { sessions: setSessions, rolls: setRolls };
 
   // Everything, regardless of filters — only used to say how much a day's
@@ -188,6 +191,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           onEdit={(entry) => setComposer({ entry })}
           onRedo={(redo) => setComposer({ entry: null, redo })}
           onDelete={deleteEntry}
+          exerciseNameById={exerciseNameById}
         />
       </div>
 

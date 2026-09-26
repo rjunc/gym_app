@@ -4,6 +4,7 @@ import { routineOptions } from "../lib/routines.js";
 import { redoFields } from "../lib/activity.js";
 import { todayISO } from "../lib/id.js";
 import { cleanFields } from "../lib/text.js";
+import { toDraftSets, fromDraftSets, hasLoggedSets } from "../lib/sets.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
@@ -19,7 +20,9 @@ import { labelStyle } from "./styles.js";
 // `showRoutines` offer a picker for adding routines into the form (any number,
 // in add, edit or redo alike) fed by `routines` and `folders`. Types flagged
 // `showExercises` (sessions only) offer the Library exercise picker, fed by
-// `exercises` and ranked by `exerciseUsage`. Pass `entry` to edit, or `redo`
+// `exercises` and ranked by `exerciseUsage`. Types flagged `showSets` (sessions)
+// also get per-set numbers for each linked exercise; the "Last time" hint
+// draws on that type's own entries. Pass `entry` to edit, or `redo`
 // (an existing entry) to add a new one copied from it and dated `initialDate`;
 // with neither, it starts blank on `initialType` and `initialDate`. An entry's
 // type comes from its `source` (Home's merged entries carry one), falling back
@@ -50,15 +53,18 @@ export default function EntrySheet({
           text: entry.text || "",
           exerciseIds: [...(entry.exerciseIds || [])],
           routineIds: [...(entry.routineIds || [])],
+          sets: toDraftSets(entry.sets),
         }
       : redo
-        ? redoFields(redo, initialDate)
-        : { date: initialDate, title: "", tags: [], text: "", exerciseIds: [], routineIds: [] }
+        ? { ...redoFields(redo, initialDate), sets: toDraftSets(redo.sets) }
+        : { date: initialDate, title: "", tags: [], text: "", exerciseIds: [], routineIds: [], sets: {} }
   );
   const [tagDraft, setTagDraft] = useState("");
 
   const meta = types[type];
-  const canSave = form.text.trim() !== "" && form.date !== "";
+  // Text or at least one logged set (a session can be just the numbers).
+  const hasContent = form.text.trim() !== "" || (meta.showSets && hasLoggedSets(form.sets, form.exerciseIds));
+  const canSave = hasContent && form.date !== "";
   // Sessions and rolls have different vocabularies (legs vs. guard), so suggest
   // from the type being logged.
   const tagSuggestions = useMemo(() => tagUsage(entriesByType[type], todayISO()), [entriesByType, type]);
@@ -77,6 +83,7 @@ export default function EntrySheet({
     const fields = cleanFields({ date: form.date, title: form.title, tags, text: form.text });
     if (meta.showExercises) fields.exerciseIds = form.exerciseIds || [];
     if (meta.showRoutines) fields.routineIds = form.routineIds || [];
+    if (meta.showSets) fields.sets = fromDraftSets(form.sets, fields.exerciseIds);
     onSave(type, fields);
   };
 
@@ -115,6 +122,9 @@ export default function EntrySheet({
       showExercises={meta.showExercises}
       exerciseOptions={exercises}
       exerciseUsage={exerciseUsage}
+      showSets={meta.showSets}
+      setsHistory={entriesByType[type]}
+      entryId={isEdit ? entry.id : undefined}
       textLabel={meta.textLabel}
       textPlaceholder={meta.textPlaceholder}
       saveLabel={isEdit ? "Save changes" : "Save entry"}

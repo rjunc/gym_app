@@ -2,6 +2,7 @@ import { csvEscape, parseCSV } from "./csv.js";
 import { folderPath, resolveFolderPath } from "./folders.js";
 import { uid, todayISO } from "./id.js";
 import { importedTimestamps } from "./records.js";
+import { formatSets, MEASURES, DEFAULT_MEASURE } from "./sets.js";
 
 // The composer always lowercases tags on save, so the tag list (sorted with
 // a plain, case-sensitive .sort()) is naturally alphabetical. Imported data
@@ -29,10 +30,17 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   // Same for the routines a session/journal was built from.
   const routineNameById = new Map(routines.map((r) => [r.id, r.name]));
   const routineNames = (ids) => (ids || []).map((id) => routineNameById.get(id)).filter(Boolean).join(";");
+  // A session's logged sets as "Back squat: 3×5 @ 225 lb; Plank: 2 × 1:00",
+  // for reading only, like the exercise names (JSON keeps the numbers).
+  const setsText = (sets) =>
+    Object.entries(sets || {})
+      .filter(([, list]) => (list || []).length > 0)
+      .map(([id, list]) => `${exerciseNameById.get(id) || "Deleted exercise"}: ${formatSets(list)}`)
+      .join("; ");
 
   const header = [
     "type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "starred", "prescription", "active", "exercises",
-    "routines", "created_at", "updated_at",
+    "routines", "created_at", "updated_at", "measure", "sets",
   ];
   // Sessions/journals/rolls reuse the "name" column (otherwise unused for
   // them) to carry their optional title.
@@ -96,11 +104,19 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     e.active === false ? "0" : "1",
     "",
   ]);
-  // Every row ends with the same three columns: the routines a session/journal
-  // was built from (names, human-readable only, like "exercises"), then the
-  // record's createdAt/updatedAt, which do round-trip.
+  // Every row ends with the same columns: the routines a session/journal was
+  // built from (names, human-readable only, like "exercises"), the record's
+  // createdAt/updatedAt (these round-trip), an exercise's measure (round-trips)
+  // and a session's sets (human-readable only).
   const withTail = (records, rows) =>
-    rows.map((row, i) => [...row, routineNames(records[i].routineIds), records[i].createdAt || "", records[i].updatedAt || ""]);
+    rows.map((row, i) => [
+      ...row,
+      routineNames(records[i].routineIds),
+      records[i].createdAt || "",
+      records[i].updatedAt || "",
+      records[i].measure || "",
+      setsText(records[i].sets),
+    ]);
   return [
     header,
     ...withTail(sessions, sessionRows),
@@ -144,6 +160,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
   const activeIdx = header.indexOf("active");
   const createdIdx = header.indexOf("created_at");
   const updatedIdx = header.indexOf("updated_at");
+  const measureIdx = header.indexOf("measure");
 
   let foldersAcc = existingFolders;
   let jitsFoldersAcc = existingJitsFolders;
@@ -172,6 +189,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
         tags,
         text,
         prescription: prescriptionIdx >= 0 ? r[prescriptionIdx] || "" : "",
+        measure: measureIdx >= 0 && MEASURES[r[measureIdx]] ? r[measureIdx] : DEFAULT_MEASURE,
         active: activeIdx >= 0 ? r[activeIdx] !== "0" : true,
       });
     } else if (type === "routine") {

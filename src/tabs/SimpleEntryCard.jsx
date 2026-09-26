@@ -3,8 +3,9 @@ import { formatDate } from "../lib/id.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
+import SetsSummary from "../ui/SetsSummary.jsx";
 
-export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdit, onDelete, onRedo, activeTags, onTagClick }) {
+export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdit, onDelete, onRedo, activeTags, onTagClick, exerciseNameById = new Map() }) {
   const s = entry;
   const isLong = (s.text || "").length > 220;
   return (
@@ -42,23 +43,27 @@ export default function SimpleEntryCard({ entry, accent, isOpen, onToggle, onEdi
         </div>
       </div>
 
-      <p
-        style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: 13,
-          lineHeight: 1.55,
-          color: "var(--text)",
-          marginTop: 8,
-          marginBottom: 0,
-          whiteSpace: "pre-wrap",
-          display: "-webkit-box",
-          WebkitLineClamp: isOpen || !isLong ? "unset" : 5,
-          WebkitBoxOrient: "vertical",
-          overflow: isOpen || !isLong ? "visible" : "hidden",
-        }}
-      >
-        {s.text}
-      </p>
+      <SetsSummary entry={s} exerciseNameById={exerciseNameById} accent={accent} style={{ marginTop: 8 }} />
+
+      {s.text && (
+        <p
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 13,
+            lineHeight: 1.55,
+            color: "var(--text)",
+            marginTop: 8,
+            marginBottom: 0,
+            whiteSpace: "pre-wrap",
+            display: "-webkit-box",
+            WebkitLineClamp: isOpen || !isLong ? "unset" : 5,
+            WebkitBoxOrient: "vertical",
+            overflow: isOpen || !isLong ? "visible" : "hidden",
+          }}
+        >
+          {s.text}
+        </p>
+      )}
 
       {isLong && (
         <button onClick={onToggle} style={{ ...ghostLinkStyle, marginTop: 6 }}>

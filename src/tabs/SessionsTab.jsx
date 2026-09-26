@@ -13,6 +13,7 @@ export default function SessionsTab({ sessions, setSessions, exercises, exercise
       canRedo
       textPlaceholder="Warmed up with 10 min bike, then did 5x5 back squat working up to 225, superset with..."
       showExercises
+      showSets
       exercises={exercises}
       exerciseUsage={exerciseUsage}
       showRoutines

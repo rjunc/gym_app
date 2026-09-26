@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import { exerciseHistory } from "../lib/exercises.js";
+import { MEASURES, measureOf, formatSets } from "../lib/sets.js";
 import TagChip from "../ui/TagChip.jsx";
 import { cardStyle, ghostLinkStyle, labelStyle } from "../ui/styles.js";
 
@@ -39,6 +40,7 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
           <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{exercise.name}</div>
             {exercise.prescription && <div style={{ fontSize: 12, color: `var(${accent})`, fontWeight: 600 }}>{exercise.prescription}</div>}
+            <div style={{ fontSize: 11, color: "var(--text-dim)" }}>Logged as {MEASURES[measureOf(exercise)].label.toLowerCase()}</div>
             {exercise.tags && exercise.tags.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                 {exercise.tags.map((t) => (
@@ -74,7 +76,7 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {history.map(({ kind, entry }) => (
-                <HistoryEntry key={`${kind}-${entry.id}`} kind={kind} entry={entry} />
+                <HistoryEntry key={`${kind}-${entry.id}`} kind={kind} entry={entry} exerciseId={exercise.id} />
               ))}
             </div>
           )}
@@ -85,9 +87,9 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
 }
 
 // One read-only entry in the timeline: date, a Session/Journal label in that
-// type's colour, title, tags and text (long text clamps to 5 lines, like the
-// entry cards elsewhere).
-function HistoryEntry({ kind, entry }) {
+// type's colour, title, the sets logged for this exercise (sessions only),
+// tags and text (long text clamps to 5 lines, like the entry cards elsewhere).
+function HistoryEntry({ kind, entry, exerciseId }) {
   const [open, setOpen] = useState(false);
   const meta = KIND_META[kind];
   const isLong = (entry.text || "").length > 220;
@@ -110,6 +112,9 @@ function HistoryEntry({ kind, entry }) {
         </span>
       </div>
       {entry.title && <div style={{ fontWeight: 700, fontSize: 13, marginTop: 4 }}>{entry.title}</div>}
+      {entry.sets && (entry.sets[exerciseId] || []).length > 0 && (
+        <div style={{ fontSize: 13, fontWeight: 700, color: `var(${meta.accent})`, marginTop: 4 }}>{formatSets(entry.sets[exerciseId])}</div>
+      )}
       {entry.tags && entry.tags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
           {entry.tags.map((t) => (
