@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   searchWords,
+  prefixMatchesFirst,
   matchesSearch,
   exerciseNameMap,
   entrySearchFields,
@@ -110,4 +111,24 @@ test("exerciseSearchFields covers name, text, tags and prescription", () => {
   const exercise = { id: "e1", name: "Plank", text: "Brace hard", tags: ["core"], prescription: "3x60s" };
   const fields = exerciseSearchFields(exercise);
   for (const q of ["plank", "brace", "core", "60s"]) assert.equal(matchesSearch(fields, q), true, q);
+});
+
+test("prefixMatchesFirst moves starts-with matches ahead, keeping each group's order", () => {
+  const items = ["single-leg rdl", "back squat", "legs day", "leg press"];
+  assert.deepEqual(prefixMatchesFirst(items, "leg", (s) => [s]), ["legs day", "leg press", "single-leg rdl", "back squat"]);
+});
+
+test("prefixMatchesFirst checks every text it's given, case-insensitively", () => {
+  const routines = [
+    { name: "Day A", label: "Legs / Day A" },
+    { name: "Leg blaster", label: "Leg blaster" },
+    { name: "Upper", label: "Upper" },
+  ];
+  const out = prefixMatchesFirst(routines, "LEG", (r) => [r.name, r.label]).map((r) => r.name);
+  assert.deepEqual(out, ["Day A", "Leg blaster", "Upper"]);
+});
+
+test("prefixMatchesFirst leaves the order alone for a blank query", () => {
+  const items = ["b", "a"];
+  assert.equal(prefixMatchesFirst(items, "  ", (s) => [s]), items);
 });

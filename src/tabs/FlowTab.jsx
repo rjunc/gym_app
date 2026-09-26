@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { ChevronRight, RotateCcw, Plus } from "lucide-react";
-import { uid } from "../lib/id.js";
+import { uid, todayISO } from "../lib/id.js";
 import { collectPositions, techniquesFrom } from "../lib/positions.js";
-import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
+import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
@@ -30,7 +30,7 @@ export default function FlowTab({ techniques, setTechniques }) {
   const [tagDraft, setTagDraft] = useState("");
 
   const allPositions = useMemo(() => collectPositions(techniques), [techniques]);
-  const tagSuggestions = useMemo(() => tagCounts(techniques), [techniques]);
+  const tagSuggestions = useMemo(() => tagUsage(techniques, todayISO()), [techniques]);
   const currentPosition = path.length ? path[path.length - 1].position : null;
   const optionsAtPosition = useMemo(
     () => (currentPosition ? techniquesFrom(techniques, currentPosition) : []),

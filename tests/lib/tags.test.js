@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tagCounts, searchTags, addTagsFromDraft } from "../../src/lib/tags.js";
+import { tagCounts, tagUsage, searchTags, addTagsFromDraft } from "../../src/lib/tags.js";
 
 test("tagCounts sorts by usage, then alphabetically", () => {
   const entries = [{ tags: ["legs", "cardio"] }, { tags: ["cardio"] }, { tags: ["push"] }, { tags: ["cardio", "legs"] }];
@@ -51,4 +51,34 @@ test("addTagsFromDraft does not mutate the existing array", () => {
   const existing = ["a"];
   addTagsFromDraft(existing, "b");
   assert.deepEqual(existing, ["a"]);
+});
+
+test("tagUsage ranks by use in the last 30 days, then all-time, then alphabetically", () => {
+  const today = "2026-09-22";
+  const entries = [
+    { date: "2026-09-20", tags: ["legs", "push"] },
+    { date: "2026-09-10", tags: ["push"] },
+    { date: "2026-05-01", tags: ["mobility"] },
+    { date: "2026-04-01", tags: ["mobility", "cardio"] },
+    { date: "2026-03-01", tags: ["mobility", "legs"] },
+  ];
+  assert.deepEqual(tagUsage(entries, today), [
+    { tag: "push", recent: 2, total: 2 },
+    { tag: "legs", recent: 1, total: 2 },
+    { tag: "mobility", recent: 0, total: 3 },
+    { tag: "cardio", recent: 0, total: 1 },
+  ]);
+});
+
+test("tagUsage: undated items (routines, techniques, exercises) rank by all-time use", () => {
+  const items = [{ tags: ["b"] }, { tags: ["a", "b"] }, { tags: ["a", "a"] }, {}];
+  assert.deepEqual(tagUsage(items, "2026-09-22"), [
+    { tag: "a", recent: 0, total: 2 },
+    { tag: "b", recent: 0, total: 2 },
+  ]);
+});
+
+test("searchTags keeps tagUsage's order within the starts-with and contains groups", () => {
+  const ranked = tagUsage([{ tags: ["single-leg"] }, { tags: ["single-leg"] }, { tags: ["legs"] }], "2026-09-22");
+  assert.deepEqual(searchTags(ranked, "leg").map((c) => c.tag), ["legs", "single-leg"]);
 });

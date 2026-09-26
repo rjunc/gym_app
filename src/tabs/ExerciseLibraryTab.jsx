@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
-import { uid } from "../lib/id.js";
+import { uid, todayISO } from "../lib/id.js";
 import { matchesTags } from "../lib/activity.js";
-import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
+import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { entriesByExercise } from "../lib/exercises.js";
 import { routineOptions } from "../lib/routines.js";
 import { matchesSearch, exerciseSearchFields } from "../lib/search.js";
@@ -43,7 +43,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   const [form, setForm] = useState(emptyForm());
   const [tagDraft, setTagDraft] = useState("");
 
-  const tagSuggestions = useMemo(() => tagCounts(exercises), [exercises]);
+  const tagSuggestions = useMemo(() => tagUsage(exercises, todayISO()), [exercises]);
   const untaggedCount = useMemo(() => exercises.filter((e) => (e.tags || []).length === 0).length, [exercises]);
 
   // Backlinks for "which sessions/journal entries/routines use this

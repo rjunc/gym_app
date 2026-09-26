@@ -1,3 +1,5 @@
+import { shiftISODate } from "./id.js";
+
 // How often each Library exercise appears in sessions, keyed by exercise id:
 // `recent` counts sessions from the last `days` days (default 30), `total`
 // counts every session ever. Only sessions count — not journal entries or
@@ -62,12 +64,4 @@ export function exerciseUsageSummary({ sessions = [], journals = [], routines = 
   if (routines.length) parts.push(plural(routines.length, "routine", "routines"));
   const lastDate = [...sessions, ...journals].reduce((latest, e) => (typeof e.date === "string" && e.date > latest ? e.date : latest), "");
   return { text: parts.join(" · "), lastDate: lastDate || null };
-}
-
-// Shifts an ISO date string by `days` (negative to go back), local-time
-// based to match todayISO()/formatDate() elsewhere.
-function shiftISODate(iso, days) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

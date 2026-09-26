@@ -5,7 +5,9 @@ import { labelStyle, inputStyle, tagPillStyle, secondaryBtnStyle } from "./style
 
 export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddTag, onRemoveTag, tagSuggestions, accentVar }) {
   // Suggest against the tag being typed right now (after the last comma), and
-  // never suggest one that's already on the entry.
+  // never suggest one that's already on the entry. `tagSuggestions` arrive
+  // most-used first (see tagUsage); typing keeps that order but puts tags that
+  // start with the query ahead of ones that merely contain it.
   const draftPrefix = tagDraft.slice(0, tagDraft.lastIndexOf(",") + 1);
   const draftQuery = tagDraft.slice(draftPrefix.length).trim();
   const unused = tagSuggestions.filter((s) => !form.tags.includes(s.tag));
@@ -48,20 +50,10 @@ export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddT
       </div>
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <span style={{ ...labelStyle, marginBottom: 4 }}>{draftQuery ? "Matching tags" : "Your tags"}</span>
+          <span style={{ ...labelStyle, marginBottom: 4 }}>{draftQuery ? "Matching" : "Most used"}</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {suggestions.map(({ tag, count }) => (
-              <TagChip
-                key={tag}
-                small
-                accent={accentVar}
-                onClick={() => pickSuggestion(tag)}
-                label={
-                  <>
-                    {tag} <span style={{ opacity: 0.6, fontWeight: 500 }}>{count}</span>
-                  </>
-                }
-              />
+            {suggestions.map(({ tag }) => (
+              <TagChip key={tag} small accent={accentVar} onClick={() => pickSuggestion(tag)} label={tag} />
             ))}
           </div>
         </div>

@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
-import { addTagsFromDraft, tagCounts } from "../lib/tags.js";
+import { addTagsFromDraft, tagUsage } from "../lib/tags.js";
 import { routineOptions } from "../lib/routines.js";
 import { redoFields } from "../lib/activity.js";
+import { todayISO } from "../lib/id.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
@@ -39,7 +40,7 @@ export default function EntrySheet({ types, entriesByType, routines, folders, ex
   const canSave = form.text.trim() !== "" && form.date !== "";
   // Sessions and rolls have different vocabularies (legs vs. guard), so suggest
   // from the type being logged.
-  const tagSuggestions = useMemo(() => tagCounts(entriesByType[type]), [entriesByType, type]);
+  const tagSuggestions = useMemo(() => tagUsage(entriesByType[type], todayISO()), [entriesByType, type]);
 
   const routineChoices = useMemo(() => routineOptions(routines, folders), [routines, folders]);
 

@@ -3,6 +3,7 @@ import { Star, X, Check } from "lucide-react";
 import { labelStyle, inputStyle, tagPillStyle } from "./styles.js";
 import { applyRoutine } from "../lib/routines.js";
 import { compareByUsage } from "../lib/exercises.js";
+import { prefixMatchesFirst } from "../lib/search.js";
 import TagChip from "./TagChip.jsx";
 
 export function NameField({ form, setForm, nameField, nameLabel, namePlaceholder }) {
@@ -151,18 +152,19 @@ export function PrescriptionField({ form, setForm }) {
 // `usage` (exerciseUsageCounts output, see lib/exercises.js) is optional:
 // when given, suggestions rank by session use — last 30 days first, then
 // all-time, then alphabetical — so the picker leads with what you've actually
-// been training. Without it, suggestions are plain alphabetical.
+// been training. Without it, suggestions are plain alphabetical. While typing,
+// exercises whose name starts with the query move ahead of the rest.
 export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
   const [query, setQuery] = useState("");
   const selectedIds = form.exerciseIds || [];
   const selected = selectedIds.map((id) => exercises.find((e) => e.id === id)).filter(Boolean);
 
   const q = query.trim().toLowerCase();
-  const suggestions = exercises
+  const ranked = exercises
     .filter((e) => !selectedIds.includes(e.id))
     .filter((e) => q === "" || e.name.toLowerCase().includes(q) || (e.tags || []).some((t) => t.toLowerCase().includes(q)))
-    .sort(compareByUsage(usage || new Map()))
-    .slice(0, 8);
+    .sort(compareByUsage(usage || new Map()));
+  const suggestions = prefixMatchesFirst(ranked, q, (e) => [e.name]).slice(0, 8);
 
   const addExercise = (id) => {
     setForm((f) => ({ ...f, exerciseIds: [...(f.exerciseIds || []), id] }));
@@ -198,7 +200,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
       />
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          {usage && <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching exercises" : "Most used in sessions"}</span>}
+          {usage && <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching" : "Most used"}</span>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {suggestions.map((e) => (
               <TagChip key={e.id} small accent={accentVar} label={e.name} onClick={() => addExercise(e.id)} />
@@ -217,17 +219,19 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
 // only a reminder for this draft — they have no remove button because what a
 // routine brought in has already merged with everything else in the form.
 // `options` is routineOptions() output, already sorted alphabetically by
-// folder path.
+// folder path. Routines stay A–Z rather than most-used like the other pickers:
+// adding one doesn't record anything on the entry, so there's no usage to rank
+// by. While typing, routines whose name or folder path starts with the query
+// move ahead of the rest.
 export function RoutinesField({ setForm, routines, options, accentVar }) {
   const [query, setQuery] = useState("");
   const [addedIds, setAddedIds] = useState([]);
   const added = addedIds.map((id) => options.find((o) => o.id === id)).filter(Boolean);
 
   const q = query.trim().toLowerCase();
-  const suggestions = options
-    .filter((o) => !addedIds.includes(o.id))
-    .filter((o) => q === "" || o.label.toLowerCase().includes(q))
-    .slice(0, 8);
+  const nameOf = (o) => routines.find((r) => r.id === o.id)?.name || "";
+  const matching = options.filter((o) => !addedIds.includes(o.id)).filter((o) => q === "" || o.label.toLowerCase().includes(q));
+  const suggestions = prefixMatchesFirst(matching, q, (o) => [nameOf(o), o.label]).slice(0, 8);
 
   const addRoutine = (id) => {
     const routine = routines.find((r) => r.id === id);
@@ -258,10 +262,13 @@ export function RoutinesField({ setForm, routines, options, accentVar }) {
         style={inputStyle}
       />
       {suggestions.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-          {suggestions.map((o) => (
-            <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(o.id)} />
-          ))}
+        <div style={{ marginTop: 8 }}>
+          <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching" : "A–Z"}</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {suggestions.map((o) => (
+              <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(o.id)} />
+            ))}
+          </div>
         </div>
       )}
     </div>

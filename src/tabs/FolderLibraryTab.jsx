@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
 import { Plus, FolderPlus, X } from "lucide-react";
-import { uid } from "../lib/id.js";
+import { uid, todayISO } from "../lib/id.js";
 import { folderPath } from "../lib/folders.js";
 import { matchesSearch, folderItemSearchFields, exerciseNameMap } from "../lib/search.js";
 import { collectPositions } from "../lib/positions.js";
-import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
+import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
@@ -61,7 +61,7 @@ export default function FolderLibraryTab({
     ...(showExercises ? { exerciseIds: [] } : {}),
   });
   const [tagDraft, setTagDraft] = useState("");
-  const tagSuggestions = useMemo(() => tagCounts(items), [items]);
+  const tagSuggestions = useMemo(() => tagUsage(items, todayISO()), [items]);
   const [newFolderName, setNewFolderName] = useState("");
   const [addingFolder, setAddingFolder] = useState(false);
   const [folderError, setFolderError] = useState("");

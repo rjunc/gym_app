@@ -69,7 +69,7 @@ export default function EntryComposer({
   // Optional content rendered under the title, above the fields, for composers
   // with extra top-level controls (e.g. Home's Session / Roll switch).
   topContent,
-  // Existing tags as [{ tag, count }] (most-used first, see tagCounts) to offer
+  // Existing tags as [{ tag, recent, total }] (most-used first, see tagUsage) to offer
   // as one-tap suggestions, so tags get reused instead of retyped in slightly
   // different spellings.
   tagSuggestions = [],

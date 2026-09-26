@@ -34,6 +34,17 @@ export function matchesSearch(fields, query, mode = "all") {
   return mode === "any" ? words.some(found) : words.every(found);
 }
 
+// Moves the items where any of `textsOf(item)` starts with `query` ahead of
+// the rest, keeping each group's existing order. The pickers use it while
+// typing, so "leg" puts "legs" ahead of "single-leg" without otherwise
+// disturbing their usage (or A–Z) order.
+export function prefixMatchesFirst(items, query, textsOf) {
+  const q = (query || "").trim().toLowerCase();
+  if (!q) return items;
+  const starts = (item) => textsOf(item).some((t) => (t || "").toLowerCase().startsWith(q));
+  return [...items.filter(starts), ...items.filter((item) => !starts(item))];
+}
+
 // Names of the Library exercises an item links to, skipping any that have
 // since been deleted from the Library.
 function exerciseNames(item, exerciseNameById) {

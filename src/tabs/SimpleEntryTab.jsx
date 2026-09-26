@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { uid, todayISO } from "../lib/id.js";
 import { matchesTags, redoFields } from "../lib/activity.js";
-import { tagCounts, addTagsFromDraft } from "../lib/tags.js";
+import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { routineOptions } from "../lib/routines.js";
 import { matchesSearch, entrySearchFields, exerciseNameMap } from "../lib/search.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
@@ -48,7 +48,7 @@ export default function SimpleEntryTab({
   const [form, setForm] = useState({ date: todayISO(), title: "", tags: [], text: "", ...(showExercises ? { exerciseIds: [] } : {}) });
   const [tagDraft, setTagDraft] = useState("");
 
-  const tagSuggestions = useMemo(() => tagCounts(entries), [entries]);
+  const tagSuggestions = useMemo(() => tagUsage(entries, todayISO()), [entries]);
 
   const routineChoices = useMemo(() => (showRoutines ? routineOptions(routines, folders) : []), [showRoutines, routines, folders]);
 
