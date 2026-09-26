@@ -95,6 +95,47 @@ footprint.
 
 ## Open considerations (not urgent — revisit whenever)
 
+- **⚠️ IMPORTANT, do soon: delta sync, so opening the app doesn't re-read
+  everything (2026-09-26).** Unlike the rest of this list, this one
+  shouldn't wait.
+  - **The problem:** every open after ~30 minutes away re-reads every
+    record in every collection (one read per record, even though the local
+    cache already has them). The free plan's 50,000 reads a day are **shared
+    by the whole Firebase project**, not per account, so every pilot user
+    draws from the same pool. With the test data button (~350 records per
+    account), 10 pilot users get ~14 opens each per day between them; 25 get
+    ~5. When the pool runs out, *everyone* sees "Couldn't load your log"
+    until the daily reset (nothing is lost, but the app is unusable).
+  - **Stopgap until it's done:** switch the project to the pay-as-you-go
+    (Blaze) plan with a budget alert. The 50,000 a day stay free and the
+    rest costs ~6¢ per 100,000 reads, but every open still reads
+    everything, so cost and load time keep growing with the log.
+  - **The fix:** on open, show the local cache and ask Firestore only for
+    records changed since the last sync. An open then costs a handful of
+    reads however large the log gets. Lives in `src/lib/useSyncedCollection.js`
+    and `src/lib/firestoreLog.js`; the pages don't need to change.
+  - **What it has to get right:**
+    - *Deletes:* a "changed since" query can't see a deleted document, so a
+      delete must become a tombstone (`deleted: true` plus a fresh sync
+      time), hidden by the app and purged after a while (e.g. 90 days).
+    - *Clocks:* "changed since" must use the server's time, not the
+      device's. Write a `syncedAt: serverTimestamp()` on every save and
+      query on that; `updatedAt` is the phone's clock, and a phone set
+      slightly wrong would make other devices miss its edits.
+    - *Records that predate it:* records without `syncedAt` need a one-time
+      backfill (or one last full load that stamps them), or they'd never be
+      picked up by the query.
+    - *A wiped cache:* iOS can clear a website's stored data after a while
+      (less so once it's added to the home screen). If the cache comes back
+      empty or older than the last sync time, do one full load instead of
+      trusting it.
+    - *Other devices:* the live listener only needs to watch records
+      changed since the last sync, so edits from another device still
+      arrive as they do now.
+  - **Size:** a few hours plus careful testing, since every save and load
+    goes through it. Worth a test on two devices (edit, delete, offline
+    edit) before shipping.
+
 - **Temporary "Add test data" button in the sidebar (added 2026-09-26).**
   For pilot testing: it fills the signed-in account with ~300 made-up,
   fully linked records (9 months of sessions with sets and notes, routines
@@ -134,10 +175,12 @@ footprint.
   effectively gone. What grows instead is reads: opening the app after more
   than ~30 minutes away re-reads every record in every collection (the local
   cache makes it fast, but Firestore still counts it), and the free plan
-  allows 50,000 reads a day. Rough math at ~500 records a year plus a few
-  hundred Library/routine items:
+  allows 50,000 reads a day **for the whole project, shared by every
+  account** (see the delta sync item above, which is the real fix). Rough
+  math for one account at ~500 records a year plus a few hundred
+  Library/routine items:
 
-  | Log age  | Records | Opens/day before the free limit |
+  | Log age  | Records | Opens/day before the free limit (one user) |
   |----------|---------|---------------------------------|
   | 1 year   | ~800    | ~60                             |
   | 3 years  | ~1,800  | ~27                             |
