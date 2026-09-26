@@ -124,26 +124,3 @@ test("usageSummary leaves out empty kinds, and has no last date for routines onl
 test("usageSummary is empty for an unused exercise", () => {
   assert.deepEqual(usageSummary({}), { text: "", lastDate: null });
 });
-
-/* ============================== exercise picker ============================== */
-
-import { exercisePickerView } from "../../src/lib/exercises.js";
-
-const pickerExercises = [
-  { id: "sq", name: "Back squat", tags: ["legs", "strength"], text: "", prescription: "5x5" },
-  { id: "lu", name: "Lunge", tags: ["legs"], text: "Walking or reverse", prescription: "" },
-  { id: "old", name: "Leg extension", tags: ["legs"], text: "", prescription: "", active: false },
-  { id: "pl", name: "Plank", tags: ["core"], text: "", prescription: "" },
-];
-
-test("exercisePickerView lists active exercises first, then by use, then A–Z", () => {
-  const usage = new Map([["pl", { recent: 3, total: 3 }]]);
-  assert.deepEqual(exercisePickerView({ exercises: pickerExercises, usage }).map((e) => e.id), ["pl", "sq", "lu", "old"]);
-});
-
-test("exercisePickerView filters by search (name, notes, tags, prescription) and tags", () => {
-  assert.deepEqual(exercisePickerView({ exercises: pickerExercises, query: "reverse" }).map((e) => e.id), ["lu"]);
-  assert.deepEqual(exercisePickerView({ exercises: pickerExercises, query: "5x5" }).map((e) => e.id), ["sq"]);
-  assert.deepEqual(exercisePickerView({ exercises: pickerExercises, tags: ["legs", "strength"] }).map((e) => e.id), ["sq"]);
-  assert.deepEqual(exercisePickerView({ exercises: pickerExercises, tags: ["core", "strength"], tagMode: "any" }).map((e) => e.id), ["sq", "pl"]);
-});

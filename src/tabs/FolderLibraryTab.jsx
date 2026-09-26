@@ -15,6 +15,7 @@ import GiModeToggle from "../ui/GiModeToggle.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
+import PickBar from "../ui/PickBar.jsx";
 import FolderRow from "./FolderRow.jsx";
 import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
@@ -48,9 +49,17 @@ export default function FolderLibraryTab({
   usageFor,
   onOpenItem,
   deleteWarningFor,
+  // Opens the page for picking items into an entry (see PagePicker):
+  // { addedIds, onAdd(item), onDone, initialQuery }. Everything works as
+  // usual, except each card gets an Add button, deleting items and folders
+  // is hidden (so the entry can't end up linking something deleted), a bar
+  // with Done sits on top, the search starts from what was typed in the
+  // entry's field, and a new item starts with that name and is added to the
+  // entry once saved.
+  pick,
 }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(pick?.initialQuery || "");
   const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
@@ -183,6 +192,8 @@ export default function FolderLibraryTab({
 
   const openNewComposer = () => {
     resetForm();
+    // Picking and couldn't find it: start the new item from the search.
+    if (pick && search.trim()) setForm((f) => ({ ...f, name: search.trim() }));
     setShowComposer(true);
   };
 
@@ -216,7 +227,10 @@ export default function FolderLibraryTab({
     if (editingId) {
       setItems((prev) => editById(prev, editingId, fields));
     } else {
-      setItems((prev) => [newRecord(fields), ...prev]);
+      const created = newRecord(fields);
+      setItems((prev) => [created, ...prev]);
+      // Created while picking for an entry: that's what it's for.
+      if (pick) pick.onAdd(created);
     }
     setShowComposer(false);
     resetForm();
@@ -248,6 +262,7 @@ export default function FolderLibraryTab({
 
   return (
     <>
+      {pick && <PickBar noun={`${itemNoun}s`} onDone={pick.onDone} accent={accent} />}
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div>
@@ -332,7 +347,9 @@ export default function FolderLibraryTab({
                     isOpen={expanded === r.id}
                     onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
                     onEdit={() => openEdit(r)}
-                    onDelete={() => deleteItem(r.id)}
+                    onDelete={pick ? undefined : () => deleteItem(r.id)}
+                    onAdd={pick ? () => pick.onAdd(r) : undefined}
+                    added={pick ? pick.addedIds.includes(r.id) : false}
                     onJump={() => {
                       setCurrentFolderId(r.folderId || null);
                       setSearch("");
@@ -370,7 +387,7 @@ export default function FolderLibraryTab({
                     onOpen={() => setCurrentFolderId(f.id)}
                     onStartRename={() => startRename(f)}
                     onCommitRename={commitRename}
-                    onDelete={() => deleteFolder(f)}
+                    onDelete={pick ? undefined : () => deleteFolder(f)}
                   />
                 );
               })}
@@ -419,7 +436,9 @@ export default function FolderLibraryTab({
                     isOpen={expanded === r.id}
                     onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
                     onEdit={() => openEdit(r)}
-                    onDelete={() => deleteItem(r.id)}
+                    onDelete={pick ? undefined : () => deleteItem(r.id)}
+                    onAdd={pick ? () => pick.onAdd(r) : undefined}
+                    added={pick ? pick.addedIds.includes(r.id) : false}
                     onTagClick={toggleTagFilter}
                     activeTags={activeTags}
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}

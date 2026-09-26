@@ -7,19 +7,17 @@ import { prefixMatchesFirst } from "../lib/search.js";
 import TagChip from "./TagChip.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { MEASURES, DEFAULT_MEASURE } from "../lib/sets.js";
-import RoutinePicker from "./RoutinePicker.jsx";
-import ExercisePicker from "./ExercisePicker.jsx";
+import PagePicker from "./PagePicker.jsx";
 
-// A field's label with a "Browse" link on the right that opens its picker.
-function LabelWithBrowse({ label, onBrowse, disabled, accentVar }) {
+// A field's label with a "Browse" link on the right that opens the real page
+// to pick from (see PagePicker).
+function LabelWithBrowse({ label, onBrowse, accentVar }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
       <label style={{ ...labelStyle, marginBottom: 0 }}>{label}</label>
-      {!disabled && (
-        <button onClick={onBrowse} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
-          <LayoutGrid size={12} /> Browse
-        </button>
-      )}
+      <button onClick={onBrowse} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
+        <LayoutGrid size={12} /> Browse
+      </button>
     </div>
   );
 }
@@ -188,9 +186,10 @@ export function MeasureField({ form, setForm, accentVar }) {
 // all-time, then alphabetical — so the picker leads with what you've actually
 // been training. Without it, suggestions are plain alphabetical. While typing,
 // exercises whose name starts with the query move ahead of the rest.
-// "Browse" opens ExercisePicker to look through the whole Library instead of
-// typing; `setsHistory`/`entryId` let its cards show the last sets logged.
-export function ExercisesField({ form, setForm, exercises, accentVar, usage, setsHistory, entryId }) {
+// "Browse" opens the Library page itself over the form (PagePicker) — to look
+// through it, or to create an exercise that doesn't exist yet — starting from
+// whatever was typed here.
+export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
   const [query, setQuery] = useState("");
   const [browsing, setBrowsing] = useState(false);
   const selectedIds = form.exerciseIds || [];
@@ -204,7 +203,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, set
   const suggestions = prefixMatchesFirst(ranked, q, (e) => [e.name]).slice(0, 8);
 
   const addExercise = (id) => {
-    setForm((f) => ({ ...f, exerciseIds: [...(f.exerciseIds || []), id] }));
+    setForm((f) => ((f.exerciseIds || []).includes(id) ? f : { ...f, exerciseIds: [...(f.exerciseIds || []), id] }));
     setQuery("");
   };
 
@@ -212,7 +211,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, set
 
   return (
     <div>
-      <LabelWithBrowse label="Exercises" onBrowse={() => setBrowsing(true)} disabled={exercises.length === 0} accentVar={accentVar} />
+      <LabelWithBrowse label="Exercises" onBrowse={() => setBrowsing(true)} accentVar={accentVar} />
       {selected.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
           {selected.map((e) => (
@@ -231,7 +230,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, set
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={exercises.length === 0 ? "No exercises in the Library yet" : "Search exercises or tags…"}
+        placeholder={exercises.length === 0 ? "No exercises yet — Browse to add one" : "Search exercises or tags…"}
         disabled={exercises.length === 0}
         style={inputStyle}
       />
@@ -246,16 +245,12 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, set
         </div>
       )}
       {browsing && (
-        <ExercisePicker
-          exercises={exercises}
-          usage={usage}
+        <PagePicker
+          kind="exercises"
           addedIds={selectedIds}
-          history={setsHistory}
-          date={form.date}
-          entryId={entryId}
-          onAdd={addExercise}
-          onClose={() => setBrowsing(false)}
-          accent={accentVar}
+          onAdd={(exercise) => addExercise(exercise.id)}
+          onDone={() => setBrowsing(false)}
+          initialQuery={query.trim()}
         />
       )}
     </div>
@@ -274,9 +269,10 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, set
 // like the Exercises picker — last 30 days first, then all-time, then A–Z by
 // folder path. Without it they're plain A–Z. While typing, routines whose name
 // or folder path starts with the query move ahead of the rest. "Browse" opens
-// RoutinePicker to look through them by folder, like the Routines page, with a
-// preview of each before adding; `folders` and `exerciseNameById` feed it.
-export function RoutinesField({ form, setForm, routines, options, accentVar, usage, folders = [], exerciseNameById = new Map() }) {
+// the Routines page itself over the form (PagePicker) — folders, search,
+// previews, and creating a routine that doesn't exist yet — starting from
+// whatever was typed here.
+export function RoutinesField({ form, setForm, routines, options, accentVar, usage }) {
   const [query, setQuery] = useState("");
   const [browsing, setBrowsing] = useState(false);
   const addedIds = form.routineIds || [];
@@ -290,8 +286,9 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
     .sort(compareByUsage(usage || new Map(), (o) => o.label));
   const suggestions = prefixMatchesFirst(matching, q, (o) => [nameOf(o), o.label]).slice(0, 8);
 
-  const addRoutine = (id) => {
-    const routine = routines.find((r) => r.id === id);
+  // Takes the routine itself, not its id: one just created from Browse
+  // isn't in `routines` yet.
+  const addRoutine = (routine) => {
     if (!routine) return;
     setForm((f) => applyRoutine(f, routine));
     setQuery("");
@@ -301,7 +298,7 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
 
   return (
     <div>
-      <LabelWithBrowse label="Routines" onBrowse={() => setBrowsing(true)} disabled={options.length === 0} accentVar={accentVar} />
+      <LabelWithBrowse label="Routines" onBrowse={() => setBrowsing(true)} accentVar={accentVar} />
       {added.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
           {added.map((o) => (
@@ -320,7 +317,7 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={options.length === 0 ? "No routines yet" : "Search routines to add…"}
+        placeholder={options.length === 0 ? "No routines yet — Browse to add one" : "Search routines to add…"}
         disabled={options.length === 0}
         style={inputStyle}
       />
@@ -329,22 +326,13 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
           <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching" : usage ? "Most used" : "A–Z"}</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {suggestions.map((o) => (
-              <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(o.id)} />
+              <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(routines.find((r) => r.id === o.id))} />
             ))}
           </div>
         </div>
       )}
       {browsing && (
-        <RoutinePicker
-          routines={routines}
-          folders={folders}
-          exerciseNameById={exerciseNameById}
-          usage={usage}
-          addedIds={addedIds}
-          onAdd={addRoutine}
-          onClose={() => setBrowsing(false)}
-          accent={accentVar}
-        />
+        <PagePicker kind="routines" addedIds={addedIds} onAdd={addRoutine} onDone={() => setBrowsing(false)} initialQuery={query.trim()} />
       )}
     </div>
   );

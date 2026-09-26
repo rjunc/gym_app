@@ -12,7 +12,9 @@ const ACCENT = "--accent2";
 // each one (routineIds): a usage line on every card, a summary sheet on tap
 // (the routine's details, then its history), and a delete warning when a
 // routine has been used.
-export default function RoutinesTab({ folders, setFolders, routines, setRoutines, exercises, exerciseUsage, sessions = [], journals = [] }) {
+// `pick` opens it for picking routines into an entry (see PagePicker and
+// FolderLibraryTab's `pick`); the summary sheet then hides Delete too.
+export default function RoutinesTab({ folders, setFolders, routines, setRoutines, exercises, exerciseUsage, sessions = [], journals = [], pick }) {
   // The routine whose summary is open, with the page's edit/remove actions
   // for it (see FolderLibraryTab's onOpenItem).
   const [history, setHistory] = useState(null);
@@ -42,6 +44,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
         showExercises
         exercises={exercises}
         exerciseUsage={exerciseUsage}
+        pick={pick}
         usageFor={(routine) => usageSummary(usesOf(routine))}
         onOpenItem={(routine, actions) => setHistory({ id: routine.id, ...actions })}
         deleteWarningFor={(routine) => {
@@ -63,9 +66,13 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
             setHistory(null);
             history.edit();
           }}
-          onDelete={() => {
-            if (history.remove()) setHistory(null);
-          }}
+          onDelete={
+            pick
+              ? undefined
+              : () => {
+                  if (history.remove()) setHistory(null);
+                }
+          }
           onClose={() => setHistory(null)}
         />
       )}

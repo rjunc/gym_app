@@ -2,6 +2,7 @@ import { Folder, Pencil, Trash2, ChevronDown, ChevronUp, MoveRight, Shirt, Star 
 import { formatDate } from "../lib/id.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
+import AddButton from "../ui/AddButton.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
 
 export default function LibraryItemCard({
@@ -23,6 +24,10 @@ export default function LibraryItemCard({
   // (edit, delete, star, folder, a tag chip, show more) calls this, e.g. to
   // open a routine's history sheet.
   onOpen,
+  // When the page is opened for picking (see PagePicker): an Add button,
+  // shown as "Added" once `added`. Leave onDelete out to hide Delete.
+  onAdd,
+  added,
 }) {
   const isLong = (item.text || "").length > 220;
   return (
@@ -66,7 +71,8 @@ export default function LibraryItemCard({
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          {onAdd && <AddButton added={added} onAdd={onAdd} accent={accent} />}
           {onToggleStar && (
             <IconBtn onClick={onToggleStar} active={!!item.starred} label={item.starred ? "Unstar" : "Star as go-to"}>
               <Star size={14} fill={item.starred ? "currentColor" : "none"} />
@@ -75,9 +81,11 @@ export default function LibraryItemCard({
           <IconBtn onClick={onEdit} label="Edit">
             <Pencil size={14} />
           </IconBtn>
-          <IconBtn onClick={onDelete} danger label="Delete">
-            <Trash2 size={14} />
-          </IconBtn>
+          {onDelete && (
+            <IconBtn onClick={onDelete} danger label="Delete">
+              <Trash2 size={14} />
+            </IconBtn>
+          )}
         </div>
       </div>
 

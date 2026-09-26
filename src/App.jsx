@@ -7,6 +7,7 @@ import { mergeById } from "./lib/arrays.js";
 import { exerciseUsageCounts } from "./lib/exercises.js";
 import { routineUsageCounts } from "./lib/routines.js";
 import { useSyncedCollection } from "./lib/useSyncedCollection.js";
+import { LogContext } from "./lib/LogContext.js";
 import Shell from "./ui/Shell.jsx";
 import { primaryBtnStyle } from "./ui/styles.js";
 import Sidebar from "./ui/Sidebar.jsx";
@@ -55,6 +56,12 @@ export default function App({ uid, userEmail, onLogout }) {
   // Same for routines, ranking the Routines picker (Sessions, Journals, Home).
   const routineUsage = useMemo(() => routineUsageCounts(sessions, todayISO()), [sessions]);
   const fileInputRef = useRef(null);
+  // The log for components that open a full page from inside a form (see
+  // LogContext).
+  const log = useMemo(
+    () => ({ sessions, setSessions, journals, setJournals, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage }),
+    [sessions, setSessions, journals, setJournals, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage]
+  );
 
   const exportJSON = () =>
     downloadFile(
@@ -137,89 +144,91 @@ export default function App({ uid, userEmail, onLogout }) {
   };
 
   return (
-    <Shell>
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            style={{ background: "none", border: "none", color: "var(--text)", cursor: "pointer", display: "flex" }}
-          >
-            <Menu size={20} />
-          </button>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>{PAGE_TITLES[page]}</span>
+    <LogContext.Provider value={log}>
+      <Shell>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{ background: "none", border: "none", color: "var(--text)", cursor: "pointer", display: "flex" }}
+            >
+              <Menu size={20} />
+            </button>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{PAGE_TITLES[page]}</span>
+          </div>
+
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {page === "home" ? (
+              <HomeTab
+                sessions={sessions}
+                rolls={rolls}
+                setSessions={setSessions}
+                setRolls={setRolls}
+                routines={routines}
+                folders={folders}
+                exercises={exercises}
+                exerciseUsage={exerciseUsage}
+                routineUsage={routineUsage}
+              />
+            ) : page === "sessions" ? (
+              <SessionsTab
+                sessions={sessions}
+                setSessions={setSessions}
+                exercises={exercises}
+                exerciseUsage={exerciseUsage}
+                routines={routines}
+                routineUsage={routineUsage}
+                folders={folders}
+              />
+            ) : page === "journals" ? (
+              <JournalsTab
+                journals={journals}
+                setJournals={setJournals}
+                exercises={exercises}
+                exerciseUsage={exerciseUsage}
+                routines={routines}
+                routineUsage={routineUsage}
+                folders={folders}
+              />
+            ) : page === "routines" ? (
+              <RoutinesTab
+                folders={folders}
+                setFolders={setFolders}
+                routines={routines}
+                setRoutines={setRoutines}
+                exercises={exercises}
+                exerciseUsage={exerciseUsage}
+                sessions={sessions}
+                journals={journals}
+              />
+            ) : page === "library" ? (
+              <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} folders={folders} />
+            ) : page === "rolls" ? (
+              <RollsTab rolls={rolls} setRolls={setRolls} />
+            ) : page === "techniques" ? (
+              <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} />
+            ) : (
+              <FlowTab techniques={techniques} setTechniques={setTechniques} />
+            )}
+          </div>
+
+          <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" style={{ display: "none" }} onChange={handleFile} />
+
+          <Sidebar
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            page={page}
+            onNavigate={navigate}
+            userEmail={userEmail}
+            syncError={syncError}
+            importError={importError}
+            onExportCSV={exportCSV}
+            onExportJSON={exportJSON}
+            onImportClick={() => fileInputRef.current?.click()}
+            onLogout={onLogout}
+          />
         </div>
-
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {page === "home" ? (
-            <HomeTab
-              sessions={sessions}
-              rolls={rolls}
-              setSessions={setSessions}
-              setRolls={setRolls}
-              routines={routines}
-              folders={folders}
-              exercises={exercises}
-              exerciseUsage={exerciseUsage}
-              routineUsage={routineUsage}
-            />
-          ) : page === "sessions" ? (
-            <SessionsTab
-              sessions={sessions}
-              setSessions={setSessions}
-              exercises={exercises}
-              exerciseUsage={exerciseUsage}
-              routines={routines}
-              routineUsage={routineUsage}
-              folders={folders}
-            />
-          ) : page === "journals" ? (
-            <JournalsTab
-              journals={journals}
-              setJournals={setJournals}
-              exercises={exercises}
-              exerciseUsage={exerciseUsage}
-              routines={routines}
-              routineUsage={routineUsage}
-              folders={folders}
-            />
-          ) : page === "routines" ? (
-            <RoutinesTab
-              folders={folders}
-              setFolders={setFolders}
-              routines={routines}
-              setRoutines={setRoutines}
-              exercises={exercises}
-              exerciseUsage={exerciseUsage}
-              sessions={sessions}
-              journals={journals}
-            />
-          ) : page === "library" ? (
-            <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} folders={folders} />
-          ) : page === "rolls" ? (
-            <RollsTab rolls={rolls} setRolls={setRolls} />
-          ) : page === "techniques" ? (
-            <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} />
-          ) : (
-            <FlowTab techniques={techniques} setTechniques={setTechniques} />
-          )}
-        </div>
-
-        <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" style={{ display: "none" }} onChange={handleFile} />
-
-        <Sidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          page={page}
-          onNavigate={navigate}
-          userEmail={userEmail}
-          syncError={syncError}
-          importError={importError}
-          onExportCSV={exportCSV}
-          onExportJSON={exportJSON}
-          onImportClick={() => fileInputRef.current?.click()}
-          onLogout={onLogout}
-        />
-      </div>
-    </Shell>
+      </Shell>
+    </LogContext.Provider>
   );
 }

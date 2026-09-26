@@ -48,9 +48,11 @@ export default function FolderRow({
           <IconBtn onClick={onStartRename}>
             <Pencil size={13} />
           </IconBtn>
-          <IconBtn onClick={onDelete} danger>
-            <Trash2 size={13} />
-          </IconBtn>
+          {onDelete && (
+            <IconBtn onClick={onDelete} danger>
+              <Trash2 size={13} />
+            </IconBtn>
+          )}
         </div>
       )}
       <ChevronRight size={15} color="var(--text-dim)" onClick={() => !isRenaming && onOpen()} style={{ cursor: "pointer" }} />

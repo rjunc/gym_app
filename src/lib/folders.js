@@ -30,20 +30,3 @@ export function resolveFolderPath(folders, pathStr) {
   });
   return { id: parentId, folders: list };
 }
-
-// How many of `items` sit in `folderId` or any folder beneath it, for a
-// folder row's count ("5 routines" includes its subfolders').
-export function itemCountUnder(folders, items, folderId) {
-  const under = new Set([folderId]);
-  let grew = true;
-  while (grew) {
-    grew = false;
-    folders.forEach((f) => {
-      if (f.parentId && under.has(f.parentId) && !under.has(f.id)) {
-        under.add(f.id);
-        grew = true;
-      }
-    });
-  }
-  return items.filter((r) => under.has(r.folderId || null)).length;
-}

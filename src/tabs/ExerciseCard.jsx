@@ -3,6 +3,7 @@ import { formatDate } from "../lib/id.js";
 import { usageSummary } from "../lib/links.js";
 import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
+import AddButton from "../ui/AddButton.jsx";
 import { cardStyle, ghostLinkStyle } from "../ui/styles.js";
 
 export default function ExerciseCard({
@@ -17,6 +18,10 @@ export default function ExerciseCard({
   // Tapping anywhere on the card that isn't one of its buttons (edit, delete,
   // a tag chip, show more) opens the exercise's history sheet.
   onOpen,
+  // When the Library is opened for picking (see PagePicker): an Add button,
+  // shown as "Added" once `added`. Leave onDelete out to hide Delete.
+  onAdd,
+  added,
   usedInSessions = [],
   usedInJournals = [],
   usedInRoutines = [],
@@ -61,13 +66,16 @@ export default function ExerciseCard({
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          {onAdd && <AddButton added={added} onAdd={onAdd} accent={accent} />}
           <IconBtn onClick={onEdit} label="Edit">
             <Pencil size={14} />
           </IconBtn>
-          <IconBtn onClick={onDelete} danger label="Delete">
-            <Trash2 size={14} />
-          </IconBtn>
+          {onDelete && (
+            <IconBtn onClick={onDelete} danger label="Delete">
+              <Trash2 size={14} />
+            </IconBtn>
+          )}
         </div>
       </div>
 

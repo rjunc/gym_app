@@ -17,6 +17,7 @@ import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import ExerciseCard from "./ExerciseCard.jsx";
 import ExerciseHistorySheet from "./ExerciseHistorySheet.jsx";
+import PickBar from "../ui/PickBar.jsx";
 import { primaryBtnStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent2"; // matches Routines/Techniques, the other library-style tabs
@@ -31,8 +32,15 @@ const emptyForm = () => ({ name: "", tags: [], text: "", prescription: "", measu
 // straight off this list by querying tags, which is why the tag vocabulary
 // here is worth keeping clean (reuse existing tags via the suggestions below
 // rather than typing near-duplicates).
-export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [], folders = [] }) {
-  const [search, setSearch] = useState("");
+//
+// `pick` opens the page for picking exercises into an entry (see PagePicker):
+// { addedIds, onAdd(exercise), onDone, initialQuery }. The page works exactly
+// as usual, except each card gets an Add button, Delete is hidden (so the
+// entry can't end up linking a deleted exercise), a bar with Done sits on
+// top, the search starts from what was typed in the entry's field, and a new
+// exercise starts with that name and is added to the entry once saved.
+export default function ExerciseLibraryTab({ exercises, setExercises, sessions = [], journals = [], routines = [], folders = [], pick }) {
+  const [search, setSearch] = useState(pick?.initialQuery || "");
   const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
@@ -87,6 +95,8 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
 
   const openNewComposer = () => {
     resetForm();
+    // Picking and couldn't find it: start the new exercise from the search.
+    if (pick && search.trim()) setForm((f) => ({ ...f, name: search.trim() }));
     setShowComposer(true);
   };
 
@@ -124,7 +134,10 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
     if (editingId) {
       setExercises((prev) => editById(prev, editingId, fields));
     } else {
-      setExercises((prev) => [newRecord(fields), ...prev]);
+      const created = newRecord(fields);
+      setExercises((prev) => [created, ...prev]);
+      // Created while picking for an entry: that's what it's for.
+      if (pick) pick.onAdd(created);
     }
     setShowComposer(false);
     resetForm();
@@ -146,6 +159,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
 
   return (
     <>
+      {pick && <PickBar noun="exercises" onDone={pick.onDone} accent={ACCENT} />}
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div>
@@ -209,7 +223,9 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
                 isOpen={expanded === e.id}
                 onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
                 onEdit={() => openEdit(e)}
-                onDelete={() => deleteExercise(e.id)}
+                onDelete={pick ? undefined : () => deleteExercise(e.id)}
+                onAdd={pick ? () => pick.onAdd(e) : undefined}
+                added={pick ? pick.addedIds.includes(e.id) : false}
                 onOpen={() => setHistoryId(e.id)}
                 activeTags={activeTags}
                 onTagClick={toggleTagFilter}
@@ -235,9 +251,13 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
             setHistoryId(null);
             openEdit(historyExercise);
           }}
-          onDelete={() => {
-            if (deleteExercise(historyExercise.id)) setHistoryId(null);
-          }}
+          onDelete={
+            pick
+              ? undefined
+              : () => {
+                  if (deleteExercise(historyExercise.id)) setHistoryId(null);
+                }
+          }
           onClose={() => setHistoryId(null)}
         />
       )}
