@@ -2,7 +2,7 @@ import { csvEscape, parseCSV } from "./csv.js";
 import { folderPath, resolveFolderPath } from "./folders.js";
 import { uid, todayISO } from "./id.js";
 import { importedTimestamps } from "./records.js";
-import { formatSets, loggedExerciseIds, exerciseNoteOf, MEASURES } from "./sets.js";
+import { formatSets, blocksOf, MEASURES } from "./sets.js";
 
 // The composer always lowercases tags on save, so the tag list (sorted with
 // a plain, case-sensitive .sort()) is naturally alphabetical. Imported data
@@ -32,15 +32,14 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   const routineNames = (ids) => (ids || []).map((id) => routineNameById.get(id)).filter(Boolean).join(";");
   // A session's logged sets as "Back squat: 3×5 @ 225 lb; Plank: 2 × 1:00",
   // for reading only, like the exercise names (JSON keeps the numbers).
-  // A session's sets and per-exercise notes, one "Name: sets (note)" per
-  // exercise.
+  // A session's blocks in order, one "Name: sets (note)" each, skipping
+  // blocks with neither.
   const setsText = (record) =>
-    loggedExerciseIds(record)
-      .map((id) => {
-        const list = (record.sets || {})[id] || [];
-        const note = exerciseNoteOf(record, id);
-        const parts = [list.length > 0 ? formatSets(list) : "", note ? `(${note})` : ""].filter(Boolean).join(" ");
-        return `${exerciseNameById.get(id) || "Deleted exercise"}: ${parts}`;
+    blocksOf(record)
+      .filter((b) => (b.sets || []).length > 0 || b.note)
+      .map((b) => {
+        const parts = [(b.sets || []).length > 0 ? formatSets(b.sets) : "", b.note ? `(${b.note})` : ""].filter(Boolean).join(" ");
+        return `${exerciseNameById.get(b.exerciseId) || "Deleted exercise"}: ${parts}`;
       })
       .join("; ");
 

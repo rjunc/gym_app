@@ -1,6 +1,7 @@
 import { folderPath } from "./folders.js";
 import { addTagsFromDraft } from "./tags.js";
 import { linkUsageCounts, entriesByLink } from "./links.js";
+import { newDraftBlock } from "./sets.js";
 
 // How often each routine was used to build a session, keyed by routine id
 // (see linkUsageCounts). Sessions only, like exerciseUsageCounts, so the
@@ -25,15 +26,21 @@ export function routineOptions(routines, folders) {
 // by id), and its text is appended after anything already written (or becomes
 // the text if there's none). The routine's id is recorded in routineIds (also
 // deduped), so an entry remembers which routines it was built from.
+// A session form (one with draft `blocks`, see lib/sets.js) gets a block
+// appended for each of the routine's exercises it doesn't have a block for
+// yet, in the routine's order, instead.
 export function applyRoutine(form, routine) {
   const existingText = form.text.trim();
-  const existingExerciseIds = new Set(form.exerciseIds || []);
+  const existingExerciseIds = new Set(Array.isArray(form.blocks) ? form.blocks.map((b) => b.exerciseId) : form.exerciseIds || []);
+  const newIds = (routine.exerciseIds || []).filter((id, i, all) => !existingExerciseIds.has(id) && all.indexOf(id) === i);
   const routineIds = form.routineIds || [];
   return {
     ...form,
     title: form.title.trim() ? form.title : routine.name || "",
     tags: (routine.tags || []).reduce((tags, t) => addTagsFromDraft(tags, t), form.tags),
-    exerciseIds: [...(form.exerciseIds || []), ...(routine.exerciseIds || []).filter((id) => !existingExerciseIds.has(id))],
+    ...(Array.isArray(form.blocks)
+      ? { blocks: [...form.blocks, ...newIds.map(newDraftBlock)] }
+      : { exerciseIds: [...(form.exerciseIds || []), ...newIds] }),
     routineIds: routineIds.includes(routine.id) ? routineIds : [...routineIds, routine.id],
     text: existingText ? `${form.text.trimEnd()}\n\n${routine.text || ""}` : routine.text || "",
   };

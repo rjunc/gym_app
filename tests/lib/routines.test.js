@@ -109,3 +109,12 @@ test("usageList joins the parts for a sentence", () => {
   assert.equal(usageList({ sessions: [{}] }), "1 session");
   assert.equal(usageList({}), "");
 });
+
+test("applyRoutine on a session form appends a block per routine exercise it doesn't have yet", () => {
+  const form = { title: "", tags: [], text: "", routineIds: [], blocks: [{ key: "k1", exerciseId: "e1", rows: [], note: "" }] };
+  const out = applyRoutine(form, { id: "r1", name: "Legs", tags: [], text: "", exerciseIds: ["e1", "e2", "e3", "e2"] });
+  assert.deepEqual(out.blocks.map((b) => b.exerciseId), ["e1", "e2", "e3"]);
+  assert.deepEqual(out.blocks[0], form.blocks[0]);
+  assert.equal("exerciseIds" in out, false);
+  assert.deepEqual(out.routineIds, ["r1"]);
+});

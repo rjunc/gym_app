@@ -14,7 +14,7 @@ import {
 } from "./ComposerFields.jsx";
 import TagsField from "./TagsField.jsx";
 import BottomSheet from "./BottomSheet.jsx";
-import SetsField from "./SetsField.jsx";
+import BlocksField from "./BlocksField.jsx";
 
 export default function EntryComposer({
   title,
@@ -57,7 +57,8 @@ export default function EntryComposer({
   // the picker's suggestions by how much each exercise is used in sessions
   // instead of alphabetically.
   exerciseUsage,
-  // Per-set numbers for each linked exercise (sessions only; see SetsField).
+  // What was done, in order: a block per exercise done, with its sets
+  // (sessions only; see BlocksField).
   // `setsHistory` is the sessions the "Last time" hint looks through, and
   // `entryId` the entry being edited, so it never suggests itself.
   showSets,
@@ -134,11 +135,12 @@ export default function EntryComposer({
           exercises={exerciseOptions}
           accentVar={accentVar}
           usage={exerciseUsage}
+          asBlocks={showSets}
         />
       )}
 
       {showExercises && showSets && (
-        <SetsField form={form} setForm={setForm} exercises={exerciseOptions} history={setsHistory} entryId={entryId} accentVar={accentVar} />
+        <BlocksField form={form} setForm={setForm} exercises={exerciseOptions} history={setsHistory} entryId={entryId} accentVar={accentVar} />
       )}
 
       <TagsField

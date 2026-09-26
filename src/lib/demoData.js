@@ -4,8 +4,9 @@
 // Builds a believable, fully linked log for trying the app out as someone who
 // has been training for months: a Library of exercises logged in every way
 // sets can be measured, routines in nested folders built from those
-// exercises, sessions built from those routines (with sets that progress
-// over time, exercise notes, tags and the odd extra exercise), journal
+// exercises, sessions built from those routines (blocks in the order done,
+// with sets that progress over time, notes, the odd extra exercise and some
+// exercises done twice), journal
 // entries, BJJ rolls, and techniques whose positions chain into a flow.
 //
 // Every record's id starts with DEMO_PREFIX, which is the only way test data
@@ -266,14 +267,17 @@ export function generateDemoData(today = new Date(), months = 9) {
       const used = plan.map((name) => routineByName.get(name));
       const exerciseNames = [...new Set(used.flatMap((r) => r.exercises))];
       if (chance(0.25)) exerciseNames.push(pick(EXERCISES.filter((e) => e.active !== false)).name);
-      const ids = [...new Set(exerciseNames.map((name) => exerciseByName.get(name).id))];
-      const sets = {};
-      const exerciseNotes = {};
-      ids.forEach((id) => {
-        const ex = [...exerciseByName.values()].find((e) => e.id === id);
-        if (chance(0.88)) sets[id] = setsFor(ex, progress);
-        if (chance(0.12)) exerciseNotes[id] = pick(EXERCISE_NOTES);
+      // One block per exercise in the routines' order, sometimes with the
+      // first one done again at the end (back-off sets, a second round).
+      const blocks = exerciseNames.map((name) => {
+        const ex = exerciseByName.get(name);
+        return { id: demoId(), exerciseId: ex.id, sets: chance(0.88) ? setsFor(ex, progress) : [], ...(chance(0.12) ? { note: pick(EXERCISE_NOTES) } : {}) };
       });
+      const first = exerciseByName.get(exerciseNames[0]);
+      if (chance(0.3) && first.measure !== "distance" && first.measure !== "time_level") {
+        const backOff = setsFor(first, progress * 0.5).slice(0, 2).map((set) => (set.weight ? { ...set, weight: roundTo(set.weight * 0.8, 5) || 5 } : set));
+        blocks.push({ id: demoId(), exerciseId: first.id, sets: backOff, note: pick(["back-off sets", "second round", "finisher"]) });
+      }
       const text = pick(SESSION_NOTES);
       sessions.push({
         id: demoId(),
@@ -281,10 +285,9 @@ export function generateDemoData(today = new Date(), months = 9) {
         title: chance(0.2) ? pick(SESSION_TITLES) : "",
         tags: [...new Set([...used.flatMap((r) => r.tags), ...(chance(0.1) ? ["deload"] : [])])],
         text,
-        exerciseIds: ids,
+        exerciseIds: [...new Set(blocks.map((b) => b.exerciseId))],
         routineIds: used.map((r) => r.id),
-        sets,
-        exerciseNotes,
+        blocks,
         createdAt: stamp(date, between(6, 20)),
         updatedAt: stamp(date, 21),
       });

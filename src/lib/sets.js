@@ -1,7 +1,12 @@
-// Logged sets on a session: numbers per exercise, alongside the free text.
+import { uid } from "./id.js";
+
+// What was done in a session, in order, alongside its free text.
 //
-// Stored on a session as `sets`, keyed by Library exercise id, each an array
-// of set objects holding only the fields that apply:
+// Stored on a session as `blocks`: one block per exercise done at one point
+// in the session, in the order they were done. The same exercise can appear
+// in more than one block (squats first, then back-off squats at the end).
+//   { id, exerciseId, sets: [...], note?: "last set AMRAP" }
+// `sets` is a list of set objects holding only the fields that apply:
 //   { reps: 5, weight: 225, weightUnit: "lb" }    weight × reps
 //   { reps: 12 }                                  reps only (bodyweight)
 //   { seconds: 60 }                               time (holds, planks)
@@ -10,21 +15,19 @@
 //   { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }  carries, sleds
 //   { reps: 20, seconds: 60 }                     reps × time (max reps in 1:00)
 //   { seconds: 1200, level: 7 }                   time @ level (stairmaster, bike)
+// A block with no sets is just "did it, no numbers". `note` is what the
+// numbers can't say, shown next to them and on the next session's "Last"
+// line. The session's `exerciseIds` is kept as the distinct exercises of its
+// blocks, in first-done order (see blockExerciseIds), which is what links,
+// usage counts and search go by.
 // `level` is a machine's own unitless setting, so it only means something
 // next to other sets of the same exercise.
 // Units are saved on every set that has a weight or distance, so changing the
 // app's unit later can't reinterpret old numbers. Distance can be in any of
-// DISTANCE_UNITS, picked per exercise while logging. Time is always saved in
+// DISTANCE_UNITS, picked per block while logging. Time is always saved in
 // seconds; `timeUnit` ("min" or "sec") only records how it was typed, so a
 // plain "20" means what it meant then and the next session starts the same
 // way. Sets logged before it existed have none and were typed as seconds.
-// Sets are optional: an
-// exercise in exerciseIds with no entry here is just "did it, no numbers".
-//
-// Alongside `sets`, a session can carry `exerciseNotes`, a short note per
-// exercise for that day ("last set AMRAP", "go up 5 lb next time"), keyed by
-// the same exercise ids. It's what the numbers can't say, shown next to them
-// wherever they appear and on the next session's "Last" line.
 
 export const WEIGHT_UNIT = "lb";
 export const DISTANCE_UNIT = "mi"; // for an exercise never logged with a distance
@@ -36,7 +39,7 @@ export const TIME_UNITS = ["min", "sec"];
 export const defaultTimeUnit = (measure) => (measure === "distance" || measure === "time_level" ? "min" : "sec");
 
 // The ways a set can be measured, each deciding the inputs a set row shows.
-// An exercise doesn't own one: it's picked on the session, per exercise, and
+// An exercise doesn't own one: it's picked on the session, per block, and
 // the logged sets themselves record which it was (see measureOfSets), so the
 // next session can start from it (see resolveMeasure).
 export const MEASURES = {
@@ -157,22 +160,18 @@ function draftDuration(seconds, unit) {
   return formatDuration(seconds);
 }
 
-// Stored sets -> the form's editable draft: the same shape, with every value
+// Stored sets -> the form's editable rows: the same shape, with every value
 // as the string its text box shows (see draftDuration for time).
-export function toDraftSets(sets) {
-  const draft = {};
-  Object.entries(sets || {}).forEach(([exerciseId, list]) => {
-    draft[exerciseId] = (list || []).map((set) => {
-      const row = {};
-      SET_FIELDS.forEach((field) => {
-        if (typeof set[field] === "number") row[field] = field === "seconds" ? draftDuration(set[field], set.timeUnit) : String(set[field]);
-      });
-      if (typeof set.distance === "number") row.distanceUnit = set.distanceUnit || DISTANCE_UNIT;
-      if (typeof set.seconds === "number" && TIME_UNITS.includes(set.timeUnit)) row.timeUnit = set.timeUnit;
-      return row;
+export function toDraftRows(sets) {
+  return (sets || []).map((set) => {
+    const row = {};
+    SET_FIELDS.forEach((field) => {
+      if (typeof set[field] === "number") row[field] = field === "seconds" ? draftDuration(set[field], set.timeUnit) : String(set[field]);
     });
+    if (typeof set.distance === "number") row.distanceUnit = set.distanceUnit || DISTANCE_UNIT;
+    if (typeof set.seconds === "number" && TIME_UNITS.includes(set.timeUnit)) row.timeUnit = set.timeUnit;
+    return row;
   });
-  return draft;
 }
 
 // One draft row -> a stored set, or null if nothing in it is a usable number.
@@ -192,23 +191,49 @@ function toStoredSet(row) {
   return Object.keys(set).length > 0 ? set : null;
 }
 
-// The form's draft -> what's saved: only exercises still in `exerciseIds`,
-// only rows with at least one usable number, and no empty exercise entries.
+// Draft rows -> the sets saved: only rows with at least one usable number.
 // Weight is saved in WEIGHT_UNIT; distance in the row's `distanceUnit`
 // (DISTANCE_UNIT if it has none); time in seconds, read in the row's
 // `timeUnit`.
-export function fromDraftSets(draft, exerciseIds) {
-  const out = {};
-  (exerciseIds || []).forEach((id) => {
-    const rows = ((draft || {})[id] || []).map(toStoredSet).filter(Boolean);
-    if (rows.length > 0) out[id] = rows;
-  });
-  return out;
-}
+export const fromDraftRows = (rows) => (rows || []).map(toStoredSet).filter(Boolean);
 
-// Whether a draft has any set worth saving (a session may be saved with sets
-// and no text).
-export const hasLoggedSets = (draft, exerciseIds) => Object.keys(fromDraftSets(draft, exerciseIds)).length > 0;
+// A session's blocks, or [] (journals and older records have none).
+export const blocksOf = (entry) => (entry && Array.isArray(entry.blocks) ? entry.blocks : []);
+
+// Stored blocks -> the form's draft: { key, exerciseId, rows, note }. `key`
+// is the block's id, or a fresh one with `fresh` (a redo starts new blocks).
+export const toDraftBlocks = (blocks, { fresh = false } = {}) =>
+  (blocks || []).map((b) => ({ key: fresh || !b.id ? uid() : b.id, exerciseId: b.exerciseId, rows: toDraftRows(b.sets), note: b.note || "" }));
+
+// A draft block for an exercise just added to the form.
+export const newDraftBlock = (exerciseId) => ({ key: uid(), exerciseId, rows: [], note: "" });
+
+// The form's draft blocks -> what's saved, in order: every block (one with
+// no sets still says the exercise was done), its usable sets, and its note
+// trimmed to one line, left out when blank.
+export const fromDraftBlocks = (draft) =>
+  (draft || []).map((b) => {
+    const note = typeof b.note === "string" ? b.note.replace(/\s+/g, " ").trim() : "";
+    return { id: b.key, exerciseId: b.exerciseId, sets: fromDraftRows(b.rows), ...(note ? { note } : {}) };
+  });
+
+// The distinct exercises of some blocks, in first-done order — a session's
+// exerciseIds.
+export const blockExerciseIds = (blocks) => [...new Set((blocks || []).map((b) => b.exerciseId))];
+
+// Whether a draft has anything worth saving besides the text: a set or a
+// note in any block (a session may be saved with no text).
+export const hasLoggedBlocks = (draft) => fromDraftBlocks(draft).some((b) => b.sets.length > 0 || b.note);
+
+// Moves the draft block at `index` by `delta` places (-1 up, +1 down); out of
+// range leaves the list as it is.
+export function moveBlock(draft, index, delta) {
+  const to = index + delta;
+  if (to < 0 || to >= draft.length) return draft;
+  const next = [...draft];
+  [next[index], next[to]] = [next[to], next[index]];
+  return next;
+}
 
 // An empty draft row for a measure, with a distance unit if it has a
 // distance and a time unit if it has a time (the measure's default unless
@@ -223,7 +248,7 @@ export function blankRow(measure, { distanceUnit, timeUnit } = {}) {
 }
 
 // Draft rows with every distance / time switched to `unit` (one of each per
-// exercise per session). Typed times are kept as typed, so a "20" entered
+// block). Typed times are kept as typed, so a "20" entered
 // under the wrong unit is fixed by switching it.
 export const setDistanceUnit = (rows, unit) => (rows || []).map((row) => ("distance" in row ? { ...row, distanceUnit: unit } : row));
 export const setTimeUnit = (rows, unit) => (rows || []).map((row) => ("seconds" in row ? { ...row, timeUnit: unit } : row));
@@ -239,60 +264,26 @@ export function rowFields(row, measure) {
   return SET_FIELDS.filter((f) => fields.has(f));
 }
 
-// The most recent other session that logged sets or a note for
-// `exerciseId`, on or before `onOrBefore` (the date being logged), as
-// { date, sets, note? } (sets may be empty when only a note was left) — or
-// null. Same-day ties go to the one created last.
-export function lastSetsFor(sessions, exerciseId, { excludeId, onOrBefore } = {}) {
+// The most recent other session that logged `exerciseId` with sets or a note,
+// on or before `onOrBefore` (the date being logged), as { date, blocks } —
+// that exercise's blocks in it, in order — or null. Same-day ties go to the
+// one created last.
+export function lastBlocksFor(sessions, exerciseId, { excludeId, onOrBefore } = {}) {
   let best = null;
   sessions.forEach((s) => {
-    const list = (s.sets && s.sets[exerciseId]) || [];
-    const note = exerciseNoteOf(s, exerciseId);
-    if ((list.length === 0 && !note) || s.id === excludeId) return;
+    const blocks = blocksOf(s).filter((b) => b.exerciseId === exerciseId && ((b.sets || []).length > 0 || b.note));
+    if (blocks.length === 0 || s.id === excludeId) return;
     if (onOrBefore && s.date > onOrBefore) return;
     const key = `${s.date}|${s.createdAt || ""}`;
-    if (!best || key > best.key) best = { key, date: s.date, sets: list, note };
+    if (!best || key > best.key) best = { key, date: s.date, blocks };
   });
-  return best && { date: best.date, sets: best.sets, ...(best.note ? { note: best.note } : {}) };
+  return best && { date: best.date, blocks: best.blocks };
 }
 
-// A session's note for one exercise, or "".
-export const exerciseNoteOf = (entry, exerciseId) => {
-  const note = entry && entry.exerciseNotes && entry.exerciseNotes[exerciseId];
-  return typeof note === "string" ? note.trim() : "";
-};
-
-// The form's exercise notes -> what's saved: only exercises still in
-// `exerciseIds`, trimmed, with blank ones dropped.
-export function cleanExerciseNotes(notes, exerciseIds) {
-  const out = {};
-  (exerciseIds || []).forEach((id) => {
-    const note = typeof (notes || {})[id] === "string" ? notes[id].replace(/\s+/g, " ").trim() : "";
-    if (note) out[id] = note;
-  });
-  return out;
-}
-
-// Validates `exerciseNotes` from an imported file: string values only,
-// trimmed, blanks dropped. Undefined when `raw` isn't an object at all.
-export function normalizeExerciseNotes(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
-  const out = {};
-  Object.entries(raw).forEach(([id, note]) => {
-    if (typeof note === "string" && note.trim()) out[id] = note.trim();
-  });
-  return out;
-}
-
-// The exercises a session has sets or a note for, in its exercise order,
-// then any whose link was since removed (so nothing logged is hidden).
-export function loggedExerciseIds(entry) {
-  const linked = entry.exerciseIds || [];
-  const sets = entry.sets || {};
-  const notes = entry.exerciseNotes || {};
-  const extra = [...Object.keys(sets), ...Object.keys(notes)].filter((id, i, all) => !linked.includes(id) && all.indexOf(id) === i);
-  return [...linked, ...extra].filter((id) => (sets[id] || []).length > 0 || exerciseNoteOf(entry, id));
-}
+// Of last time's blocks for an exercise, the one to compare the `occurrence`th
+// (0-based) block of it with now: the same occurrence if there was one, else
+// the last. So a second round of squats lines up with last session's second.
+export const matchingBlock = (lastBlocks, occurrence) => (lastBlocks.length === 0 ? null : lastBlocks[Math.min(occurrence, lastBlocks.length - 1)]);
 
 const trimNumber = (n) => String(Math.round(n * 100) / 100);
 
@@ -334,28 +325,33 @@ export function formatSets(sets) {
     .join(", ");
 }
 
-// Validates `sets` from an imported file: keeps only arrays of plain objects,
-// and within each set only positive numeric fields plus string units.
-// Returns undefined when `raw` isn't an object at all, so the field is left out.
-export function normalizeSets(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
-  const out = {};
-  Object.entries(raw).forEach(([exerciseId, list]) => {
-    if (!Array.isArray(list)) return;
-    const clean = list
-      .filter((s) => s && typeof s === "object")
-      .map((s) => {
-        const set = {};
-        SET_FIELDS.forEach((f) => {
-          if (typeof s[f] === "number" && s[f] > 0) set[f] = s[f];
-        });
-        if ("weight" in set) set.weightUnit = typeof s.weightUnit === "string" ? s.weightUnit : WEIGHT_UNIT;
-        if ("distance" in set) set.distanceUnit = typeof s.distanceUnit === "string" ? s.distanceUnit : DISTANCE_UNIT;
-        if ("seconds" in set && TIME_UNITS.includes(s.timeUnit)) set.timeUnit = s.timeUnit;
-        return set;
-      })
-      .filter((s) => Object.keys(s).length > 0);
-    if (clean.length > 0) out[exerciseId] = clean;
-  });
-  return out;
+// Validates one block's `sets` from an imported file: plain objects only, and
+// within each set only positive numeric fields plus string units.
+function normalizeSetList(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((s) => s && typeof s === "object")
+    .map((s) => {
+      const set = {};
+      SET_FIELDS.forEach((f) => {
+        if (typeof s[f] === "number" && s[f] > 0) set[f] = s[f];
+      });
+      if ("weight" in set) set.weightUnit = typeof s.weightUnit === "string" ? s.weightUnit : WEIGHT_UNIT;
+      if ("distance" in set) set.distanceUnit = typeof s.distanceUnit === "string" ? s.distanceUnit : DISTANCE_UNIT;
+      if ("seconds" in set && TIME_UNITS.includes(s.timeUnit)) set.timeUnit = s.timeUnit;
+      return set;
+    })
+    .filter((s) => Object.keys(s).length > 0);
+}
+
+// Validates `blocks` from an imported file: blocks need a string exerciseId;
+// each gets an id if it has none, its sets validated and its note trimmed.
+// Returns undefined when `raw` isn't a list at all, so the field is left out.
+export function normalizeBlocks(raw) {
+  if (!Array.isArray(raw)) return undefined;
+  return raw
+    .filter((b) => b && typeof b === "object" && typeof b.exerciseId === "string" && b.exerciseId)
+    .map((b) => {
+      const note = typeof b.note === "string" ? b.note.trim() : "";
+      return { id: typeof b.id === "string" && b.id ? b.id : uid(), exerciseId: b.exerciseId, sets: normalizeSetList(b.sets), ...(note ? { note } : {}) };
+    });
 }

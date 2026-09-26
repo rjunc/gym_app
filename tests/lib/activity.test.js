@@ -97,12 +97,13 @@ test("redoFields carries routineIds when the source entry has them, as an indepe
   assert.equal("routineIds" in redoFields({ tags: [] }, "2026-09-21"), false);
 });
 
-test("redoFields copies sets as an independent deep copy", () => {
-  const entry = { id: "s1", date: "2026-08-01", tags: [], text: "", sets: { e1: [{ weight: 225, weightUnit: "lb", reps: 5 }] } };
+test("redoFields copies blocks as an independent deep copy", () => {
+  const entry = { id: "s1", date: "2026-08-01", tags: [], text: "", blocks: [{ id: "b1", exerciseId: "e1", sets: [{ weight: 225, weightUnit: "lb", reps: 5 }] }] };
   const out = redoFields(entry, "2026-09-21");
-  assert.deepEqual(out.sets, entry.sets);
-  out.sets.e1[0].reps = 3;
-  out.sets.e1.push({ reps: 1 });
-  assert.deepEqual(entry.sets.e1, [{ weight: 225, weightUnit: "lb", reps: 5 }]);
-  assert.equal("sets" in redoFields({ tags: [] }, "2026-09-21"), false);
+  assert.deepEqual(out.blocks, entry.blocks);
+  out.blocks[0].sets[0].reps = 3;
+  out.blocks[0].sets.push({ reps: 1 });
+  out.blocks.push({ id: "b2", exerciseId: "e2", sets: [] });
+  assert.deepEqual(entry.blocks, [{ id: "b1", exerciseId: "e1", sets: [{ weight: 225, weightUnit: "lb", reps: 5 }] }]);
+  assert.equal("blocks" in redoFields({ tags: [] }, "2026-09-21"), false);
 });

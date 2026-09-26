@@ -3,15 +3,22 @@ import assert from "node:assert/strict";
 import {
   parseDuration,
   formatDuration,
-  toDraftSets,
-  fromDraftSets,
-  hasLoggedSets,
+  toDraftRows,
+  fromDraftRows,
+  toDraftBlocks,
+  fromDraftBlocks,
+  newDraftBlock,
+  blockExerciseIds,
+  hasLoggedBlocks,
+  moveBlock,
+  blocksOf,
   blankRow,
   rowFields,
-  lastSetsFor,
+  lastBlocksFor,
+  matchingBlock,
   formatSet,
   formatSets,
-  normalizeSets,
+  normalizeBlocks,
   measureOf,
   measureOfSets,
   resolveMeasure,
@@ -21,13 +28,10 @@ import {
   timeUnitOfSets,
   setTimeUnit,
   defaultTimeUnit,
-  cleanExerciseNotes,
-  normalizeExerciseNotes,
-  loggedExerciseIds,
-  exerciseNoteOf,
 } from "../../src/lib/sets.js";
 
 const lb = (weight, reps) => ({ weight, weightUnit: "lb", reps });
+const block = (id, exerciseId, sets = [], note) => ({ id, exerciseId, sets, ...(note ? { note } : {}) });
 
 test("parseDuration reads seconds, m:ss and h:mm:ss", () => {
   assert.equal(parseDuration("90"), 90);
@@ -46,40 +50,133 @@ test("formatDuration pads minutes/seconds and adds hours only when needed", () =
   assert.equal(formatDuration(3725), "1:02:05");
 });
 
-test("fromDraftSets turns text into numbers with units, and drops blank or junk rows", () => {
-  const draft = {
-    e1: [{ weight: "225", reps: "5" }, { weight: "", reps: "" }, { weight: "abc", reps: "x" }],
-    e2: [{ seconds: "1:00" }],
-    e3: [{ distance: "3.1", seconds: "28:00" }],
-    e4: [{ reps: "12.4" }],
-  };
-  assert.deepEqual(fromDraftSets(draft, ["e1", "e2", "e3", "e4"]), {
-    e1: [lb(225, 5)],
-    e2: [{ seconds: 60 }],
-    e3: [{ distance: 3.1, distanceUnit: "mi", seconds: 1680 }],
-    e4: [{ reps: 12 }],
-  });
+test("fromDraftRows turns text into numbers with units, and drops blank or junk rows", () => {
+  assert.deepEqual(fromDraftRows([{ weight: "225", reps: "5" }, { weight: "", reps: "" }, { weight: "abc", reps: "x" }]), [lb(225, 5)]);
+  assert.deepEqual(fromDraftRows([{ seconds: "1:00" }]), [{ seconds: 60 }]);
+  assert.deepEqual(fromDraftRows([{ distance: "3.1", seconds: "28:00" }]), [{ distance: 3.1, distanceUnit: "mi", seconds: 1680 }]);
+  assert.deepEqual(fromDraftRows([{ reps: "12.4" }]), [{ reps: 12 }]);
+  assert.deepEqual(fromDraftRows(undefined), []);
 });
 
-test("fromDraftSets keeps only exercises still linked, and leaves out ones with no usable rows", () => {
-  const draft = { e1: [{ weight: "100", reps: "5" }], removed: [{ reps: "10" }], empty: [{ reps: "" }] };
-  assert.deepEqual(fromDraftSets(draft, ["e1", "empty"]), { e1: [lb(100, 5)] });
-  assert.deepEqual(fromDraftSets(undefined, ["e1"]), {});
+test("toDraftRows -> fromDraftRows round trips", () => {
+  const stored = [lb(225, 5), lb(227.5, 3), { seconds: 3725 }, { distance: 5, distanceUnit: "mi" }];
+  const draft = toDraftRows(stored);
+  assert.deepEqual(draft[1], { weight: "227.5", reps: "3" });
+  assert.deepEqual(draft[2], { seconds: "1:02:05" });
+  assert.deepEqual(fromDraftRows(draft), stored);
 });
 
-test("toDraftSets -> fromDraftSets round trips", () => {
-  const stored = { e1: [lb(225, 5), lb(227.5, 3)], e2: [{ seconds: 3725 }], e3: [{ distance: 5, distanceUnit: "mi" }] };
-  const draft = toDraftSets(stored);
-  assert.deepEqual(draft.e1[1], { weight: "227.5", reps: "3" });
-  assert.deepEqual(draft.e2[0], { seconds: "1:02:05" });
-  assert.deepEqual(fromDraftSets(draft, ["e1", "e2", "e3"]), stored);
+/* =================================== blocks =================================== */
+
+test("draft blocks round trip, keeping order, repeats, ids and notes", () => {
+  const stored = [block("b1", "squat", [lb(225, 5)]), block("b2", "pullup", [{ reps: 8 }], "strict"), block("b3", "squat", [lb(185, 8)], "back-off")];
+  const draft = toDraftBlocks(stored);
+  assert.deepEqual(
+    draft.map((b) => [b.key, b.exerciseId, b.note]),
+    [
+      ["b1", "squat", ""],
+      ["b2", "pullup", "strict"],
+      ["b3", "squat", "back-off"],
+    ]
+  );
+  assert.deepEqual(fromDraftBlocks(draft), stored);
 });
 
-test("hasLoggedSets is true only when something would actually be saved", () => {
-  assert.equal(hasLoggedSets({ e1: [{ reps: "" }] }, ["e1"]), false);
-  assert.equal(hasLoggedSets({ e1: [{ reps: "5" }] }, ["e1"]), true);
-  assert.equal(hasLoggedSets({ e1: [{ reps: "5" }] }, []), false);
+test("fromDraftBlocks keeps a block with no sets, drops junk rows, and trims the note to one line", () => {
+  const draft = [
+    { key: "k1", exerciseId: "e1", rows: [{ reps: "" }], note: "  " },
+    { key: "k2", exerciseId: "e2", rows: [{ reps: "5" }, { reps: "x" }], note: " two\nlines " },
+  ];
+  assert.deepEqual(fromDraftBlocks(draft), [block("k1", "e1"), block("k2", "e2", [{ reps: 5 }], "two lines")]);
+  assert.deepEqual(fromDraftBlocks(undefined), []);
 });
+
+test("a redo's draft blocks get fresh keys; a new block has one of its own", () => {
+  const draft = toDraftBlocks([block("b1", "e1", [{ reps: 5 }])], { fresh: true });
+  assert.notEqual(draft[0].key, "b1");
+  const added = newDraftBlock("e2");
+  assert.deepEqual({ ...added, key: "" }, { key: "", exerciseId: "e2", rows: [], note: "" });
+  assert.ok(added.key);
+});
+
+test("blockExerciseIds lists each exercise once, in the order first done", () => {
+  assert.deepEqual(blockExerciseIds([block("1", "squat"), block("2", "pullup"), block("3", "squat")]), ["squat", "pullup"]);
+  assert.deepEqual(blockExerciseIds(undefined), []);
+});
+
+test("hasLoggedBlocks is true only when a set or a note would actually be saved", () => {
+  assert.equal(hasLoggedBlocks([{ key: "k", exerciseId: "e1", rows: [{ reps: "" }], note: "" }]), false);
+  assert.equal(hasLoggedBlocks([{ key: "k", exerciseId: "e1", rows: [{ reps: "5" }], note: "" }]), true);
+  assert.equal(hasLoggedBlocks([{ key: "k", exerciseId: "e1", rows: [], note: "skipped" }]), true);
+  assert.equal(hasLoggedBlocks([]), false);
+});
+
+test("moveBlock swaps with a neighbour, and leaves the ends alone", () => {
+  const list = ["a", "b", "c"];
+  assert.deepEqual(moveBlock(list, 1, -1), ["b", "a", "c"]);
+  assert.deepEqual(moveBlock(list, 1, 1), ["a", "c", "b"]);
+  assert.equal(moveBlock(list, 0, -1), list);
+  assert.equal(moveBlock(list, 2, 1), list);
+  assert.deepEqual(list, ["a", "b", "c"]);
+});
+
+test("blocksOf is a session's blocks, or none", () => {
+  assert.deepEqual(blocksOf({ blocks: [block("1", "e1")] }), [block("1", "e1")]);
+  assert.deepEqual(blocksOf({ exerciseIds: ["e1"] }), []);
+  assert.deepEqual(blocksOf(undefined), []);
+});
+
+test("lastBlocksFor finds the most recent other session that logged the exercise, not after the given date, with all its blocks of it", () => {
+  const sessions = [
+    { id: "a", date: "2026-09-01", blocks: [block("1", "e1", [lb(200, 5)])] },
+    { id: "b", date: "2026-09-10", blocks: [block("1", "e1", [lb(215, 5)])] },
+    { id: "c", date: "2026-09-10", createdAt: "2026-09-10T20:00:00.000Z", blocks: [block("1", "e1", [lb(220, 5)]), block("2", "e2"), block("3", "e1", [lb(185, 8)])] },
+    { id: "d", date: "2026-09-20", blocks: [block("1", "e2", [{ reps: 10 }]), block("2", "e1")] },
+    { id: "future", date: "2026-10-01", blocks: [block("1", "e1", [lb(300, 1)])] },
+  ];
+  const last = lastBlocksFor(sessions, "e1", { onOrBefore: "2026-09-25" });
+  assert.equal(last.date, "2026-09-10");
+  assert.deepEqual(last.blocks.map((b) => b.sets), [[lb(220, 5)], [lb(185, 8)]]);
+  assert.deepEqual(lastBlocksFor(sessions, "e1", { excludeId: "c", onOrBefore: "2026-09-25" }).blocks[0].sets, [lb(215, 5)]);
+  assert.equal(lastBlocksFor(sessions, "e9", {}), null);
+});
+
+test("lastBlocksFor counts a block with only a note", () => {
+  const sessions = [
+    { id: "a", date: "2026-09-01", blocks: [block("1", "e1", [lb(200, 5)], "easy")] },
+    { id: "b", date: "2026-09-10", blocks: [block("1", "e1", [], "skipped, shoulder")] },
+  ];
+  assert.deepEqual(lastBlocksFor(sessions, "e1", {}).blocks, [block("1", "e1", [], "skipped, shoulder")]);
+});
+
+test("matchingBlock lines up the same round, else the last one", () => {
+  const blocks = ["first", "second"];
+  assert.equal(matchingBlock(blocks, 0), "first");
+  assert.equal(matchingBlock(blocks, 1), "second");
+  assert.equal(matchingBlock(blocks, 4), "second");
+  assert.equal(matchingBlock([], 0), null);
+});
+
+test("normalizeBlocks keeps valid blocks and sets, and drops anything else", () => {
+  const raw = [
+    { id: "b1", exerciseId: "e1", sets: [{ weight: 225, reps: 5, junk: "x" }, { weight: -1 }, null, "set"], note: "  go up  " },
+    { exerciseId: "e2", sets: "not a list" },
+    { id: "b3", sets: [] },
+    null,
+    { id: "b4", exerciseId: "e3", sets: [{ distance: 2, distanceUnit: "km" }, { seconds: 1200, timeUnit: "min", level: 7 }, { seconds: 5, timeUnit: "hours" }] },
+  ];
+  const out = normalizeBlocks(raw);
+  assert.deepEqual(out[0], block("b1", "e1", [lb(225, 5)], "go up"));
+  assert.equal(out[1].exerciseId, "e2");
+  assert.ok(out[1].id);
+  assert.deepEqual(out[1].sets, []);
+  assert.deepEqual(out[2], block("b4", "e3", [{ distance: 2, distanceUnit: "km" }, { seconds: 1200, timeUnit: "min", level: 7 }, { seconds: 5 }]));
+  assert.equal(out.length, 3);
+  assert.equal(normalizeBlocks(null), undefined);
+  assert.equal(normalizeBlocks({ e1: [] }), undefined);
+});
+
+/* ============================= measures and rows ============================= */
 
 test("blankRow and rowFields follow the measure, and never hide a field that has a value", () => {
   assert.deepEqual(blankRow("weight_reps"), { weight: "", reps: "" });
@@ -108,7 +205,7 @@ test("measureOfSets reads how sets were logged, from stored numbers or draft str
   assert.equal(measureOfSets(undefined), null);
 });
 
-test("resolveMeasure: picked on the session, then the rows, then last time, then the exercise's old measure", () => {
+test("resolveMeasure: picked on the block, then its rows, then last time, then the exercise's old measure", () => {
   const rows = [{ reps: "8" }];
   const lastSets = [lb(25, 6)];
   assert.equal(resolveMeasure({ chosen: "time", rows, lastSets, exercise: { measure: "distance" } }), "time");
@@ -122,19 +219,6 @@ test("switchMeasure keeps only the new measure's fields, carrying shared values 
   assert.deepEqual(switchMeasure([{ weight: "25", reps: "6" }], "reps"), [{ reps: "6" }]);
   assert.deepEqual(switchMeasure([{ reps: "8" }], "weight_reps"), [{ weight: "", reps: "8" }]);
   assert.deepEqual(switchMeasure([], "time"), []);
-});
-
-test("lastSetsFor finds the most recent other session that logged the exercise, not after the given date", () => {
-  const sessions = [
-    { id: "a", date: "2026-09-01", sets: { e1: [lb(200, 5)] } },
-    { id: "b", date: "2026-09-10", sets: { e1: [lb(215, 5)] } },
-    { id: "c", date: "2026-09-10", createdAt: "2026-09-10T20:00:00.000Z", sets: { e1: [lb(220, 5)] } },
-    { id: "d", date: "2026-09-20", sets: { e2: [{ reps: 10 }] } },
-    { id: "future", date: "2026-10-01", sets: { e1: [lb(300, 1)] } },
-  ];
-  assert.deepEqual(lastSetsFor(sessions, "e1", { onOrBefore: "2026-09-25" }), { date: "2026-09-10", sets: [lb(220, 5)] });
-  assert.deepEqual(lastSetsFor(sessions, "e1", { excludeId: "c", onOrBefore: "2026-09-25" }).sets, [lb(215, 5)]);
-  assert.equal(lastSetsFor(sessions, "e9", {}), null);
 });
 
 test("formatSet describes each kind of set", () => {
@@ -151,17 +235,6 @@ test("formatSets groups runs of identical sets", () => {
   assert.equal(formatSets([{ reps: 10 }, { reps: 10 }, { reps: 8 }]), "2×10, 8 reps");
   assert.equal(formatSets([{ seconds: 60 }, { seconds: 60 }]), "2 × 1:00");
   assert.equal(formatSets([]), "");
-});
-
-test("normalizeSets keeps valid numeric sets and drops anything else", () => {
-  const raw = {
-    e1: [{ weight: 225, reps: 5, junk: "x" }, { weight: -1 }, null, "set"],
-    e2: "not a list",
-    e3: [{ distance: 2, distanceUnit: "km" }],
-  };
-  assert.deepEqual(normalizeSets(raw), { e1: [lb(225, 5)], e3: [{ distance: 2, distanceUnit: "km" }] });
-  assert.equal(normalizeSets(null), undefined);
-  assert.equal(normalizeSets([1, 2]), undefined);
 });
 
 /* ======================= weight/reps × time, carries, units ======================= */
@@ -187,10 +260,10 @@ test("distance units: blank rows get one, switching sets every row, and it's sav
   const rows = [{ weight: "50", distance: "40", distanceUnit: "m" }, { weight: "50", distance: "40", distanceUnit: "m" }];
   assert.deepEqual(setDistanceUnit(rows, "yd").map((r) => r.distanceUnit), ["yd", "yd"]);
   assert.deepEqual(setDistanceUnit([{ reps: "5" }], "yd"), [{ reps: "5" }]);
-  const saved = fromDraftSets({ e1: setDistanceUnit(rows, "yd") }, ["e1"]);
-  assert.deepEqual(saved.e1[0], { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "yd" });
-  assert.deepEqual(toDraftSets(saved).e1[0], { weight: "50", distance: "40", distanceUnit: "yd" });
-  assert.equal(distanceUnitOfSets(saved.e1), "yd");
+  const saved = fromDraftRows(setDistanceUnit(rows, "yd"));
+  assert.deepEqual(saved[0], { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "yd" });
+  assert.deepEqual(toDraftRows(saved)[0], { weight: "50", distance: "40", distanceUnit: "yd" });
+  assert.equal(distanceUnitOfSets(saved), "yd");
   assert.equal(distanceUnitOfSets([{ reps: 5 }]), null);
 });
 
@@ -210,10 +283,9 @@ test("time @ level: read back, worded, saved and restored", () => {
   assert.equal(formatSet({ seconds: 1200, level: 7 }), "20:00 @ level 7");
   assert.equal(formatSet({ level: 7.5 }), "level 7.5");
   assert.equal(formatSets([{ seconds: 600, level: 7 }, { seconds: 600, level: 7 }, { seconds: 600, level: 8 }]), "2 × 10:00 @ level 7, 10:00 @ level 8");
-  const saved = fromDraftSets({ e1: [{ seconds: "20:00", level: "7.5" }] }, ["e1"]);
-  assert.deepEqual(saved, { e1: [{ seconds: 1200, level: 7.5 }] });
-  assert.deepEqual(toDraftSets(saved).e1[0], { seconds: "20:00", level: "7.5" });
-  assert.deepEqual(normalizeSets({ e1: [{ seconds: 1200, level: 7 }] }), { e1: [{ seconds: 1200, level: 7 }] });
+  const saved = fromDraftRows([{ seconds: "20:00", level: "7.5" }]);
+  assert.deepEqual(saved, [{ seconds: 1200, level: 7.5 }]);
+  assert.deepEqual(toDraftRows(saved)[0], { seconds: "20:00", level: "7.5" });
 });
 
 /* ================================= min / sec ================================= */
@@ -237,68 +309,36 @@ test("cardio defaults to minutes, holds and short efforts to seconds", () => {
 });
 
 test("time unit: saved with the set, read back as typed, and remembered", () => {
-  const saved = fromDraftSets({ e1: [{ seconds: "20", level: "7", timeUnit: "min" }], e2: [{ seconds: "45", timeUnit: "sec" }] }, ["e1", "e2"]);
-  assert.deepEqual(saved, { e1: [{ seconds: 1200, timeUnit: "min", level: 7 }], e2: [{ seconds: 45, timeUnit: "sec" }] });
-  const draft = toDraftSets(saved);
-  assert.deepEqual(draft.e1[0], { seconds: "20", level: "7", timeUnit: "min" });
-  assert.deepEqual(draft.e2[0], { seconds: "45", timeUnit: "sec" });
-  assert.equal(toDraftSets({ e1: [{ seconds: 1230, timeUnit: "min" }] }).e1[0].seconds, "20:30");
-  assert.equal(timeUnitOfSets(saved.e1), "min");
+  const minutes = fromDraftRows([{ seconds: "20", level: "7", timeUnit: "min" }]);
+  const seconds = fromDraftRows([{ seconds: "45", timeUnit: "sec" }]);
+  assert.deepEqual(minutes, [{ seconds: 1200, timeUnit: "min", level: 7 }]);
+  assert.deepEqual(seconds, [{ seconds: 45, timeUnit: "sec" }]);
+  assert.deepEqual(toDraftRows(minutes)[0], { seconds: "20", level: "7", timeUnit: "min" });
+  assert.deepEqual(toDraftRows(seconds)[0], { seconds: "45", timeUnit: "sec" });
+  assert.equal(toDraftRows([{ seconds: 1230, timeUnit: "min" }])[0].seconds, "20:30");
+  assert.equal(timeUnitOfSets(minutes), "min");
   assert.equal(timeUnitOfSets([{ seconds: 60 }]), null);
-  assert.equal(formatSet(saved.e1[0]), "20:00 @ level 7");
-  assert.deepEqual(normalizeSets({ e1: [{ seconds: 1200, timeUnit: "min" }, { seconds: 5, timeUnit: "hours" }] }), { e1: [{ seconds: 1200, timeUnit: "min" }, { seconds: 5 }] });
+  assert.equal(formatSet(minutes[0]), "20:00 @ level 7");
 });
 
 test("switching the time unit keeps what was typed, so a wrong-unit 20 is fixed in one tap", () => {
   const rows = setTimeUnit([{ seconds: "20", level: "7", timeUnit: "sec" }, { reps: "5" }], "min");
   assert.deepEqual(rows, [{ seconds: "20", level: "7", timeUnit: "min" }, { reps: "5" }]);
-  assert.deepEqual(fromDraftSets({ e1: rows }, ["e1"]).e1[0], { seconds: 1200, timeUnit: "min", level: 7 });
+  assert.deepEqual(fromDraftRows(rows)[0], { seconds: 1200, timeUnit: "min", level: 7 });
 });
 
-test("sets logged before time units still read and save as seconds", () => {
-  const draft = toDraftSets({ e1: [{ seconds: 90 }] });
-  assert.deepEqual(draft.e1[0], { seconds: "1:30" });
-  assert.deepEqual(fromDraftSets(draft, ["e1"]), { e1: [{ seconds: 90 }] });
-  // An old stairmaster "20" that saved as 0:20 opens as "20", so switching to min fixes it.
-  const old = toDraftSets({ e1: [{ seconds: 20, level: 7 }] });
-  assert.deepEqual(old.e1[0], { seconds: "20", level: "7" });
-  assert.equal(fromDraftSets({ e1: setTimeUnit(old.e1, "min") }, ["e1"]).e1[0].seconds, 1200);
+test("sets saved without a time unit read and save as seconds", () => {
+  const draft = toDraftRows([{ seconds: 90 }]);
+  assert.deepEqual(draft[0], { seconds: "1:30" });
+  assert.deepEqual(fromDraftRows(draft), [{ seconds: 90 }]);
+  // A "20" that saved as 0:20 opens as "20", so switching to min fixes it.
+  const old = toDraftRows([{ seconds: 20, level: 7 }]);
+  assert.deepEqual(old[0], { seconds: "20", level: "7" });
+  assert.equal(fromDraftRows(setTimeUnit(old, "min"))[0].seconds, 1200);
 });
 
 test("a comma works as the decimal point (iPhone number pad in some regions)", () => {
   assert.equal(parseDuration("20,5", "min"), 1230);
-  assert.deepEqual(fromDraftSets({ e1: [{ weight: "22,5", reps: "5" }], e2: [{ seconds: "10", level: "7,5", timeUnit: "min" }] }, ["e1", "e2"]), {
-    e1: [{ weight: 22.5, weightUnit: "lb", reps: 5 }],
-    e2: [{ seconds: 600, timeUnit: "min", level: 7.5 }],
-  });
-});
-
-/* =============================== exercise notes =============================== */
-
-test("cleanExerciseNotes keeps trimmed notes for linked exercises only", () => {
-  assert.deepEqual(cleanExerciseNotes({ e1: "  last set AMRAP ", e2: "   ", e3: "gone" }, ["e1", "e2"]), { e1: "last set AMRAP" });
-  assert.deepEqual(cleanExerciseNotes({ e1: "two\nlines" }, ["e1"]), { e1: "two lines" });
-  assert.deepEqual(cleanExerciseNotes(undefined, ["e1"]), {});
-});
-
-test("normalizeExerciseNotes keeps only non-blank strings", () => {
-  assert.deepEqual(normalizeExerciseNotes({ e1: " go up ", e2: 5, e3: "" }), { e1: "go up" });
-  assert.equal(normalizeExerciseNotes("nope"), undefined);
-  assert.equal(normalizeExerciseNotes([]), undefined);
-});
-
-test("lastSetsFor carries the note, and counts a session with only a note", () => {
-  const sessions = [
-    { id: "a", date: "2026-09-01", sets: { e1: [lb(200, 5)] }, exerciseNotes: { e1: "easy" } },
-    { id: "b", date: "2026-09-10", exerciseNotes: { e1: "skipped, shoulder" } },
-  ];
-  assert.deepEqual(lastSetsFor(sessions, "e1", { onOrBefore: "2026-09-25" }), { date: "2026-09-10", sets: [], note: "skipped, shoulder" });
-  assert.deepEqual(lastSetsFor(sessions, "e1", { excludeId: "b" }), { date: "2026-09-01", sets: [lb(200, 5)], note: "easy" });
-});
-
-test("loggedExerciseIds lists exercises with sets or a note, linked ones first", () => {
-  const entry = { exerciseIds: ["e1", "e2", "e3"], sets: { e1: [lb(1, 1)], e9: [{ reps: 3 }] }, exerciseNotes: { e3: "note", e8: "unlinked note" } };
-  assert.deepEqual(loggedExerciseIds(entry), ["e1", "e3", "e9", "e8"]);
-  assert.deepEqual(exerciseNoteOf(entry, "e3"), "note");
-  assert.deepEqual(exerciseNoteOf(entry, "e1"), "");
+  assert.deepEqual(fromDraftRows([{ weight: "22,5", reps: "5" }]), [{ weight: 22.5, weightUnit: "lb", reps: 5 }]);
+  assert.deepEqual(fromDraftRows([{ seconds: "10", level: "7,5", timeUnit: "min" }]), [{ seconds: 600, timeUnit: "min", level: 7.5 }]);
 });

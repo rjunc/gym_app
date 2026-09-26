@@ -42,9 +42,10 @@ export function monthCells(year, month, weekStart = 0) {
 
 // The fields for redoing an entry: a copy of its title, tags and text, dated
 // today. Tags are copied so editing the draft can't touch the original.
-// exerciseIds, routineIds and sets are only carried over when the source
+// exerciseIds, routineIds and blocks are only carried over when the source
 // entry actually has them (rolls never do), so redoing a roll doesn't grow
-// any. Sets are copied too, so redoing a workout starts from its numbers.
+// any. Blocks are copied too (sets and all), so redoing a workout starts from
+// its numbers.
 export const redoFields = (entry, today) => ({
   date: today,
   title: entry.title || "",
@@ -52,9 +53,7 @@ export const redoFields = (entry, today) => ({
   text: entry.text || "",
   ...(Array.isArray(entry.exerciseIds) ? { exerciseIds: [...entry.exerciseIds] } : {}),
   ...(Array.isArray(entry.routineIds) ? { routineIds: [...entry.routineIds] } : {}),
-  ...(entry.sets && typeof entry.sets === "object"
-    ? { sets: Object.fromEntries(Object.entries(entry.sets).map(([id, list]) => [id, (list || []).map((s) => ({ ...s }))])) }
-    : {}),
+  ...(Array.isArray(entry.blocks) ? { blocks: entry.blocks.map((b) => ({ ...b, sets: (b.sets || []).map((s) => ({ ...s })) })) } : {}),
 });
 
 // Shifts a { year, month } pair by `delta` months, rolling the year over.

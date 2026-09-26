@@ -37,7 +37,7 @@ export default function HistorySheet({ header, sessions, journals, detail, empty
             {onBack && <BackButton onBack={onBack} />}
             {header}
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", flexShrink: 0 }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", flexShrink: 0 }}>
             <X size={18} />
           </button>
         </div>

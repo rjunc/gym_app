@@ -477,7 +477,7 @@ test("parseImportFile: records without timestamps don't gain them, and non-strin
   });
 });
 
-/* ============================== sets & measure ============================== */
+/* ============================== blocks & measure ============================== */
 
 const loggedSession = {
   id: "s9",
@@ -486,41 +486,34 @@ const loggedSession = {
   tags: [],
   text: "",
   exerciseIds: ["e1", "e2"],
-  sets: {
-    e1: [{ weight: 225, weightUnit: "lb", reps: 5 }, { weight: 225, weightUnit: "lb", reps: 5 }],
-    e2: [{ seconds: 60 }],
-  },
+  blocks: [
+    { id: "b1", exerciseId: "e1", sets: [{ weight: 225, weightUnit: "lb", reps: 5 }, { weight: 225, weightUnit: "lb", reps: 5 }] },
+    { id: "b2", exerciseId: "e2", sets: [{ seconds: 60 }], note: "last set AMRAP" },
+    { id: "b3", exerciseId: "e1", sets: [{ weight: 185, weightUnit: "lb", reps: 8 }] },
+    { id: "b4", exerciseId: "e2", sets: [] },
+  ],
 };
 
-test("parseImportFile: JSON round trip preserves sets exactly", () => {
+test("parseImportFile: JSON round trip preserves blocks exactly, in order", () => {
   const json = JSON.stringify({ sessions: [loggedSession], exercises });
-  assert.deepEqual(parseImportFile("export.json", json, [], []).sessions[0].sets, loggedSession.sets);
+  assert.deepEqual(parseImportFile("export.json", json, [], []).sessions[0].blocks, loggedSession.blocks);
 });
 
-test("parseImportFile: an entry without sets doesn't gain them, and an unknown measure is dropped", () => {
+test("parseImportFile: an entry without blocks doesn't gain them, and an unknown measure is dropped", () => {
   const json = JSON.stringify({ sessions: [{ id: "s1", tags: [], text: "a" }], exercises: [{ id: "e1", name: "X", tags: [], measure: "juggling" }] });
   const result = parseImportFile("export.json", json, [], []);
-  assert.equal("sets" in result.sessions[0], false);
+  assert.equal("blocks" in result.sessions[0], false);
   assert.equal("measure" in result.exercises[0], false);
 });
 
-test("CSV lists a session's sets for reading, but import doesn't reconstruct them", () => {
+test("CSV lists a session's blocks in order for reading, but import doesn't reconstruct them", () => {
   const csv = combinedToCSV([loggedSession], [], [], [], [], [], [], exercises);
   const sessionLine = csv.split(/\r?\n/).find((line) => line.startsWith("session,"));
-  assert.ok(sessionLine.endsWith("Goblet squat: 2×5 @ 225 lb; Retired stretch: 1:00"));
-  assert.equal("sets" in combinedFromCSV(csv, [], []).sessions[0], false);
+  assert.ok(sessionLine.endsWith("Goblet squat: 2×5 @ 225 lb; Retired stretch: 1:00 (last set AMRAP); Goblet squat: 185 lb × 8"));
+  assert.equal("blocks" in combinedFromCSV(csv, [], []).sessions[0], false);
 });
 
 test("CSV without a measure column imports exercises without one", () => {
   const csv = "type,id,name,tags\nexercise,e1,Squat,";
   assert.equal("measure" in combinedFromCSV(csv, [], []).exercises[0], false);
-});
-
-test("exercise notes round-trip through JSON and show in the CSV sets column", () => {
-  const session = { ...loggedSession, exerciseNotes: { e1: "last set AMRAP", e2: "  " } };
-  const json = JSON.stringify({ sessions: [session], exercises });
-  assert.deepEqual(parseImportFile("export.json", json, [], []).sessions[0].exerciseNotes, { e1: "last set AMRAP" });
-  const csv = combinedToCSV([session], [], [], [], [], [], [], exercises);
-  const sessionLine = csv.split(/\r?\n/).find((line) => line.startsWith("session,"));
-  assert.ok(sessionLine.endsWith("Goblet squat: 2×5 @ 225 lb (last set AMRAP); Retired stretch: 1:00"));
 });

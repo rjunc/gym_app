@@ -1,14 +1,14 @@
 import { uid, todayISO } from "./id.js";
 import { normalizeTags } from "./combinedCsv.js";
 import { importedTimestamps } from "./records.js";
-import { normalizeSets, normalizeExerciseNotes, MEASURES } from "./sets.js";
+import { normalizeBlocks, MEASURES } from "./sets.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
 // Sessions and journals carry exerciseIds and routineIds (rolls don't); they
 // round-trip for any of the three if present, same as everything else here.
-// Sessions also carry per-set numbers (sets) and per-exercise notes
-// (exerciseNotes), validated by normalizeSets / normalizeExerciseNotes.
+// Sessions also carry what was done in order (blocks: exercise, sets, note),
+// validated by normalizeBlocks.
 // Every normalizer below keeps createdAt/updatedAt when the record has them.
 export function normalizeSimpleEntries(arr) {
   return Array.isArray(arr)
@@ -20,8 +20,7 @@ export function normalizeSimpleEntries(arr) {
         text: s.text || "",
         ...(Array.isArray(s.exerciseIds) ? { exerciseIds: s.exerciseIds.filter((id) => typeof id === "string") } : {}),
         ...(Array.isArray(s.routineIds) ? { routineIds: s.routineIds.filter((id) => typeof id === "string") } : {}),
-        ...(normalizeSets(s.sets) ? { sets: normalizeSets(s.sets) } : {}),
-        ...(normalizeExerciseNotes(s.exerciseNotes) ? { exerciseNotes: normalizeExerciseNotes(s.exerciseNotes) } : {}),
+        ...(normalizeBlocks(s.blocks) ? { blocks: normalizeBlocks(s.blocks) } : {}),
         ...importedTimestamps(s),
       }))
     : [];

@@ -1,4 +1,4 @@
-import { formatSets, exerciseNoteOf } from "../lib/sets.js";
+import { formatSets, blocksOf } from "../lib/sets.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { SheetLink } from "../ui/SheetNav.jsx";
@@ -20,16 +20,18 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
       onBack={onBack}
       onClose={onClose}
       emptyLabel="Not used in any sessions or journal entries yet."
-      detail={(entry, entryAccent) => {
-        const list = (entry.sets && entry.sets[exercise.id]) || [];
-        const note = exerciseNoteOf(entry, exercise.id);
-        return (
-          <>
-            {list.length > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})`, marginTop: 4 }}>{formatSets(list)}</div>}
-            {note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 2 }}>{note}</div>}
-          </>
-        );
-      }}
+      // Every block of this exercise in the entry, in order (it can be done
+      // more than once in a session).
+      detail={(entry, entryAccent) =>
+        blocksOf(entry)
+          .filter((b) => b.exerciseId === exercise.id && ((b.sets || []).length > 0 || b.note))
+          .map((b) => (
+            <div key={b.id} style={{ marginTop: 4 }}>
+              {(b.sets || []).length > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})` }}>{formatSets(b.sets)}</div>}
+              {b.note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 2 }}>{b.note}</div>}
+            </div>
+          ))
+      }
       header={
         <>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{exercise.name}</div>

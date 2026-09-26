@@ -56,30 +56,34 @@ exactly what the app works with (see `src/lib/firestoreLog.js`).
   fails, the app shows a Reload screen instead of an empty log that could
   be typed over.
 
-**Logged sets.** A session can carry per-set numbers for each linked Library
-exercise, as `sets: { [exerciseId]: [{ reps, weight, weightUnit }, …] }`.
-Which fields a set has depends on how it was logged (weight × reps, reps,
-time as `seconds`, `distance` with optional time, weight × time,
-weight × distance, reps × time, or time @ `level` — a machine's own
-unitless setting, like a stairmaster's resistance). That's picked per
-session, not on the exercise: it starts from however the exercise was logged
-last time, and an exercise never logged before asks. Older exercises may
-still carry a `measure`, used only as the starting point before their first
-logged session. Weights are
-in lb. Distance is in mi, km, m or yd, picked per exercise while logging
-(starting from the unit it was last logged in), and the unit is saved on
-every set. Time is saved in seconds, typed in min or sec the same way
-(cardio starts in min, holds in sec); `timeUnit` on the set records which. Sets
-are optional, so an exercise with no entry is just "done, no numbers".
-See `src/lib/sets.js`.
+**What was done, in order (blocks).** A session stores what was done as an
+ordered list, `blocks: [{ id, exerciseId, sets: [...], note? }]`, one block
+per exercise done at one point in the session. The same exercise can appear
+in several blocks (squats first, back-off squats at the end), and the order
+is the order it was done (reorderable while logging). A block with no sets is
+just "done, no numbers"; `note` is a short line for what the numbers can't
+say ("last set AMRAP"), shown next to the sets everywhere, on the next
+session's "Last" line, and searchable. The session's `exerciseIds` is kept
+as the distinct exercises of its blocks, which is what links, usage counts
+and search go by (journals and routines just have `exerciseIds`).
 
-**Exercise notes.** A session can also carry a short note per exercise
-for that day, as `exerciseNotes: { [exerciseId]: "last set AMRAP" }`. It
-shows next to that exercise's sets everywhere, on the next session's "Last"
-line, and is searchable.
+**Logged sets.** Which fields a set has depends on how it was logged
+(weight × reps, reps, time as `seconds`, `distance` with optional time,
+weight × time, weight × distance, reps × time, or time @ `level` — a
+machine's own unitless setting, like a stairmaster's resistance). That's
+picked per block, not on the exercise: it starts from however the exercise
+was logged last time (the matching round of it, if it was done more than
+once), and an exercise never logged before asks. Older exercises may still
+carry a `measure`, used only as the starting point before their first logged
+session. Weights are in lb. Distance is in mi, km, m or yd, picked per block
+while logging (starting from the unit it was last logged in), and the unit
+is saved on every set. Time is saved in seconds, typed in min or sec the
+same way (cardio starts in min, holds in sec); `timeUnit` on the set records
+which. See `src/lib/sets.js`.
 
-CSV/JSON export and import live in the sidebar. JSON keeps sets and exercise notes exactly.
-CSV lists them in a `sets` column for reading only, like exercise names.
+CSV/JSON export and import live in the sidebar. JSON keeps blocks exactly.
+CSV lists them in order in a `sets` column for reading only, like exercise
+names.
 
 ## Managing accounts
 
@@ -264,7 +268,8 @@ footprint.
 ## Feature ideas (not urgent)
 
 - **Things the logged sets make possible (2026-09-25).** Sessions now store
-  per-set numbers (see "Logged sets" under Data model). None of these are
+  per-set numbers in ordered blocks (see "What was done, in order" under Data
+  model). None of these are
   built:
   - **PRs per exercise:** heaviest weight, best weight for a given number of
     reps, estimated 1-rep max, longest hold or distance.

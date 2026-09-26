@@ -4,6 +4,7 @@ import { labelStyle, inputStyle, tagPillStyle, ghostLinkStyle } from "./styles.j
 import { applyRoutine } from "../lib/routines.js";
 import { compareByUsage } from "../lib/links.js";
 import { prefixMatchesFirst } from "../lib/search.js";
+import { newDraftBlock } from "../lib/sets.js";
 import TagChip from "./TagChip.jsx";
 import PagePicker from "./PagePicker.jsx";
 
@@ -172,10 +173,14 @@ export function PrescriptionField({ form, setForm }) {
 // "Browse" opens the Library page itself over the form (PagePicker) — to look
 // through it, or to create an exercise that doesn't exist yet — starting from
 // whatever was typed here.
-export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
+// `asBlocks` (sessions): each exercise picked appends a block to the form's
+// draft `blocks` instead — even one that's already there, since an exercise
+// can be done more than once — and the blocks themselves (BlocksField) take
+// the place of the pills.
+export function ExercisesField({ form, setForm, exercises, accentVar, usage, asBlocks = false }) {
   const [query, setQuery] = useState("");
   const [browsing, setBrowsing] = useState(false);
-  const selectedIds = form.exerciseIds || [];
+  const selectedIds = asBlocks ? [] : form.exerciseIds || [];
   const selected = selectedIds.map((id) => exercises.find((e) => e.id === id)).filter(Boolean);
 
   const q = query.trim().toLowerCase();
@@ -186,11 +191,16 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
   const suggestions = q === "" ? [] : prefixMatchesFirst(ranked, q, (e) => [e.name]).slice(0, 8);
 
   const addExercise = (id) => {
-    setForm((f) => ((f.exerciseIds || []).includes(id) ? f : { ...f, exerciseIds: [...(f.exerciseIds || []), id] }));
+    if (asBlocks) setForm((f) => ({ ...f, blocks: [...(f.blocks || []), newDraftBlock(id)] }));
+    else setForm((f) => ((f.exerciseIds || []).includes(id) ? f : { ...f, exerciseIds: [...(f.exerciseIds || []), id] }));
     setQuery("");
   };
 
-  const removeExercise = (id) => setForm((f) => ({ ...f, exerciseIds: (f.exerciseIds || []).filter((x) => x !== id) }));
+  // Blocks are removed from the blocks themselves, so there's nothing to
+  // take back from here except what Browse is still holding.
+  const removeExercise = (id) => {
+    if (!asBlocks) setForm((f) => ({ ...f, exerciseIds: (f.exerciseIds || []).filter((x) => x !== id) }));
+  };
 
   return (
     <div>

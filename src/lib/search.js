@@ -62,14 +62,14 @@ export const exerciseNameMap = nameMap;
 // "225" shouldn't start matching them.
 
 // Sessions, journals and rolls: the names of linked exercises and of the
-// routines an entry was built from are searchable too, and so are a
-// session's per-exercise notes.
+// routines an entry was built from are searchable too, and so are the notes
+// on a session's blocks.
 export function entrySearchFields(entry, exerciseNameById, routineNameById = new Map()) {
   return [
     entry.title,
     entry.text,
     entry.tags || [],
-    Object.values(entry.exerciseNotes || {}),
+    (entry.blocks || []).map((b) => b.note),
     linkedNames(entry, "exerciseIds", exerciseNameById),
     linkedNames(entry, "routineIds", routineNameById),
   ];
