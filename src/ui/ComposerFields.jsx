@@ -163,11 +163,12 @@ export function PrescriptionField({ form, setForm }) {
 // link real (survives renaming the exercise later), instead of repeating the
 // name-matching drift problem positions.js already has. Typing matches an
 // exercise's name or its tags, so "legs" suggests everything tagged legs.
-// `usage` (exerciseUsageCounts output, see lib/exercises.js) is optional:
-// when given, suggestions rank by session use — last 30 days first, then
-// all-time, then alphabetical — so the picker leads with what you've actually
-// been training. Without it, suggestions are plain alphabetical. While typing,
-// exercises whose name starts with the query move ahead of the rest.
+// Suggestions only appear once something is typed — to look through
+// everything, use Browse. `usage` (exerciseUsageCounts output, see
+// lib/exercises.js) is optional: when given, matches rank by session use —
+// last 30 days first, then all-time, then alphabetical — so what you've
+// actually been training comes first. Without it, they're plain alphabetical.
+// Exercises whose name starts with the query move ahead of the rest.
 // "Browse" opens the Library page itself over the form (PagePicker) — to look
 // through it, or to create an exercise that doesn't exist yet — starting from
 // whatever was typed here.
@@ -180,9 +181,9 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
   const q = query.trim().toLowerCase();
   const ranked = exercises
     .filter((e) => !selectedIds.includes(e.id))
-    .filter((e) => q === "" || e.name.toLowerCase().includes(q) || (e.tags || []).some((t) => t.toLowerCase().includes(q)))
+    .filter((e) => e.name.toLowerCase().includes(q) || (e.tags || []).some((t) => t.toLowerCase().includes(q)))
     .sort(compareByUsage(usage || new Map()));
-  const suggestions = prefixMatchesFirst(ranked, q, (e) => [e.name]).slice(0, 8);
+  const suggestions = q === "" ? [] : prefixMatchesFirst(ranked, q, (e) => [e.name]).slice(0, 8);
 
   const addExercise = (id) => {
     setForm((f) => ((f.exerciseIds || []).includes(id) ? f : { ...f, exerciseIds: [...(f.exerciseIds || []), id] }));
@@ -218,7 +219,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
       />
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          {usage && <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching" : "Most used"}</span>}
+          <span style={{ ...labelStyle, marginBottom: 4 }}>Matching</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {suggestions.map((e) => (
               <TagChip key={e.id} small accent={accentVar} label={e.name} onClick={() => addExercise(e.id)} />
@@ -247,11 +248,12 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
 // to (including ones saved earlier, when editing). Removing one only drops the
 // link — what the routine brought in has already merged with everything else
 // in the form, so it stays. A deleted routine's leftover id just isn't shown.
-// `options` is routineOptions() output. `usage` (routineUsageCounts, see
-// lib/routines.js) is optional: when given, suggestions rank by session use
-// like the Exercises picker — last 30 days first, then all-time, then A–Z by
-// folder path. Without it they're plain A–Z. While typing, routines whose name
-// or folder path starts with the query move ahead of the rest. "Browse" opens
+// `options` is routineOptions() output. Suggestions only appear once
+// something is typed, like the Exercises picker. `usage` (routineUsageCounts,
+// see lib/routines.js) is optional: when given, matches rank by session use —
+// last 30 days first, then all-time, then A–Z by folder path. Without it
+// they're plain A–Z. Routines whose name or folder path starts with the query
+// move ahead of the rest. "Browse" opens
 // the Routines page itself over the form (PagePicker) — folders, search,
 // previews, and creating a routine that doesn't exist yet — starting from
 // whatever was typed here.
@@ -265,9 +267,9 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
   const nameOf = (o) => routines.find((r) => r.id === o.id)?.name || "";
   const matching = options
     .filter((o) => !addedIds.includes(o.id))
-    .filter((o) => q === "" || o.label.toLowerCase().includes(q))
+    .filter((o) => o.label.toLowerCase().includes(q))
     .sort(compareByUsage(usage || new Map(), (o) => o.label));
-  const suggestions = prefixMatchesFirst(matching, q, (o) => [nameOf(o), o.label]).slice(0, 8);
+  const suggestions = q === "" ? [] : prefixMatchesFirst(matching, q, (o) => [nameOf(o), o.label]).slice(0, 8);
 
   // Takes the routine itself, not its id: one just created from Browse
   // isn't in `routines` yet.
@@ -306,7 +308,7 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
       />
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <span style={{ ...labelStyle, marginBottom: 4 }}>{q ? "Matching" : usage ? "Most used" : "A–Z"}</span>
+          <span style={{ ...labelStyle, marginBottom: 4 }}>Matching</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {suggestions.map((o) => (
               <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(routines.find((r) => r.id === o.id))} />
