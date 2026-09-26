@@ -102,9 +102,93 @@ footprint.
   comes from the Firebase SDK. Harmless for a personal app at this scale;
   only worth addressing (via code-splitting) if load time ever becomes
   noticeable.
+- **Back up by exporting JSON, regularly.** Nothing is backed up
+  automatically, and deleting a record deletes its Firestore document for
+  good. JSON is the only complete export: it keeps sets, exercise links and
+  routine links exactly. CSV has a fixed set of columns and loses those links
+  and the set numbers on re-import.
+- **Editing the *same* record on two devices: the last save wins
+  (2026-09-25).** Each record is its own document, so edits to different
+  records never collide. Editing one record on two devices keeps whichever
+  save reached the server last. Editing a record on one device while deleting
+  it on another brings it back. Rare for a single user, so left alone.
+- **JSON import drops fields it doesn't know about (shelved 2026-09-25).**
+  The import normalizers in `src/lib/importNormalize.js` rebuild each record
+  from a fixed list of fields. Any field added to the app later that isn't
+  also added there is silently lost when a JSON backup is restored.
+  - **Fix:** copy every field from the file first, then overwrite the known
+    fields with their checked versions, so tags, sets and ids stay validated
+    and anything unrecognised passes through. About 20 lines plus tests.
+  - **Guard it needs:** drop keys starting with `__`. Firestore reserves
+    names like `__name__`, and one such key would make that import's save
+    fail.
+  - **Downsides:** a hand-edited or foreign JSON file could bring junk keys
+    (e.g. a typo like `exerciseID`) into records, where they'd sit unnoticed
+    because the app ignores fields it doesn't know. A field the app later
+    drops on purpose could also come back when an old backup is restored.
+    Both are harmless clutter, not breakage.
+  - CSV doesn't benefit either way, because its columns are fixed.
+  - Nothing to change in Firestore rules or deploy steps.
+- **A schema version on records (shelved 2026-09-25).** Not needed yet:
+  when the first migration is written, it can treat "no version field" as
+  version 1, since everything saved before the field existed is the first
+  shape. Adding it now gains nothing that can't be had later.
+  - **If added, put it on every record** (e.g. `schemaVersion`, set by
+    `newRecord` in `src/lib/records.js`), not in one `meta/schema`
+    document. A per-record version survives a half-finished migration (each
+    record says what shape it's in) and catches an old browser tab writing
+    old-shape records after an update. A single document can claim "v2"
+    while some records are still v1.
+  - **Downsides:** it does nothing until a migration reads it, and the
+    number has to be raised every time the shape changes. Forgetting that
+    once is worse than having no version, because it gives false
+    confidence.
+  - It would pair with the import change above: a migration could use the
+    version to clean out fields that a restored backup brought back.
+- **Deleting a Library exercise or routine leaves broken links in old
+  entries.** Entries keep the deleted id in `exerciseIds`/`routineIds`.
+  Links are hidden in the form, and logged sets show under "Deleted
+  exercise", so no numbers are lost from view, but the name is. Marking an
+  exercise inactive instead of deleting it keeps the history intact. An
+  "archive instead of delete" option would make that the default.
+- **Data-shape changes that can safely wait (2026-09-25).** None of these
+  lose information if they're done later; a script can convert a JSON
+  export into the new shape, so no re-entering is needed.
+  - **One `entries` collection instead of separate sessions/rolls/
+    journals**, with a `kind` field. They already share a shape, and Home
+    moves entries between them when a type is changed. It would make adding
+    new kinds of entry (e.g. competitions) simpler.
+  - **Tag rename/merge tool.** Tags are lowercased strings matched exactly,
+    so "leg" and "legs" drift apart the same way positions do (see the
+    position rename/merge idea under Feature ideas).
+  - **Structured fields on rolls:** partner, duration, rounds, subs given/
+    received, and `techniqueIds` linking rolls to techniques the way
+    sessions link exercises. Start recording these early if roll stats will
+    ever be wanted, because details only in free text can't become numbers
+    later.
 
 ## Feature ideas (not urgent)
 
+- **Things the logged sets make possible (2026-09-25).** Sessions now store
+  per-set numbers (see "Logged sets" under Data model). None of these are
+  built:
+  - **PRs per exercise:** heaviest weight, best weight for a given number of
+    reps, estimated 1-rep max, longest hold or distance.
+  - **A progress chart** on each exercise's history sheet.
+  - **Weekly volume** (sets × reps × weight) per exercise or per tag, e.g.
+    total `legs` volume.
+  - **Routines with target sets,** so adding "Squat 3×10" to a session
+    prefills three rows. Today a routine's `prescription` is free text and
+    isn't used to fill sets.
+- **Things the timestamps and routine links make possible (2026-09-25).**
+  Every record has `createdAt`/`updatedAt`, and sessions/journals record
+  `routineIds`. None of these are built:
+  - **Sort same-day entries by the time they were logged** (today they're in
+    newest-created-first order, which is close, but not shown).
+  - **A "recently edited" view.**
+  - **Rank the Routines picker by use,** like the Exercises picker. It's
+    alphabetical today.
+  - **Show how often each routine was run,** and when last, on its card.
 - **Journals aren't on the Home calendar.** They were left out when Home's
   calendar was built, since a journal entry isn't training. The Sessions/
   Rolls/Journals tabs remain the only way to browse and search entries by
