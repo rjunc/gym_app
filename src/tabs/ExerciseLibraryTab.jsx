@@ -8,7 +8,7 @@ import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { entriesByExercise } from "../lib/exercises.js";
 import { usageList } from "../lib/links.js";
 import { routineOptions } from "../lib/routines.js";
-import { matchesSearch, exerciseSearchFields } from "../lib/search.js";
+import { matchesSearch, exerciseSearchFields, nameMap } from "../lib/search.js";
 import { cleanFields, cleanLine } from "../lib/text.js";
 import TagChip from "../ui/TagChip.jsx";
 import EntryComposer from "../ui/EntryComposer.jsx";
@@ -57,6 +57,9 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   const routinesByExercise = useMemo(() => entriesByExercise(routines), [routines]);
   // Folder-path labels ("Legs / Squat day") for the history sheet's routine list.
   const routineLabels = useMemo(() => routineOptions(routines, folders), [routines, folders]);
+  // Names for an entry's links when its summary opens from the history sheet.
+  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
+  const routineNameById = useMemo(() => nameMap(routines), [routines]);
   const historyExercise = historyId ? exercises.find((e) => e.id === historyId) : null;
 
   const filtered = useMemo(() => {
@@ -226,6 +229,8 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
           sessions={sessionsByExercise.get(historyExercise.id) || []}
           journals={journalsByExercise.get(historyExercise.id) || []}
           routines={routineLabels.filter((o) => (routinesByExercise.get(historyExercise.id) || []).some((r) => r.id === o.id))}
+          exerciseNameById={exerciseNameById}
+          routineNameById={routineNameById}
           onEdit={() => {
             setHistoryId(null);
             openEdit(historyExercise);

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { entriesByRoutine } from "../lib/routines.js";
 import { usageSummary, usageList } from "../lib/links.js";
 import { folderPath } from "../lib/folders.js";
-import { exerciseNameMap } from "../lib/search.js";
+import { exerciseNameMap, nameMap } from "../lib/search.js";
 import FolderLibraryTab from "./FolderLibraryTab.jsx";
 import RoutineHistorySheet from "./RoutineHistorySheet.jsx";
 
@@ -19,6 +19,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
   const sessionsByRoutine = useMemo(() => entriesByRoutine(sessions), [sessions]);
   const journalsByRoutine = useMemo(() => entriesByRoutine(journals), [journals]);
   const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
+  const routineNameById = useMemo(() => nameMap(routines), [routines]);
   const usesOf = (routine) => ({ sessions: sessionsByRoutine.get(routine.id), journals: journalsByRoutine.get(routine.id) });
   const historyRoutine = history ? routines.find((r) => r.id === history.id) : null;
 
@@ -57,6 +58,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
           sessions={sessionsByRoutine.get(historyRoutine.id) || []}
           journals={journalsByRoutine.get(historyRoutine.id) || []}
           exerciseNameById={exerciseNameById}
+          routineNameById={routineNameById}
           onEdit={() => {
             setHistory(null);
             history.edit();

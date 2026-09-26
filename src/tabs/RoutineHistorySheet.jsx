@@ -10,13 +10,15 @@ import { labelStyle } from "../ui/styles.js";
 // with each session's logged sets — so you can see what you actually did each
 // time you ran it. Entries are what was saved then; editing the routine since
 // doesn't change them. `pathLabel` is the routine's folder path.
-export default function RoutineHistorySheet({ routine, pathLabel, accent, sessions, journals, exerciseNameById, onEdit, onDelete, onClose }) {
+export default function RoutineHistorySheet({ routine, pathLabel, accent, sessions, journals, exerciseNameById, routineNameById, onEdit, onDelete, onClose }) {
   const exerciseNames = (routine.exerciseIds || []).map((id) => exerciseNameById.get(id)).filter(Boolean);
   const created = formatDateTime(routine.createdAt);
   return (
     <HistorySheet
       sessions={sessions}
       journals={journals}
+      exerciseNameById={exerciseNameById}
+      routineNameById={routineNameById}
       onEdit={onEdit}
       onDelete={onDelete}
       onClose={onClose}
