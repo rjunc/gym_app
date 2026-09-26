@@ -8,12 +8,14 @@ import { todayISO } from "../../src/lib/id.js";
 const folders = [{ id: "f1", name: "Push day", parentId: null }];
 const jitsFolders = [{ id: "jf1", name: "Closed guard", parentId: null }];
 
-const sessions = [{ id: "s1", date: "2026-09-01", title: "Leg day", tags: ["legs"], text: "Squats, 5x5" }];
+// Some records carry createdAt/updatedAt and some don't (anything saved before
+// 2026-09-25), so the round trips below cover both.
+const sessions = [{ id: "s1", date: "2026-09-01", title: "Leg day", tags: ["legs"], text: "Squats, 5x5", createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" }];
 const journals = [{ id: "j1", date: "2026-09-02", title: "", tags: [], text: "Feeling good" }];
 const rolls = [{ id: "ro1", date: "2026-09-03", title: "Gi class", tags: ["gi"], text: "Rolled 5 rounds" }];
-const routines = [{ id: "r1", name: "Push A", folderId: "f1", tags: ["push"], text: "Bench, OHP" }];
+const routines = [{ id: "r1", name: "Push A", folderId: "f1", tags: ["push"], text: "Bench, OHP", createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" }];
 const exercises = [
-  { id: "e1", name: "Goblet squat", tags: ["strength", "legs"], text: "Hold at chest, sit between heels", prescription: "3x10", active: true },
+  { id: "e1", name: "Goblet squat", tags: ["strength", "legs"], text: "Hold at chest, sit between heels", prescription: "3x10", active: true, createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" },
   { id: "e2", name: "Retired stretch", tags: ["mobility"], text: "", prescription: "", active: false },
 ];
 const techniques = [
@@ -27,6 +29,7 @@ const techniques = [
     toPosition: "top side control",
     giOnly: false,
     starred: true,
+    createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z",
   },
   {
     id: "t2",
@@ -73,7 +76,8 @@ test("CSV export lists a journal entry's linked exercise names", () => {
   const linkedJournals = [{ id: "j1", date: "2026-09-01", title: "", tags: [], text: "Knee felt fine", exerciseIds: ["e1"] }];
   const csv = combinedToCSV([], [], linkedJournals, [], [], [], [], exercises);
   const journalLine = csv.split(/\r?\n/).find((line) => line.startsWith("journal,"));
-  assert.ok(journalLine.endsWith("Goblet squat"));
+  // exercises is followed by the routines, created_at and updated_at columns (all empty here).
+  assert.ok(journalLine.endsWith("Goblet squat,,,"));
 });
 
 test("CSV round trip survives commas, quotes, and embedded newlines", () => {
@@ -305,7 +309,7 @@ test("parseImportFile: a session/routine with no exerciseIds doesn't gain an emp
 test("parseImportFile: routines never pick up position/toPosition/giOnly keys", () => {
   const json = JSON.stringify({ routines, folders });
   const result = parseImportFile("export.json", json, [], []);
-  assert.deepEqual(Object.keys(result.routines[0]).sort(), ["folderId", "id", "name", "tags", "text"]);
+  assert.deepEqual(Object.keys(result.routines[0]).sort(), ["createdAt", "folderId", "id", "name", "tags", "text", "updatedAt"]);
 });
 
 test("parseImportFile: file extension picks the parser (case-insensitive)", () => {
@@ -435,4 +439,40 @@ test("parseImportFile cleans incoming JSON folder names but leaves existing fold
   const json = JSON.stringify({ routines: [], folders: [{ id: "f2", name: "  New   folder ", parentId: null }] });
   const result = parseImportFile("export.json", json, existing, []);
   assert.deepEqual(result.folders.map((f) => f.name), ["Old  name ", "New folder"]);
+});
+
+/* ============================== timestamps & routine links ============================== */
+
+test("CSV export lists the routines a session was built from, but import doesn't reconstruct routineIds", () => {
+  const linked = [{ id: "s1", date: "2026-09-01", title: "", tags: [], text: "Bench", routineIds: ["r1"] }];
+  const csv = combinedToCSV(linked, routines, [], folders, [], [], [], []);
+  const sessionLine = csv.split(/\r?\n/).find((line) => line.startsWith("session,"));
+  assert.ok(sessionLine.includes("Push A"));
+  assert.equal("routineIds" in combinedFromCSV(csv, folders, []).sessions[0], false);
+});
+
+test("CSV without created_at/updated_at columns (pre-timestamp export) imports with no timestamps", () => {
+  const csv = "type,id,date,name,tags,text\nsession,s1,2026-09-01,,,Squats";
+  const s = combinedFromCSV(csv, [], []).sessions[0];
+  assert.equal("createdAt" in s, false);
+  assert.equal("updatedAt" in s, false);
+});
+
+test("parseImportFile: JSON round trip preserves routineIds on sessions and journals", () => {
+  const json = JSON.stringify({
+    sessions: [{ id: "s1", date: "2026-09-01", tags: [], text: "Bench", routineIds: ["r1", "r2"] }],
+    journals: [{ id: "j1", date: "2026-09-01", tags: [], text: "Notes", routineIds: ["r1"] }],
+  });
+  const result = parseImportFile("export.json", json, [], []);
+  assert.deepEqual(result.sessions[0].routineIds, ["r1", "r2"]);
+  assert.deepEqual(result.journals[0].routineIds, ["r1"]);
+});
+
+test("parseImportFile: records without timestamps don't gain them, and non-string ones are dropped", () => {
+  const json = JSON.stringify({ sessions: [{ id: "s1", tags: [], text: "a" }, { id: "s2", tags: [], text: "b", createdAt: 5, updatedAt: null }] });
+  const result = parseImportFile("export.json", json, [], []);
+  result.sessions.forEach((s) => {
+    assert.equal("createdAt" in s, false);
+    assert.equal("updatedAt" in s, false);
+  });
 });

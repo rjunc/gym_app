@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus, FolderPlus, X } from "lucide-react";
-import { uid, todayISO } from "../lib/id.js";
+import { todayISO } from "../lib/id.js";
+import { newRecord, editById } from "../lib/records.js";
 import { folderPath } from "../lib/folders.js";
 import { matchesSearch, folderItemSearchFields, exerciseNameMap } from "../lib/search.js";
 import { cleanFields } from "../lib/text.js";
@@ -128,7 +129,7 @@ export default function FolderLibraryTab({
   const createFolder = () => {
     const name = newFolderName.trim();
     if (!name) return;
-    setFolders((prev) => [...prev, { id: uid(), name, parentId: currentFolderId }]);
+    setFolders((prev) => [...prev, newRecord({ name, parentId: currentFolderId })]);
     setNewFolderName("");
     setAddingFolder(false);
   };
@@ -141,7 +142,7 @@ export default function FolderLibraryTab({
   const commitRename = () => {
     const name = renameDraft.trim();
     if (name) {
-      setFolders((prev) => prev.map((f) => (f.id === renamingFolderId ? { ...f, name } : f)));
+      setFolders((prev) => editById(prev, renamingFolderId, { name }));
     }
     setRenamingFolderId(null);
   };
@@ -206,9 +207,9 @@ export default function FolderLibraryTab({
     const fields = cleanFields(form);
     if (!fields.name) return;
     if (editingId) {
-      setItems((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...fields } : r)));
+      setItems((prev) => editById(prev, editingId, fields));
     } else {
-      setItems((prev) => [{ id: uid(), ...fields }, ...prev]);
+      setItems((prev) => [newRecord(fields), ...prev]);
     }
     setShowComposer(false);
     resetForm();
@@ -219,7 +220,7 @@ export default function FolderLibraryTab({
     setItems((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const toggleStar = (id) => setItems((prev) => prev.map((r) => (r.id === id ? { ...r, starred: !r.starred } : r)));
+  const toggleStar = (id) => setItems((prev) => editById(prev, id, { starred: !prev.find((r) => r.id === id)?.starred }));
 
   const positionOptions = useMemo(() => (showPositions ? collectPositions(items) : []), [items, showPositions]);
 

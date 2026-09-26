@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { ChevronRight, RotateCcw, Plus } from "lucide-react";
-import { uid, todayISO } from "../lib/id.js";
+import { todayISO } from "../lib/id.js";
+import { newRecord, editById } from "../lib/records.js";
 import { collectPositions, techniquesFrom } from "../lib/positions.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { cleanFields } from "../lib/text.js";
@@ -46,7 +47,7 @@ export default function FlowTab({ techniques, setTechniques }) {
   }, [optionsAtPosition, giMode]);
   const hiddenGiOnlyCount = optionsAtPosition.length - options.length;
 
-  const toggleStar = (id) => setTechniques((prev) => prev.map((t) => (t.id === id ? { ...t, starred: !t.starred } : t)));
+  const toggleStar = (id) => setTechniques((prev) => editById(prev, id, { starred: !prev.find((t) => t.id === id)?.starred }));
 
   // Which tags are actually in play at this position (post gi-filter), so
   // "just show me the escapes" (or whatever tag you use for that) only
@@ -102,7 +103,7 @@ export default function FlowTab({ techniques, setTechniques }) {
   const saveTechnique = () => {
     const fields = cleanFields(form);
     if (!fields.name) return;
-    setTechniques((prev) => [{ id: uid(), ...fields, folderId: null }, ...prev]);
+    setTechniques((prev) => [newRecord({ ...fields, folderId: null }), ...prev]);
     setShowComposer(false);
   };
 

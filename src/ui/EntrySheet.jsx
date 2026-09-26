@@ -49,10 +49,11 @@ export default function EntrySheet({
           tags: [...(entry.tags || [])],
           text: entry.text || "",
           exerciseIds: [...(entry.exerciseIds || [])],
+          routineIds: [...(entry.routineIds || [])],
         }
       : redo
         ? redoFields(redo, initialDate)
-        : { date: initialDate, title: "", tags: [], text: "", exerciseIds: [] }
+        : { date: initialDate, title: "", tags: [], text: "", exerciseIds: [], routineIds: [] }
   );
   const [tagDraft, setTagDraft] = useState("");
 
@@ -75,6 +76,7 @@ export default function EntrySheet({
     const tags = addTagsFromDraft(form.tags, tagDraft);
     const fields = cleanFields({ date: form.date, title: form.title, tags, text: form.text });
     if (meta.showExercises) fields.exerciseIds = form.exerciseIds || [];
+    if (meta.showRoutines) fields.routineIds = form.routineIds || [];
     onSave(type, fields);
   };
 

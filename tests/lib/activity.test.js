@@ -87,3 +87,12 @@ test("shiftMonth rolls the year in both directions", () => {
   assert.deepEqual(shiftMonth({ year: 2026, month: 0 }, -1), { year: 2025, month: 11 });
   assert.deepEqual(shiftMonth({ year: 2026, month: 5 }, 0), { year: 2026, month: 5 });
 });
+
+test("redoFields carries routineIds when the source entry has them, as an independent copy", () => {
+  const entry = { id: "s1", date: "2026-08-01", tags: [], text: "Bench", routineIds: ["r1"] };
+  const out = redoFields(entry, "2026-09-21");
+  assert.deepEqual(out.routineIds, ["r1"]);
+  out.routineIds.push("r2");
+  assert.deepEqual(entry.routineIds, ["r1"]);
+  assert.equal("routineIds" in redoFields({ tags: [] }, "2026-09-21"), false);
+});

@@ -1,4 +1,4 @@
-import { uid } from "./id.js";
+import { newRecord } from "./records.js";
 import { cleanLine } from "./text.js";
 
 export function folderPath(folders, folderId) {
@@ -23,7 +23,7 @@ export function resolveFolderPath(folders, pathStr) {
     if (existing) {
       parentId = existing.id;
     } else {
-      const created = { id: uid(), name, parentId };
+      const created = newRecord({ name, parentId });
       list = [...list, created];
       parentId = created.id;
     }

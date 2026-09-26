@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
-import { uid, todayISO } from "../lib/id.js";
+import { todayISO } from "../lib/id.js";
+import { newRecord, editById } from "../lib/records.js";
 import { matchesTags } from "../lib/activity.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { entriesByExercise } from "../lib/exercises.js";
@@ -115,9 +116,9 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
     const fields = cleanFields(form);
     if (!fields.name || isDuplicateName) return;
     if (editingId) {
-      setExercises((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...fields } : e)));
+      setExercises((prev) => editById(prev, editingId, fields));
     } else {
-      setExercises((prev) => [{ id: uid(), ...fields }, ...prev]);
+      setExercises((prev) => [newRecord(fields), ...prev]);
     }
     setShowComposer(false);
     resetForm();

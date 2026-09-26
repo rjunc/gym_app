@@ -33,6 +33,7 @@ test("applyRoutine fills an empty form from the routine", () => {
     tags: ["push"],
     text: "Bench 5x5",
     exerciseIds: ["e1", "e2"],
+    routineIds: ["r1"],
   });
 });
 
@@ -54,5 +55,15 @@ test("applyRoutine appends to text that's already been written instead of replac
 });
 
 test("applyRoutine tolerates a routine with missing fields", () => {
-  assert.deepEqual(applyRoutine(blank, { id: "x" }), { date: "2026-09-21", title: "", tags: [], text: "", exerciseIds: [] });
+  assert.deepEqual(applyRoutine(blank, { id: "x" }), { date: "2026-09-21", title: "", tags: [], text: "", exerciseIds: [], routineIds: ["x"] });
+});
+
+test("applyRoutine records each routine once, in the order added", () => {
+  const once = applyRoutine(blank, routines[0]);
+  const twice = applyRoutine(applyRoutine(once, routines[1]), routines[0]);
+  assert.deepEqual(twice.routineIds, ["r1", "r2"]);
+});
+
+test("applyRoutine keeps routine links the form already has", () => {
+  assert.deepEqual(applyRoutine({ ...blank, routineIds: ["r3"] }, routines[1]).routineIds, ["r3", "r2"]);
 });

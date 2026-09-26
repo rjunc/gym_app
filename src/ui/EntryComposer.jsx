@@ -120,7 +120,7 @@ export default function EntryComposer({
 
         {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
 
-        {showRoutines && <RoutinesField setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} />}
+        {showRoutines && <RoutinesField form={form} setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} />}
 
         {showExercises && (
           <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} usage={exerciseUsage} />

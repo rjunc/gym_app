@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
-import { uid, todayISO } from "../lib/id.js";
+import { todayISO } from "../lib/id.js";
+import { newRecord, editById } from "../lib/records.js";
 import { matchesTags } from "../lib/activity.js";
 import { matchesSearch, entrySearchFields, exerciseNameMap } from "../lib/search.js";
 import EntrySheet from "../ui/EntrySheet.jsx";
@@ -68,9 +69,9 @@ export default function SimpleEntryTab({
   const saveEntry = (_type, fields) => {
     const editing = composer.entry;
     if (editing) {
-      setEntries((prev) => prev.map((s) => (s.id === editing.id ? { ...s, ...fields } : s)));
+      setEntries((prev) => editById(prev, editing.id, fields));
     } else {
-      setEntries((prev) => [{ id: uid(), ...fields }, ...prev]);
+      setEntries((prev) => [newRecord(fields), ...prev]);
     }
     setComposer(null);
   };

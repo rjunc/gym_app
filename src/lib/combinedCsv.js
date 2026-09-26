@@ -1,6 +1,7 @@
 import { csvEscape, parseCSV } from "./csv.js";
 import { folderPath, resolveFolderPath } from "./folders.js";
 import { uid, todayISO } from "./id.js";
+import { importedTimestamps } from "./records.js";
 
 // The composer always lowercases tags on save, so the tag list (sorted with
 // a plain, case-sensitive .sort()) is naturally alphabetical. Imported data
@@ -25,9 +26,13 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   // the links to survive a round trip.
   const exerciseNameById = new Map(exercises.map((e) => [e.id, e.name]));
   const exerciseNames = (ids) => (ids || []).map((id) => exerciseNameById.get(id)).filter(Boolean).join(";");
+  // Same for the routines a session/journal was built from.
+  const routineNameById = new Map(routines.map((r) => [r.id, r.name]));
+  const routineNames = (ids) => (ids || []).map((id) => routineNameById.get(id)).filter(Boolean).join(";");
 
   const header = [
     "type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "starred", "prescription", "active", "exercises",
+    "routines", "created_at", "updated_at",
   ];
   // Sessions/journals/rolls reuse the "name" column (otherwise unused for
   // them) to carry their optional title.
@@ -91,7 +96,20 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     e.active === false ? "0" : "1",
     "",
   ]);
-  return [header, ...sessionRows, ...journalRows, ...routineRows, ...rollRows, ...techniqueRows, ...exerciseRows]
+  // Every row ends with the same three columns: the routines a session/journal
+  // was built from (names, human-readable only, like "exercises"), then the
+  // record's createdAt/updatedAt, which do round-trip.
+  const withTail = (records, rows) =>
+    rows.map((row, i) => [...row, routineNames(records[i].routineIds), records[i].createdAt || "", records[i].updatedAt || ""]);
+  return [
+    header,
+    ...withTail(sessions, sessionRows),
+    ...withTail(journals, journalRows),
+    ...withTail(routines, routineRows),
+    ...withTail(rolls, rollRows),
+    ...withTail(techniques, techniqueRows),
+    ...withTail(exercises, exerciseRows),
+  ]
     .map((row) => row.map(csvEscape).join(","))
     .join("\r\n");
 }
@@ -124,6 +142,8 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
   const starredIdx = header.indexOf("starred");
   const prescriptionIdx = header.indexOf("prescription");
   const activeIdx = header.indexOf("active");
+  const createdIdx = header.indexOf("created_at");
+  const updatedIdx = header.indexOf("updated_at");
 
   let foldersAcc = existingFolders;
   let jitsFoldersAcc = existingJitsFolders;
@@ -140,8 +160,13 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
     const text = textIdx >= 0 ? r[textIdx] : "";
     const title = nameIdx >= 0 ? r[nameIdx] || "" : "";
     const id = idIdx >= 0 && r[idIdx] ? r[idIdx] : uid();
+    const stamps = importedTimestamps({
+      createdAt: createdIdx >= 0 ? r[createdIdx] : "",
+      updatedAt: updatedIdx >= 0 ? r[updatedIdx] : "",
+    });
     if (type === "exercise") {
       exercises.push({
+        ...stamps,
         id,
         name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled exercise",
         tags,
@@ -152,7 +177,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
     } else if (type === "routine") {
       const { id: folderId, folders: nextFolders } = resolveFolderPath(foldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
       foldersAcc = nextFolders;
-      routines.push({ id, name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled routine", folderId, tags, text });
+      routines.push({ id, name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled routine", folderId, tags, text, ...stamps });
     } else if (type === "technique") {
       const { id: folderId, folders: nextFolders } = resolveFolderPath(jitsFoldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
       jitsFoldersAcc = nextFolders;
@@ -166,13 +191,14 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
         toPosition: toPositionIdx >= 0 ? r[toPositionIdx] || "" : "",
         giOnly: giOnlyIdx >= 0 && !!r[giOnlyIdx],
         starred: starredIdx >= 0 && !!r[starredIdx],
+        ...stamps,
       });
     } else if (type === "journal") {
-      journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
+      journals.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text, ...stamps });
     } else if (type === "roll") {
-      rolls.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
+      rolls.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text, ...stamps });
     } else {
-      sessions.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text });
+      sessions.push({ id, date: dateIdx >= 0 && r[dateIdx] ? r[dateIdx] : todayISO(), title, tags, text, ...stamps });
     }
   });
 

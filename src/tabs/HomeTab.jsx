@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { Plus } from "lucide-react";
-import { todayISO, uid } from "../lib/id.js";
+import { todayISO } from "../lib/id.js";
+import { newRecord, editById, editRecord } from "../lib/records.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
 import TagChip from "../ui/TagChip.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
@@ -98,12 +99,14 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   const saveEntry = (type, fields) => {
     const editing = composer.entry;
     if (!editing) {
-      setters[type]((prev) => [{ id: uid(), ...fields }, ...prev]);
+      setters[type]((prev) => [newRecord(fields), ...prev]);
     } else if (editing.source === type) {
-      setters[type]((prev) => prev.map((e) => (e.id === editing.id ? { ...e, ...fields } : e)));
+      setters[type]((prev) => editById(prev, editing.id, fields));
     } else {
       setters[editing.source]((prev) => prev.filter((e) => e.id !== editing.id));
-      setters[type]((prev) => [{ id: editing.id, ...fields }, ...prev]);
+      // Only the id and createdAt carry over — a roll doesn't take a
+      // session's exercise links, and vice versa.
+      setters[type]((prev) => [editRecord({ id: editing.id, ...(editing.createdAt ? { createdAt: editing.createdAt } : {}) }, fields), ...prev]);
     }
     setShown((prev) => (prev.includes(type) ? prev : [...prev, type]));
     setView({ year: Number(fields.date.slice(0, 4)), month: Number(fields.date.slice(5, 7)) - 1 });

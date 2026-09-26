@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, X, Check } from "lucide-react";
+import { Star, X } from "lucide-react";
 import { labelStyle, inputStyle, tagPillStyle } from "./styles.js";
 import { applyRoutine } from "../lib/routines.js";
 import { compareByUsage } from "../lib/exercises.js";
@@ -212,20 +212,20 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage }) {
   );
 }
 
-// Adds routines to a session the way ExercisesField adds exercises, except a
-// routine isn't linked: tapping one copies its tags, exercises and text into
-// the form (see applyRoutine) and from then on it's just ordinary form content.
-// Several can be added, each appending after the last. The "Added" pills are
-// only a reminder for this draft — they have no remove button because what a
-// routine brought in has already merged with everything else in the form.
+// Adds routines to a session the way ExercisesField adds exercises: tapping
+// one copies its tags, exercises and text into the form (see applyRoutine) and
+// records its id in the entry's routineIds. Several can be added, each
+// appending after the last. The pills show the routines the entry is linked
+// to (including ones saved earlier, when editing). Removing one only drops the
+// link — what the routine brought in has already merged with everything else
+// in the form, so it stays. A deleted routine's leftover id just isn't shown.
 // `options` is routineOptions() output, already sorted alphabetically by
-// folder path. Routines stay A–Z rather than most-used like the other pickers:
-// adding one doesn't record anything on the entry, so there's no usage to rank
-// by. While typing, routines whose name or folder path starts with the query
-// move ahead of the rest.
-export function RoutinesField({ setForm, routines, options, accentVar }) {
+// folder path. Routines stay A–Z rather than most-used like the other pickers.
+// While typing, routines whose name or folder path starts with the query move
+// ahead of the rest.
+export function RoutinesField({ form, setForm, routines, options, accentVar }) {
   const [query, setQuery] = useState("");
-  const [addedIds, setAddedIds] = useState([]);
+  const addedIds = form.routineIds || [];
   const added = addedIds.map((id) => options.find((o) => o.id === id)).filter(Boolean);
 
   const q = query.trim().toLowerCase();
@@ -237,9 +237,10 @@ export function RoutinesField({ setForm, routines, options, accentVar }) {
     const routine = routines.find((r) => r.id === id);
     if (!routine) return;
     setForm((f) => applyRoutine(f, routine));
-    setAddedIds((ids) => [...ids, id]);
     setQuery("");
   };
+
+  const unlinkRoutine = (id) => setForm((f) => ({ ...f, routineIds: (f.routineIds || []).filter((x) => x !== id) }));
 
   return (
     <div>
@@ -248,8 +249,13 @@ export function RoutinesField({ setForm, routines, options, accentVar }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
           {added.map((o) => (
             <span key={o.id} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
-              <Check size={11} />
               {o.label}
+              <button
+                onClick={() => unlinkRoutine(o.id)}
+                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}
+              >
+                <X size={11} />
+              </button>
             </span>
           ))}
         </div>

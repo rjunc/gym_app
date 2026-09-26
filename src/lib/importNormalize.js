@@ -1,10 +1,12 @@
 import { uid, todayISO } from "./id.js";
 import { normalizeTags } from "./combinedCsv.js";
+import { importedTimestamps } from "./records.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
-// Sessions and journals carry exerciseIds (rolls don't); it round-trips for
-// any of the three if present, same as everything else here.
+// Sessions and journals carry exerciseIds and routineIds (rolls don't); they
+// round-trip for any of the three if present, same as everything else here.
+// Every normalizer below keeps createdAt/updatedAt when the record has them.
 export function normalizeSimpleEntries(arr) {
   return Array.isArray(arr)
     ? arr.map((s) => ({
@@ -14,6 +16,8 @@ export function normalizeSimpleEntries(arr) {
         tags: normalizeTags(s.tags),
         text: s.text || "",
         ...(Array.isArray(s.exerciseIds) ? { exerciseIds: s.exerciseIds.filter((id) => typeof id === "string") } : {}),
+        ...(Array.isArray(s.routineIds) ? { routineIds: s.routineIds.filter((id) => typeof id === "string") } : {}),
+        ...importedTimestamps(s),
       }))
     : [];
 }
@@ -36,6 +40,7 @@ export function normalizeFolderItems(arr, defaultName, { techniqueExtras = false
         ...(techniqueExtras
           ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly, starred: !!r.starred }
           : {}),
+        ...importedTimestamps(r),
       }))
     : [];
 }
@@ -52,6 +57,7 @@ export function normalizeExercises(arr) {
         text: e.text || "",
         prescription: e.prescription || "",
         active: e.active !== false,
+        ...importedTimestamps(e),
       }))
     : [];
 }

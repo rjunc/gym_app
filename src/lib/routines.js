@@ -13,15 +13,18 @@ export function routineOptions(routines, folders) {
 // been typed: the title is only filled if blank, the routine's tags are added
 // to the existing ones, its exercises are added to the existing ones (deduped
 // by id), and its text is appended after anything already written (or becomes
-// the text if there's none).
+// the text if there's none). The routine's id is recorded in routineIds (also
+// deduped), so an entry remembers which routines it was built from.
 export function applyRoutine(form, routine) {
   const existingText = form.text.trim();
   const existingExerciseIds = new Set(form.exerciseIds || []);
+  const routineIds = form.routineIds || [];
   return {
     ...form,
     title: form.title.trim() ? form.title : routine.name || "",
     tags: (routine.tags || []).reduce((tags, t) => addTagsFromDraft(tags, t), form.tags),
     exerciseIds: [...(form.exerciseIds || []), ...(routine.exerciseIds || []).filter((id) => !existingExerciseIds.has(id))],
+    routineIds: routineIds.includes(routine.id) ? routineIds : [...routineIds, routine.id],
     text: existingText ? `${form.text.trimEnd()}\n\n${routine.text || ""}` : routine.text || "",
   };
 }
