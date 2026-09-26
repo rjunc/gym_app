@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLog } from "../lib/LogContext.js";
 import RoutinesTab from "../tabs/RoutinesTab.jsx";
 import ExerciseLibraryTab from "../tabs/ExerciseLibraryTab.jsx";
@@ -8,15 +9,32 @@ import ExerciseLibraryTab from "../tabs/ExerciseLibraryTab.jsx";
 // The form underneath stays open, so the draft is never lost. Covers the
 // whole screen like a page; the page's own sheets (new/edit forms, summaries)
 // stack on top of it.
+// Nothing reaches the form until Done: adds are held here and applied then,
+// in order. So taking back something added on this visit leaves no trace —
+// which matters for routines, whose tags, exercises and text merge into the
+// form for good once applied.
 //   kind          "routines" or "exercises"
 //   addedIds      what's already in the entry, shown as "Added"
 //   onAdd(record) adds one to the entry — also called for anything created
 //                 from here, since that's why it was created
-//   onRemove(id)  takes one back out, the same as its pill's X in the form
+//   onRemove(id)  takes out one that was already in the entry, the same as
+//                 its pill's X in the form
 //   initialQuery  what was typed in the form's field, to start the search from
 export default function PagePicker({ kind, addedIds, onAdd, onRemove, onDone, initialQuery = "" }) {
   const log = useLog();
-  const pick = { addedIds, onAdd, onRemove, onDone, initialQuery };
+  const [held, setHeld] = useState([]);
+  const pick = {
+    addedIds: [...addedIds, ...held.map((r) => r.id)],
+    onAdd: (record) => setHeld((h) => (h.some((r) => r.id === record.id) ? h : [...h, record])),
+    onRemove: (id) => (held.some((r) => r.id === id) ? setHeld((h) => h.filter((r) => r.id !== id)) : onRemove(id)),
+    // The latest version of each, in case it was edited after being added.
+    onDone: () => {
+      const current = kind === "routines" ? log.routines : log.exercises;
+      held.forEach((r) => onAdd(current.find((c) => c.id === r.id) || r));
+      onDone();
+    },
+    initialQuery,
+  };
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "var(--bg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {kind === "routines" ? (
