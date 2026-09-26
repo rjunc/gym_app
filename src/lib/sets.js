@@ -110,7 +110,7 @@ export const SET_FIELDS = ["weight", "distance", "reps", "seconds", "level"];
 // With unit "min", a plain number is minutes ("20" -> 1200, "2.5" -> 150);
 // anything with a colon reads the same either way.
 export function parseDuration(text, unit = "sec") {
-  const s = String(text ?? "").trim();
+  const s = String(text ?? "").trim().replace(",", ".");
   if (!s) return null;
   if (unit === "min" && !s.includes(":")) {
     const minutes = parseAmount(s);
@@ -132,8 +132,10 @@ export function formatDuration(seconds) {
 }
 
 // A positive number from a text box, or null. Reps round to whole numbers.
+// A comma counts as the decimal point, since that's what the iPhone number pad
+// shows in some regions.
 function parseAmount(text, { whole = false } = {}) {
-  const s = String(text ?? "").trim();
+  const s = String(text ?? "").trim().replace(",", ".");
   if (!/^\d*\.?\d+$/.test(s)) return null;
   const n = Number(s);
   if (!(n > 0)) return null;

@@ -260,3 +260,11 @@ test("sets logged before time units still read and save as seconds", () => {
   assert.deepEqual(old.e1[0], { seconds: "20", level: "7" });
   assert.equal(fromDraftSets({ e1: setTimeUnit(old.e1, "min") }, ["e1"]).e1[0].seconds, 1200);
 });
+
+test("a comma works as the decimal point (iPhone number pad in some regions)", () => {
+  assert.equal(parseDuration("20,5", "min"), 1230);
+  assert.deepEqual(fromDraftSets({ e1: [{ weight: "22,5", reps: "5" }], e2: [{ seconds: "10", level: "7,5", timeUnit: "min" }] }, ["e1", "e2"]), {
+    e1: [{ weight: 22.5, weightUnit: "lb", reps: 5 }],
+    e2: [{ seconds: 600, timeUnit: "min", level: 7.5 }],
+  });
+});
