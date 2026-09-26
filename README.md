@@ -60,7 +60,8 @@ exactly what the app works with (see `src/lib/firestoreLog.js`).
 exercise, as `sets: { [exerciseId]: [{ reps, weight, weightUnit }, …] }`.
 Which fields a set has depends on how it was logged (weight × reps, reps,
 time as `seconds`, `distance` with optional time, weight × time,
-weight × distance, or reps × time). That's picked per
+weight × distance, reps × time, or time @ `level` — a machine's own
+unitless setting, like a stairmaster's resistance). That's picked per
 session, not on the exercise: it starts from however the exercise was logged
 last time, and an exercise never logged before asks. Older exercises may
 still carry a `measure`, used only as the starting point before their first

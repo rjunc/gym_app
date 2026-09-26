@@ -191,3 +191,18 @@ test("switchMeasure gives rows that gain a distance the given unit, and keeps on
   assert.deepEqual(switchMeasure([{ weight: "50", seconds: "1:00" }], "weight_distance", "m"), [{ weight: "50", distance: "", distanceUnit: "m" }]);
   assert.deepEqual(switchMeasure([{ distance: "2", seconds: "", distanceUnit: "km" }], "weight_distance", "m"), [{ weight: "", distance: "2", distanceUnit: "km" }]);
 });
+
+/* ================================ time @ level ================================ */
+
+test("time @ level: read back, worded, saved and restored", () => {
+  assert.equal(measureOfSets([{ seconds: 1200, level: 7 }]), "time_level");
+  assert.equal(measureOfSets([{ seconds: "", level: "" }]), "time_level");
+  assert.deepEqual(blankRow("time_level"), { seconds: "", level: "" });
+  assert.equal(formatSet({ seconds: 1200, level: 7 }), "20:00 @ level 7");
+  assert.equal(formatSet({ level: 7.5 }), "level 7.5");
+  assert.equal(formatSets([{ seconds: 600, level: 7 }, { seconds: 600, level: 7 }, { seconds: 600, level: 8 }]), "2 × 10:00 @ level 7, 10:00 @ level 8");
+  const saved = fromDraftSets({ e1: [{ seconds: "20:00", level: "7.5" }] }, ["e1"]);
+  assert.deepEqual(saved, { e1: [{ seconds: 1200, level: 7.5 }] });
+  assert.deepEqual(toDraftSets(saved).e1[0], { seconds: "20:00", level: "7.5" });
+  assert.deepEqual(normalizeSets({ e1: [{ seconds: 1200, level: 7 }] }), { e1: [{ seconds: 1200, level: 7 }] });
+});

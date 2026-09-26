@@ -9,6 +9,9 @@
 //   { weight: 50, weightUnit: "lb", seconds: 60 }  weight × time (loaded holds)
 //   { weight: 50, weightUnit: "lb", distance: 40, distanceUnit: "m" }  carries, sleds
 //   { reps: 20, seconds: 60 }                     reps × time (max reps in 1:00)
+//   { seconds: 1200, level: 7 }                   time @ level (stairmaster, bike)
+// `level` is a machine's own unitless setting, so it only means something
+// next to other sets of the same exercise.
 // Units are saved on every set that has a weight or distance, so changing the
 // app's unit later can't reinterpret old numbers. Distance can be in any of
 // DISTANCE_UNITS, picked per exercise while logging. Sets are optional: an
@@ -30,6 +33,7 @@ export const MEASURES = {
   weight_time: { label: "Weight × time", fields: ["weight", "seconds"] },
   weight_distance: { label: "Weight × distance", fields: ["weight", "distance"] },
   reps_time: { label: "Reps × time", fields: ["reps", "seconds"] },
+  time_level: { label: "Time @ level", fields: ["seconds", "level"] },
 };
 
 // An exercise's `measure`, if it has a valid one, else null. Exercises made
@@ -49,6 +53,7 @@ export function measureOfSets(sets) {
   const set = (sets || []).find((s) => SET_FIELDS.some((f) => hasField(s, f)));
   if (!set) return null;
   const has = (f) => hasField(set, f);
+  if (has("level")) return "time_level";
   if (has("distance")) return has("weight") ? "weight_distance" : "distance";
   if (has("weight")) return has("seconds") && !has("reps") ? "weight_time" : "weight_reps";
   if (has("reps")) return has("seconds") ? "reps_time" : "reps";
@@ -85,7 +90,7 @@ export function switchMeasure(rows, measure, unit = DISTANCE_UNIT) {
 }
 
 // Every numeric field a set can have, in display/input order.
-export const SET_FIELDS = ["weight", "distance", "reps", "seconds"];
+export const SET_FIELDS = ["weight", "distance", "reps", "seconds", "level"];
 
 // "90" -> 90, "1:30" -> 90, "1:02:05" -> 3725. Blank or unreadable -> null.
 export function parseDuration(text) {
@@ -139,10 +144,12 @@ function toStoredSet(row) {
   const distance = parseAmount(row.distance);
   const reps = parseAmount(row.reps, { whole: true });
   const seconds = parseDuration(row.seconds);
+  const level = parseAmount(row.level);
   if (weight !== null) Object.assign(set, { weight, weightUnit: WEIGHT_UNIT });
   if (distance !== null) Object.assign(set, { distance, distanceUnit: row.distanceUnit || DISTANCE_UNIT });
   if (reps !== null) set.reps = reps;
   if (seconds !== null) set.seconds = seconds;
+  if (level !== null) set.level = level;
   return Object.keys(set).length > 0 ? set : null;
 }
 
@@ -206,7 +213,7 @@ export function lastSetsFor(sessions, exerciseId, { excludeId, onOrBefore } = {}
 const trimNumber = (n) => String(Math.round(n * 100) / 100);
 
 // One set as text: "225 lb × 5", "12 reps", "1:00", "3.1 mi in 28:00",
-// "50 lb for 1:00", "50 lb × 40 m", "20 reps in 1:00".
+// "50 lb for 1:00", "50 lb × 40 m", "20 reps in 1:00", "20:00 @ level 7".
 export function formatSet(set) {
   const weight = typeof set.weight === "number" ? `${trimNumber(set.weight)} ${set.weightUnit || WEIGHT_UNIT}` : null;
   const distance = typeof set.distance === "number" ? `${trimNumber(set.distance)} ${set.distanceUnit || DISTANCE_UNIT}` : null;
@@ -217,6 +224,7 @@ export function formatSet(set) {
   if (distance) text = text ? `${text} × ${distance}` : distance;
   // A weight held for a time reads "for"; anything done within a time, "in".
   if (time) text = !text ? time : `${text} ${weight && reps === null && !distance ? "for" : "in"} ${time}`;
+  if (typeof set.level === "number") text = text ? `${text} @ level ${trimNumber(set.level)}` : `level ${trimNumber(set.level)}`;
   return text;
 }
 

@@ -17,13 +17,14 @@ import {
 } from "../lib/sets.js";
 import { labelStyle, inputStyle, ghostLinkStyle } from "./styles.js";
 
-// How each set field's text box looks: keyboard, placeholder, and the unit
-// shown after it (distance's is a switch instead, see the row below).
+// How each set field's text box looks: keyboard, placeholder, and the word
+// shown before it or the unit after it (distance's is a switch instead, see the row below).
 const FIELD_INPUT = {
   weight: { inputMode: "decimal", placeholder: "0", suffix: WEIGHT_UNIT },
   distance: { inputMode: "decimal", placeholder: "0", suffix: "" },
   reps: { inputMode: "numeric", placeholder: "0", suffix: "reps" },
   seconds: { inputMode: "numeric", placeholder: "m:ss", suffix: "" },
+  level: { inputMode: "decimal", placeholder: "0", prefix: "level", suffix: "" },
 };
 
 // The small "Reps ▾" switch in an exercise's header, and the "m ▾" one after
@@ -142,6 +143,7 @@ export default function SetsField({ form, setForm, exercises, history = [], entr
                         return (
                           <div key={field} style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}>
                             {j > 0 && (field === "reps" || field === "distance") && <span style={{ fontSize: 12, color: "var(--text-dim)" }}>×</span>}
+                            {meta.prefix && <span style={{ fontSize: 11, color: "var(--text-dim)", flexShrink: 0 }}>{meta.prefix}</span>}
                             <input
                               value={row[field] ?? ""}
                               onChange={(e) => {
