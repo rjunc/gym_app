@@ -120,6 +120,7 @@ export default function EntrySheet({
       showRoutines={meta.showRoutines}
       routines={routines}
       routineOptions={routineChoices}
+      routineFolders={folders}
       routineUsage={routineUsage}
       showExercises={meta.showExercises}
       exerciseOptions={exercises}

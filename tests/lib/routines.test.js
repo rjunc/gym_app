@@ -109,3 +109,53 @@ test("usageList joins the parts for a sentence", () => {
   assert.equal(usageList({ sessions: [{}] }), "1 session");
   assert.equal(usageList({}), "");
 });
+
+/* ============================== routine picker ============================== */
+
+import { routinePickerView } from "../../src/lib/routines.js";
+import { itemCountUnder } from "../../src/lib/folders.js";
+
+const pickerFolders = [
+  { id: "str", name: "Strength", parentId: null },
+  { id: "heavy", name: "Heavy", parentId: "str" },
+  { id: "cond", name: "Conditioning", parentId: null },
+];
+const pickerRoutines = [
+  { id: "pa", name: "Push A", folderId: "str", tags: ["push"], text: "Bench 5x5", exerciseIds: ["bp"] },
+  { id: "pb", name: "Push B", folderId: "str", tags: ["push"], text: "OHP" },
+  { id: "dl", name: "Deadlift day", folderId: "heavy", tags: ["pull"], text: "" },
+  { id: "ab", name: "Abs", folderId: null, tags: [], text: "Planks" },
+];
+
+test("routinePickerView without filters shows the current folder's subfolders (A–Z) and routines", () => {
+  const top = routinePickerView({ routines: pickerRoutines, folders: pickerFolders });
+  assert.equal(top.filtering, false);
+  assert.deepEqual(top.subfolders.map((f) => f.id), ["cond", "str"]);
+  assert.deepEqual(top.items.map((r) => r.id), ["ab"]);
+  const inStrength = routinePickerView({ routines: pickerRoutines, folders: pickerFolders, folderId: "str" });
+  assert.deepEqual(inStrength.subfolders.map((f) => f.id), ["heavy"]);
+  assert.deepEqual(inStrength.items.map((r) => r.id), ["pa", "pb"]);
+});
+
+test("routinePickerView orders a folder's routines by use, then A–Z", () => {
+  const usage = new Map([["pb", { recent: 2, total: 5 }]]);
+  const view = routinePickerView({ routines: pickerRoutines, folders: pickerFolders, folderId: "str", usage });
+  assert.deepEqual(view.items.map((r) => r.id), ["pb", "pa"]);
+});
+
+test("routinePickerView with a search or tag filter searches every folder", () => {
+  const byFolderName = routinePickerView({ routines: pickerRoutines, folders: pickerFolders, folderId: "cond", query: "heavy" });
+  assert.equal(byFolderName.filtering, true);
+  assert.deepEqual(byFolderName.subfolders, []);
+  assert.deepEqual(byFolderName.items.map((r) => r.id), ["dl"]);
+  const byExercise = routinePickerView({ routines: pickerRoutines, folders: pickerFolders, query: "bench press", exerciseNameById: new Map([["bp", "Bench press"]]) });
+  assert.deepEqual(byExercise.items.map((r) => r.id), ["pa"]);
+  const byTag = routinePickerView({ routines: pickerRoutines, folders: pickerFolders, tags: ["push"] });
+  assert.deepEqual(byTag.items.map((r) => r.id).sort(), ["pa", "pb"]);
+});
+
+test("itemCountUnder counts routines in a folder and everything beneath it", () => {
+  assert.equal(itemCountUnder(pickerFolders, pickerRoutines, "str"), 3);
+  assert.equal(itemCountUnder(pickerFolders, pickerRoutines, "heavy"), 1);
+  assert.equal(itemCountUnder(pickerFolders, pickerRoutines, "cond"), 0);
+});

@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { X } from "lucide-react";
+import { nameMap } from "../lib/search.js";
 import { labelStyle, inputStyle, primaryBtnStyle } from "./styles.js";
 import {
   NameField,
@@ -73,6 +75,8 @@ export default function EntryComposer({
   showRoutines,
   routines = [],
   routineOptions = [],
+  // The routines' folders, for browsing them by folder in the Routines picker.
+  routineFolders = [],
   // Optional routineUsageCounts output, ranking the Routines picker by use.
   routineUsage,
   textLabel,
@@ -90,6 +94,7 @@ export default function EntryComposer({
   accent,
 }) {
   const accentVar = accent || "--accent";
+  const exerciseNameById = useMemo(() => nameMap(exerciseOptions), [exerciseOptions]);
 
   return (
     <BottomSheet onClose={onClose} gap={12}>
@@ -121,10 +126,29 @@ export default function EntryComposer({
 
       {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
 
-      {showRoutines && <RoutinesField form={form} setForm={setForm} routines={routines} options={routineOptions} accentVar={accentVar} usage={routineUsage} />}
+      {showRoutines && (
+        <RoutinesField
+          form={form}
+          setForm={setForm}
+          routines={routines}
+          options={routineOptions}
+          accentVar={accentVar}
+          usage={routineUsage}
+          folders={routineFolders}
+          exerciseNameById={exerciseNameById}
+        />
+      )}
 
       {showExercises && (
-        <ExercisesField form={form} setForm={setForm} exercises={exerciseOptions} accentVar={accentVar} usage={exerciseUsage} />
+        <ExercisesField
+          form={form}
+          setForm={setForm}
+          exercises={exerciseOptions}
+          accentVar={accentVar}
+          usage={exerciseUsage}
+          setsHistory={showSets ? setsHistory : undefined}
+          entryId={entryId}
+        />
       )}
 
       {showExercises && showSets && (
