@@ -1,4 +1,5 @@
 import { uid } from "./id.js";
+import { cleanLine } from "./text.js";
 
 export function folderPath(folders, folderId) {
   const byId = new Map(folders.map((f) => [f.id, f]));
@@ -14,7 +15,7 @@ export function folderPath(folders, folderId) {
 // pure: resolve/create a "A/B/C" folder path against a folders array, returns { id, folders }
 export function resolveFolderPath(folders, pathStr) {
   if (!pathStr || !pathStr.trim()) return { id: null, folders };
-  const names = pathStr.split("/").map((n) => n.trim()).filter(Boolean);
+  const names = pathStr.split("/").map(cleanLine).filter(Boolean);
   let parentId = null;
   let list = folders;
   names.forEach((name) => {

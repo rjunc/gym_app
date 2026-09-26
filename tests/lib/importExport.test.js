@@ -383,3 +383,56 @@ test("parseImportFile: JSON with none of the known record types throws", () => {
 test("parseImportFile: invalid JSON syntax throws rather than silently returning empty data", () => {
   assert.throws(() => parseImportFile("broken.json", "{not valid json", [], []));
 });
+
+test("parseImportFile (JSON) cleans text the same way a composer save does", () => {
+  const json = JSON.stringify({
+    sessions: [{ id: "s1", date: "2026-09-01", title: "  Leg   day ", tags: [" Legs "], text: "\n\nSquat 5x5   \n\n\n\nBench\n\n" }],
+    journals: [{ id: "j1", date: "2026-09-01", title: " Knee ", tags: [], text: "  sore  " }],
+    routines: [{ id: "r1", name: "  Push   A ", tags: [], text: "Bench\n\n\n\nRow" }],
+    techniques: [{ id: "t1", name: " Scissor  sweep", tags: [], text: "", position: " closed  guard ", toPosition: " mount" }],
+    exercises: [{ id: "e1", name: " Back   squat ", tags: [], text: "", prescription: " 5x5 " }],
+  });
+  const result = parseImportFile("export.json", json, [], []);
+  assert.deepEqual(
+    { title: result.sessions[0].title, text: result.sessions[0].text, tags: result.sessions[0].tags },
+    { title: "Leg day", text: "Squat 5x5\n\nBench", tags: ["legs"] }
+  );
+  assert.equal(result.journals[0].title, "Knee");
+  assert.equal(result.journals[0].text, "sore");
+  assert.equal(result.routines[0].name, "Push A");
+  assert.equal(result.routines[0].text, "Bench\n\nRow");
+  assert.deepEqual([result.techniques[0].name, result.techniques[0].position, result.techniques[0].toPosition], ["Scissor sweep", "closed guard", "mount"]);
+  assert.deepEqual([result.exercises[0].name, result.exercises[0].prescription], ["Back squat", "5x5"]);
+});
+
+test("parseImportFile (CSV) cleans text and folder path names", () => {
+  const csv = [
+    "type,id,date,name,folder_path,tags,text",
+    'session,s1,2026-09-01,"  Leg   day ",,legs,"\n\nSquat   \n\n\n\nBench\n"',
+    'routine,r1,,"  Push   A ","  Lifting  /   Upper   body ",,"Bench"',
+  ].join("\r\n");
+  const result = parseImportFile("export.csv", csv, [], []);
+  assert.equal(result.sessions[0].title, "Leg day");
+  assert.equal(result.sessions[0].text, "Squat\n\nBench");
+  assert.equal(result.routines[0].name, "Push A");
+  assert.deepEqual(result.folders.map((f) => f.name), ["Lifting", "Upper body"]);
+});
+
+test("parseImportFile: a whitespace-only name falls back to the default name", () => {
+  const json = JSON.stringify({
+    routines: [{ id: "r1", name: "   ", tags: [], text: "" }],
+    exercises: [{ id: "e1", name: " \n ", tags: [], text: "" }],
+    techniques: [{ id: "t1", name: "  ", tags: [], text: "" }],
+  });
+  const result = parseImportFile("export.json", json, [], []);
+  assert.equal(result.routines[0].name, "Untitled routine");
+  assert.equal(result.exercises[0].name, "Untitled exercise");
+  assert.equal(result.techniques[0].name, "Untitled technique");
+});
+
+test("parseImportFile cleans incoming JSON folder names but leaves existing folders alone", () => {
+  const existing = [{ id: "f1", name: "Old  name ", parentId: null }];
+  const json = JSON.stringify({ routines: [], folders: [{ id: "f2", name: "  New   folder ", parentId: null }] });
+  const result = parseImportFile("export.json", json, existing, []);
+  assert.deepEqual(result.folders.map((f) => f.name), ["Old  name ", "New folder"]);
+});

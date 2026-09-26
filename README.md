@@ -116,6 +116,21 @@ Data** if you want to fully remove a test account's footprint.
   None of this is built. #1 is cheap and worth doing on its own; #2 and #3
   are only worth it once the size or sync cost actually becomes noticeable.
 
+- **Entries saved before 2026-09-25 may still have messy whitespace.** Every
+  composer save and every JSON/CSV import now runs text through
+  `cleanFields` (`src/lib/text.js`): one-line fields are trimmed with inner
+  whitespace collapsed, body text loses leading/trailing blank lines and
+  trailing spaces, and runs of blank lines collapse to one. Data saved
+  before that is only cleaned when an item is next edited and saved.
+  A one-time cleanup was deliberately not done yet: it would be a small
+  migration that maps `cleanFields` over every session, journal, roll,
+  routine, technique and exercise once and saves the result. It rewrites
+  real data, so export a JSON backup first. Two things to watch: an
+  exercise name that only differed by spacing ("Back  squat" vs "Back
+  squat") would become an exact duplicate, and a folder or position name
+  that changes would no longer match anything that still uses the old
+  spelling.
+
 ## Feature ideas (not urgent)
 
 - **Journals aren't on the Home calendar.** They were left out when Home's
