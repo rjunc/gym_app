@@ -25,5 +25,8 @@ export const auth = firebaseConfigured ? getAuth(app) : null;
 export const db = firebaseConfigured
   ? initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      // A record field left undefined is skipped instead of failing the whole
+      // save (each record is written as its own document).
+      ignoreUndefinedProperties: true,
     })
   : null;

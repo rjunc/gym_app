@@ -5,8 +5,10 @@ import { downloadFile } from "./lib/download.js";
 import { combinedToCSV, parseImportFile } from "./lib/importExport.js";
 import { mergeById } from "./lib/arrays.js";
 import { exerciseUsageCounts } from "./lib/exercises.js";
-import { subscribeToLog, saveLog } from "./lib/firestoreLog.js";
+import { migrateLegacyLog } from "./lib/firestoreLog.js";
+import { useSyncedCollection } from "./lib/useSyncedCollection.js";
 import Shell from "./ui/Shell.jsx";
+import { primaryBtnStyle } from "./ui/styles.js";
 import Sidebar from "./ui/Sidebar.jsx";
 import HomeTab from "./tabs/HomeTab.jsx";
 import SessionsTab from "./tabs/SessionsTab.jsx";
@@ -31,71 +33,41 @@ const PAGE_TITLES = {
 export default function App({ uid, userEmail, onLogout }) {
   const [page, setPage] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sessions, setSessions] = useState([]);
-  const [folders, setFolders] = useState([]);
-  const [routines, setRoutines] = useState([]);
-  const [journals, setJournals] = useState([]);
-  const [rolls, setRolls] = useState([]);
-  const [techniques, setTechniques] = useState([]);
-  const [jitsFolders, setJitsFolders] = useState([]);
-  const [exercises, setExercises] = useState([]);
-  const [loaded, setLoaded] = useState(false);
-  const [syncError, setSyncError] = useState("");
+  // A log saved in the old single-document shape is copied into the
+  // per-record collections before anything subscribes (see migrateLegacyLog).
+  const [migrated, setMigrated] = useState(false);
+  const [migrationError, setMigrationError] = useState(null);
+  useEffect(() => {
+    setMigrated(false);
+    setMigrationError(null);
+    migrateLegacyLog(uid)
+      .then(() => setMigrated(true))
+      .catch((err) => {
+        console.error("migration failed", err);
+        setMigrationError(err);
+      });
+  }, [uid]);
+
+  // Each collection syncs on its own, one Firestore document per record.
+  const [sessions, setSessions, sessionsStatus] = useSyncedCollection(uid, "sessions", migrated);
+  const [folders, setFolders, foldersStatus] = useSyncedCollection(uid, "folders", migrated);
+  const [routines, setRoutines, routinesStatus] = useSyncedCollection(uid, "routines", migrated);
+  const [journals, setJournals, journalsStatus] = useSyncedCollection(uid, "journals", migrated);
+  const [rolls, setRolls, rollsStatus] = useSyncedCollection(uid, "rolls", migrated);
+  const [techniques, setTechniques, techniquesStatus] = useSyncedCollection(uid, "techniques", migrated);
+  const [jitsFolders, setJitsFolders, jitsFoldersStatus] = useSyncedCollection(uid, "jitsFolders", migrated);
+  const [exercises, setExercises, exercisesStatus] = useSyncedCollection(uid, "exercises", migrated);
+  const statuses = [sessionsStatus, foldersStatus, routinesStatus, journalsStatus, rollsStatus, techniquesStatus, jitsFoldersStatus, exercisesStatus];
+  const loaded = statuses.every((s) => s.loaded);
+  // A failed first load blocks the whole app (see the error screen below)
+  // rather than showing an empty log you could type over.
+  const loadFailed = !!migrationError || statuses.some((s) => s.loadError);
+  const syncError = statuses.some((s) => s.error) ? "Couldn't sync with the server. Check your connection, then reload." : "";
   const [importError, setImportError] = useState("");
   // How much each exercise is used in sessions, shared by every Exercises
   // picker (Sessions, Journals, Home, Routines) so they all rank the same way.
   const exerciseUsage = useMemo(() => exerciseUsageCounts(sessions, todayISO()), [sessions]);
-  const saveTimer = useRef(null);
   const fileInputRef = useRef(null);
-  // Set right before a Firestore snapshot updates local state, so the save
-  // effect below can tell "the server just told us this" apart from "the
-  // user just changed something" and avoid writing an echo straight back.
-  const skipNextSave = useRef(false);
-
-  // Live-sync this user's log document. Firestore's persistent local cache
-  // (configured in firebase.js) makes this resolve instantly from disk on
-  // reload/offline, then reconcile with the server in the background.
-  useEffect(() => {
-    setLoaded(false);
-    const unsubscribe = subscribeToLog(
-      uid,
-      (data) => {
-        skipNextSave.current = true;
-        setSessions(Array.isArray(data.sessions) ? data.sessions : []);
-        setFolders(Array.isArray(data.folders) ? data.folders : []);
-        setRoutines(Array.isArray(data.routines) ? data.routines : []);
-        setJournals(Array.isArray(data.journals) ? data.journals : []);
-        setRolls(Array.isArray(data.rolls) ? data.rolls : []);
-        setTechniques(Array.isArray(data.techniques) ? data.techniques : []);
-        setJitsFolders(Array.isArray(data.jitsFolders) ? data.jitsFolders : []);
-        setExercises(Array.isArray(data.exercises) ? data.exercises : []);
-        setSyncError("");
-        setLoaded(true);
-      },
-      (err) => {
-        console.error("sync failed", err);
-        setSyncError("Couldn't sync with the server. Changes will retry automatically.");
-        setLoaded(true);
-      }
-    );
-    return unsubscribe;
-  }, [uid]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    if (skipNextSave.current) {
-      skipNextSave.current = false;
-      return;
-    }
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      saveLog(uid, { sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises }).catch((e) => {
-        console.error("save failed", e);
-        setSyncError("Couldn't save your last change. Check your connection.");
-      });
-    }, 250);
-    return () => clearTimeout(saveTimer.current);
-  }, [sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises, loaded, uid]);
 
   const exportJSON = () =>
     downloadFile(
@@ -136,6 +108,31 @@ export default function App({ uid, userEmail, onLogout }) {
     }
     e.target.value = "";
   };
+
+  if (loadFailed) {
+    return (
+      <Shell>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 14,
+            height: "100%",
+            padding: 24,
+            textAlign: "center",
+            color: "var(--text-dim)",
+          }}
+        >
+          <div>Couldn't load your log, so nothing can be edited right now. Your saved data hasn't been touched.</div>
+          <button onClick={() => window.location.reload()} style={primaryBtnStyle}>
+            Reload
+          </button>
+        </div>
+      </Shell>
+    );
+  }
 
   if (!loaded) {
     return (

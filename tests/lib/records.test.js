@@ -42,3 +42,42 @@ test("importedTimestamps keeps non-empty strings only", () => {
   assert.deepEqual(importedTimestamps({ createdAt: "", updatedAt: 5 }), {});
   assert.deepEqual(importedTimestamps({}), {});
 });
+
+/* ============================== newestFirst / diffRecords ============================== */
+
+import { newestFirst, diffRecords } from "../../src/lib/records.js";
+
+test("newestFirst sorts by createdAt descending, undated records last by id", () => {
+  const records = [
+    { id: "b" },
+    { id: "old", createdAt: "2026-09-01T00:00:00.000Z" },
+    { id: "a" },
+    { id: "new", createdAt: "2026-09-20T00:00:00.000Z" },
+  ];
+  assert.deepEqual(newestFirst(records).map((r) => r.id), ["new", "old", "a", "b"]);
+  assert.equal(records[0].id, "b", "input isn't mutated");
+});
+
+test("diffRecords writes nothing when every record is the synced object", () => {
+  const a = { id: "a" };
+  const b = { id: "b" };
+  assert.deepEqual(diffRecords(new Map([["a", a], ["b", b]]), [b, a]), { upserts: [], deleteIds: [] });
+});
+
+test("diffRecords writes new and edited records only, and deletes removed ones", () => {
+  const a = { id: "a", n: 1 };
+  const b = { id: "b", n: 1 };
+  const c = { id: "c", n: 1 };
+  const synced = new Map([["a", a], ["b", b], ["c", c]]);
+  const editedB = { ...b, n: 2 };
+  const d = { id: "d" };
+  const { upserts, deleteIds } = diffRecords(synced, [d, a, editedB]);
+  assert.deepEqual(upserts, [d, editedB]);
+  assert.deepEqual(deleteIds, ["c"]);
+});
+
+test("diffRecords against an empty synced map only adds — it can never delete", () => {
+  const { upserts, deleteIds } = diffRecords(new Map(), [{ id: "a" }]);
+  assert.equal(upserts.length, 1);
+  assert.deepEqual(deleteIds, []);
+});

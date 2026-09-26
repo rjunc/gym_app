@@ -36,13 +36,32 @@ in **Settings → Environment Variables**.
 
 ## Data model
 
-Each user's entire log (sessions, routines, folders) lives in one Firestore
-document at `users/{uid}/data/log`. That mirrors the old single-blob
-`localStorage` shape, keeps reads/writes to one round trip, and is well
-within the free-tier limits for personal use — see the single-document size
-cap under Open considerations below for the one real ceiling this design
-has. CSV/JSON export and import (bottom toolbar) still work exactly as
-before, independent of Firestore.
+Every record is its own Firestore document, grouped by kind:
+`users/{uid}/sessions/{id}`, `.../journals/{id}`, `.../rolls/{id}`,
+`.../routines/{id}`, `.../folders/{id}`, `.../techniques/{id}`,
+`.../jitsFolders/{id}` and `.../exercises/{id}`. The document id is the
+record's id and the document is the whole record, so what's stored is
+exactly what the app works with (see `src/lib/firestoreLog.js`).
+
+- **Only what changed is written.** Each collection is synced by
+  `src/lib/useSyncedCollection.js`: after any change, the records that are
+  new or edited are written and the ones removed are deleted, nothing else.
+- **Two devices can't wipe each other's work.** Editing different records
+  on two devices (including one that was offline and syncs later) never
+  conflicts. Editing the *same* record on both keeps whichever save
+  reached the server last.
+- **No size ceiling in practice.** Firestore's 1 MiB limit now applies to a
+  single record, not the whole log.
+- **Nothing is saved until a real load has happened.** If the first load
+  fails, the app shows a Reload screen instead of an empty log that could
+  be typed over.
+
+Before 2026-09-25 the whole log was one document at `users/{uid}/data/log`.
+On first load after that change, the app copies it into the collections
+above once and marks it with `migratedAt`. The old document is left in
+place as a backup and is never written again; delete it from the Firebase
+Console whenever you're confident it isn't needed. CSV/JSON export and
+import (sidebar) work exactly as before.
 
 ## Managing accounts
 
@@ -51,9 +70,10 @@ created date, last login, UID). Select rows and use the trash icon to delete
 one or several at once.
 
 Deleting a user there only removes their *login* — it does not delete their
-data. Each account's log is a separate Firestore document at
-`users/{uid}/data/log`; clean it up manually under **Firestore Database →
-Data** if you want to fully remove a test account's footprint.
+data. Each account's log lives under `users/{uid}/` (one subcollection per
+kind of record, plus the old `data/log` backup); clean it up manually under
+**Firestore Database → Data** if you want to fully remove a test account's
+footprint.
 
 ## Open considerations (not urgent — revisit whenever)
 
@@ -70,52 +90,14 @@ Data** if you want to fully remove a test account's footprint.
   needs enabling the Google provider in Firebase Console plus a small code
   change to add the button.
 - **Firestore rules should be spot-checked occasionally.** They currently
-  restrict all reads/writes to `request.auth.uid == uid` (see
-  `firestore.rules`). If you ever edit them in the Firebase Console, paste
-  carefully — a malformed rules file can silently fail to publish, leaving
-  the previous (possibly deny-all) rules in effect.
+  restrict all reads/writes under `users/{uid}/` to `request.auth.uid ==
+  uid` (see `firestore.rules`). If you ever edit them in the Firebase
+  Console, paste carefully — a malformed rules file can silently fail to
+  publish, leaving the previous (possibly deny-all) rules in effect.
 - **Bundle size warning during build** (`some chunks are larger than 500 kB`)
   comes from the Firebase SDK. Harmless for a personal app at this scale;
   only worth addressing (via code-splitting) if load time ever becomes
   noticeable.
-- **The real storage ceiling is Firestore's 1 MiB per-document limit, not the
-  1 GB free-tier quota.** Every field lives in one document, so that
-  document — not the account-wide 1 GB pool — is what could eventually fill
-  up; with a single user you'll never come close to 1 GB itself. Rough math
-  at ~6 training days/week: short one-line entries would take roughly
-  9-10 years to approach 1 MiB, detailed paragraph-per-session entries
-  roughly 3-4 years. The library/routine/technique data is comparatively
-  small and plateaus once it's populated, since it doesn't grow daily.
-  Not urgent — worth a rough size check every year or so.
-- **Related: every save rewrites the entire document, not just what
-  changed.** The debounced save in `App.jsx` does one `setDoc` of the whole
-  combined object on every edit, so changing one session's text also
-  re-sends every routine, technique, and library exercise. Harmless at the
-  current size, but it's the same root cause as the size cap above, and
-  worth fixing together if either becomes annoying. In order of effort:
-  1. **Write only what changed.** Swap the single `setDoc` for `updateDoc`
-     calls scoped to just the field that changed (e.g. only `{ sessions }`
-     when a session changes). Cuts the per-edit network cost to roughly
-     "how big is this one category," with no change to the data model.
-  2. **Split the one document into a handful, by category** (e.g.
-     `users/{uid}/data/sessions`, `.../library`, `.../routines`), each still
-     an array-in-one-document like today. Multiplies the effective size
-     ceiling by however many documents you split into, and an edit to one
-     category no longer touches the others at all. Each category is still
-     capped eventually, just at its own, much slower rate.
-  3. **Move the genuinely unbounded data into real subcollections.**
-     Sessions/rolls/journals are the only things that grow forever; the
-     library/routines/techniques/folders are small and plateau. Giving just
-     the dated logs their own subcollection (one document per entry, or
-     bucketed by month/year) removes the size ceiling for the part of the
-     data that would ever hit it, and means syncing only moves the entries
-     that actually changed. The correct long-term shape, but the biggest
-     lift — it changes how every tab reads/writes, not just how saving is
-     wired up.
-
-  None of this is built. #1 is cheap and worth doing on its own; #2 and #3
-  are only worth it once the size or sync cost actually becomes noticeable.
-
 - **Entries saved before 2026-09-25 may still have messy whitespace.** Every
   composer save and every JSON/CSV import now runs text through
   `cleanFields` (`src/lib/text.js`): one-line fields are trimmed with inner
