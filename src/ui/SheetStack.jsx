@@ -149,7 +149,7 @@ export default function SheetStack({ stack, setStack }) {
             routineNameById={routineNameById}
             onEdit={() => push({ kind: "editEntry", source: level.source, id: record.id })}
             onRedo={meta.canRedo ? () => push({ kind: "redoEntry", source: level.source, id: record.id }) : undefined}
-            onSaveAsRoutine={level.source === "sessions" && (record.blocks || []).length > 0 ? () => push({ kind: "routineFromEntry", source: level.source, id: record.id }) : undefined}
+            onSaveAsRoutine={level.source === "sessions" ? () => push({ kind: "routineFromEntry", source: level.source, id: record.id }) : undefined}
             onDelete={() => deleteEntry(level.source, record)}
             onBack={onBack}
             onClose={closeAll}
