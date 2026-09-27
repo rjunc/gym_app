@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { todayISO, uid } from "../lib/id.js";
 import { newRecord, editById, editRecord } from "../lib/records.js";
 import { folderPath } from "../lib/folders.js";
-import { entriesByRoutine, routineOptions } from "../lib/routines.js";
+import { entriesByRoutine, routineOptions, routineFromSession } from "../lib/routines.js";
 import { entriesByExercise, exerciseDeleteWarning } from "../lib/exercises.js";
 import { nameMap } from "../lib/search.js";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
@@ -34,7 +34,10 @@ const ENTRY_TYPE_GROUPS = {
 // Levels, besides the summary sheets SheetStack.open takes:
 //   { kind: "editRoutine" | "editExercise", id }
 //   { kind: "editEntry" | "redoEntry", source, id }
-// Every edit form returns to the sheet it was opened from, on save or cancel.
+//   { kind: "routineFromEntry", source, id }  (a new routine from a session)
+// Every edit form returns to the sheet it was opened from, on save or cancel,
+// except that a routine saved from a session opens that routine's sheet in
+// the form's place.
 export default function SheetStack({ stack, setStack }) {
   const log = useLog();
   const { sessions, journals, rolls, routines, setRoutines, folders, exercises, setExercises, exerciseUsage, routineUsage } = log;
@@ -146,6 +149,7 @@ export default function SheetStack({ stack, setStack }) {
             routineNameById={routineNameById}
             onEdit={() => push({ kind: "editEntry", source: level.source, id: record.id })}
             onRedo={meta.canRedo ? () => push({ kind: "redoEntry", source: level.source, id: record.id }) : undefined}
+            onSaveAsRoutine={level.source === "sessions" && (record.blocks || []).length > 0 ? () => push({ kind: "routineFromEntry", source: level.source, id: record.id }) : undefined}
             onDelete={() => deleteEntry(level.source, record)}
             onBack={onBack}
             onClose={closeAll}
@@ -162,9 +166,29 @@ export default function SheetStack({ stack, setStack }) {
             config={ROUTINE_CONFIG}
             exercises={exercises}
             exerciseUsage={exerciseUsage}
+            history={sessions}
             onClose={back}
           />
         );
+      case "routineFromEntry": {
+        // The editor calls onSaved then onClose in one go, so onClose knows
+        // whether it was saved.
+        let savedId = null;
+        return (
+          <FolderItemEditor
+            defaults={routineFromSession(record)}
+            items={routines}
+            setItems={setRoutines}
+            folders={folders}
+            config={ROUTINE_CONFIG}
+            exercises={exercises}
+            exerciseUsage={exerciseUsage}
+            history={sessions}
+            onSaved={(saved) => (savedId = saved.id)}
+            onClose={() => setStack((s) => (savedId ? [...s.slice(0, -1), { kind: "routine", id: savedId, key: uid() }] : s.slice(0, -1)))}
+          />
+        );
+      }
       case "editExercise":
         return <ExerciseEditor exercise={record} exercises={exercises} setExercises={setExercises} onClose={back} />;
       case "editEntry":

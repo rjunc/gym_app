@@ -18,6 +18,7 @@ import {
   matchingBlock,
   formatSets,
   toDraftRows,
+  planHints,
   WEIGHT_UNIT,
   DISTANCE_UNIT,
 } from "../lib/sets.js";
@@ -88,6 +89,12 @@ const shortDate = (iso) => {
 // "Last" shows the matching block from the most recent other session that
 // logged the exercise (from `history`, not after the date being logged) — the
 // same round of it if it was done more than once — and can copy its sets in.
+// A block brought in from a routine (see applyRoutine) also has a "Plan"
+// line above it: the routine's sets for it, shown greyed in the empty boxes
+// of its rows until something is typed, and "As planned" to fill them in
+// one tap. Only what's typed or filled is saved; the plan itself isn't.
+// A routine's own form uses this same field for its plan (see
+// FolderItemEditor), where the sets typed are the planned ones.
 export default function BlocksField({ form, setForm, exercises, history = [], entryId, accentVar }) {
   const [openNotes, setOpenNotes] = useState([]); // blocks whose "+ Note" was tapped, by key
   const blocks = form.blocks || [];
@@ -127,6 +134,8 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
     const lastBlock = last && matchingBlock(last.blocks, occurrence);
     const lastSets = lastBlock ? lastBlock.sets || [] : [];
     const measure = resolveMeasure({ chosen: block.measure, rows, lastSets, exercise });
+    const plan = block.plan || [];
+    const hints = plan.length > 0 ? planHints(plan) : [];
     const units = {
       distanceUnit: distanceUnitOfSets(rows) || distanceUnitOfSets(lastSets) || DISTANCE_UNIT,
       timeUnit: timeUnitOfSets(rows) || timeUnitOfSets(lastSets) || defaultTimeUnit(measure),
@@ -160,6 +169,15 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
             <X size={15} />
           </button>
         </div>
+
+        {plan.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Plan: {formatSets(plan)}</span>
+            <button onClick={() => setMeasure(block.key, measureOfSets(plan), () => toDraftRows(plan))} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
+              As planned
+            </button>
+          </div>
+        )}
 
         {lastBlock && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
@@ -197,7 +215,7 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
                           setRows(block.key, (list) => list.map((r, k) => (k === i ? { ...r, [field]: value } : r)));
                         }}
                         inputMode={meta.inputMode}
-                        placeholder={meta.placeholder}
+                        placeholder={(hints[i] && hints[i][field]) || meta.placeholder}
                         aria-label={`Set ${i + 1} ${field}`}
                         style={{ ...inputStyle, padding: "7px 8px", minWidth: 0, flex: 1 }}
                       />

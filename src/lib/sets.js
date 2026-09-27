@@ -221,6 +221,36 @@ export const toDraftBlocks = (blocks, { fresh = false } = {}) =>
 // A draft block for an exercise just added to the form.
 export const newDraftBlock = (exerciseId) => ({ key: uid(), exerciseId, rows: [], note: "" });
 
+// Planned sets (a routine's, see lib/routines.js) as empty draft rows: one
+// per planned set, with the same boxes, units and drops, but nothing typed —
+// the plan's numbers are only shown as hints (see planHints) until they're
+// typed or filled with "As planned".
+export const planRows = (plan) =>
+  toDraftRows(plan).map((row) => {
+    const empty = { ...row };
+    SET_FIELDS.forEach((f) => {
+      if (f in empty) empty[f] = "";
+    });
+    return empty;
+  });
+
+// What each planned set's boxes would hold, by row: planHints(plan)[i].weight
+// is the hint shown in row i's weight box.
+export const planHints = (plan) => toDraftRows(plan);
+
+// A routine's block (with its own fresh id) as a block on the session form:
+// empty rows to fill (see planRows), the routine's note copied in, and the
+// plan itself kept on the draft as `plan` for the hints and "As planned".
+// `plan` is draft-only: fromDraftBlocks never saves it.
+export const planDraftBlock = (block) => ({
+  key: block.id || uid(),
+  exerciseId: block.exerciseId,
+  rows: planRows(block.sets),
+  note: block.note || "",
+  ...(block.groupId ? { groupId: block.groupId } : {}),
+  ...((block.sets || []).length > 0 ? { plan: block.sets.map((s) => ({ ...s })) } : {}),
+});
+
 // The form's draft blocks -> what's saved, in order: every block (one with
 // no sets still says the exercise was done), its usable sets, and its note
 // trimmed to one line, left out when blank.

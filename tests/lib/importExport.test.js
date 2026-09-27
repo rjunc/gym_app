@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { combinedToCSV, combinedFromCSV, parseImportFile } from "../../src/lib/importExport.js";
 import { todayISO } from "../../src/lib/id.js";
+import { parseCSV } from "../../src/lib/csv.js";
 
 /* ============================== fixtures ============================== */
 
@@ -534,4 +535,67 @@ test("groups round-trip through JSON (tidied), and show in the CSV sets column",
   const csv = combinedToCSV([session], [], [], [], [], [], [], exercises);
   const sessionLine = csv.split(/\r?\n/).find((line) => line.startsWith("session,"));
   assert.ok(sessionLine.endsWith("Superset (Goblet squat: 100 lb × 8 + Retired stretch: 0:30); Goblet squat: 100 lb × 8"), sessionLine);
+});
+
+test("parseImportFile: JSON round trip keeps a routine's plan — blocks, sets, notes and groups", () => {
+  const routine = {
+    id: "r1",
+    name: "Legs",
+    folderId: null,
+    tags: [],
+    text: "",
+    exerciseIds: ["e1", "e2", "e3"],
+    blocks: [
+      { id: "b1", exerciseId: "e1", sets: [{ weight: 225, weightUnit: "lb", reps: 5 }, { weight: 185, weightUnit: "lb", reps: 8, drop: true }], note: "8–12, RPE 8" },
+      { id: "b2", exerciseId: "e2", sets: [{ seconds: 60, timeUnit: "sec" }], groupId: "g1" },
+      { id: "b3", exerciseId: "e3", sets: [], groupId: "g1" },
+    ],
+    groups: [{ id: "g1", kind: "superset" }],
+  };
+  const result = parseImportFile("export.json", JSON.stringify({ routines: [routine] }), [], []);
+  assert.deepEqual(result.routines[0], routine);
+});
+
+test("parseImportFile: an imported routine's exerciseIds follow its blocks, and a lone grouped block leaves its group", () => {
+  const routine = {
+    id: "r1",
+    name: "Legs",
+    tags: [],
+    text: "",
+    exerciseIds: ["stale"],
+    blocks: [
+      { id: "b1", exerciseId: "e2", sets: [], groupId: "g1" },
+      { id: "b2", exerciseId: "e1", sets: [] },
+      { id: "b3", exerciseId: "e2", sets: [] },
+    ],
+    groups: [{ id: "g1", kind: "superset" }],
+  };
+  const result = parseImportFile("export.json", JSON.stringify({ routines: [routine] }), [], []);
+  assert.deepEqual(result.routines[0].exerciseIds, ["e2", "e1"]);
+  assert.equal("groupId" in result.routines[0].blocks[0], false);
+  assert.equal("groups" in result.routines[0], false);
+});
+
+test("combinedToCSV: a routine's sets column lists its whole plan, numberless exercises included", () => {
+  const exercisesList = [
+    { id: "e1", name: "Back squat", tags: [] },
+    { id: "e2", name: "Plank", tags: [] },
+    { id: "e3", name: "Dips", tags: [] },
+  ];
+  const routine = {
+    id: "r1",
+    name: "Legs",
+    folderId: null,
+    tags: [],
+    text: "",
+    blocks: [
+      { id: "b1", exerciseId: "e1", sets: [{ weight: 225, weightUnit: "lb", reps: 5 }, { weight: 225, weightUnit: "lb", reps: 5 }] },
+      { id: "b2", exerciseId: "e2", sets: [], groupId: "g1" },
+      { id: "b3", exerciseId: "e3", sets: [{ reps: 10 }], groupId: "g1", note: "slow" },
+    ],
+    groups: [{ id: "g1", kind: "superset" }],
+  };
+  const csv = combinedToCSV([], [routine], [], [], [], [], [], exercisesList);
+  const row = parseCSV(csv)[1];
+  assert.equal(row[row.length - 1], "Back squat: 2×5 @ 225 lb; Superset (Plank + Dips: 10 reps (slow))");
 });

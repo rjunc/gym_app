@@ -5,30 +5,46 @@ import { folderPath } from "../lib/folders.js";
 import { cleanFields } from "../lib/text.js";
 import { collectPositions } from "../lib/positions.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
+import { toDraftBlocks, fromDraftBlocks, blockExerciseIds } from "../lib/sets.js";
+import { tidyGroups } from "../lib/groups.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 
 // The new/edit form for a routine or technique, on its own so it opens the
 // same from its library page and from anywhere a routine sheet was reached by
 // a link (see SheetStack). Pass `item` to edit it, or leave it out to create
-// one starting from `defaults` ({ name, folderId }). `onSaved(record)` gets
-// the saved record after it's written; `onClose` runs after saving too.
+// one starting from `defaults` ({ name, folderId }, and for a routine
+// optionally tags, text, blocks and groups — see routineFromSession).
+// `onSaved(record)` gets the saved record after it's written; `onClose` runs
+// after saving too.
 // `config` is the page's wording and optional fields — see ROUTINE_CONFIG in
 // RoutinesTab and the Techniques page:
 //   { itemNoun, namePlaceholder, textLabel, textPlaceholder, accent,
-//     showPositions, showStar, showGiOnly, showExercises }
+//     showPositions, showStar, showGiOnly, showExercises, showBlocks }
 // plus, for showExercises, `exercises` and `exerciseUsage` to pick from.
-export default function FolderItemEditor({ item, defaults = {}, items, setItems, folders, config, exercises = [], exerciseUsage, onSaved, onClose }) {
-  const { itemNoun, namePlaceholder, textLabel, textPlaceholder, accent = "--accent2", showPositions, showStar, showGiOnly, showExercises } = config;
+// `showBlocks` (routines) makes the exercises a plan edited exactly like a
+// session's blocks (see BlocksField): in order, repeats allowed, supersets
+// and circuits, a format per block and planned sets, with `history` (the
+// sessions) feeding each block's "Last" line. It's saved as `blocks` and
+// `groups`, with `exerciseIds` derived from the blocks, the same as a
+// session's save (see EntrySheet).
+export default function FolderItemEditor({ item, defaults = {}, items, setItems, folders, config, exercises = [], exerciseUsage, history = [], onSaved, onClose }) {
+  const { itemNoun, namePlaceholder, textLabel, textPlaceholder, accent = "--accent2", showPositions, showStar, showGiOnly, showExercises, showBlocks } = config;
   const [form, setForm] = useState(() => ({
     name: item ? item.name : defaults.name || "",
-    tags: item ? [...(item.tags || [])] : [],
-    text: item ? item.text || "" : "",
+    tags: item ? [...(item.tags || [])] : [...(defaults.tags || [])],
+    text: item ? item.text || "" : defaults.text || "",
     folderId: item ? item.folderId || null : defaults.folderId || null,
     position: item ? item.position || "" : "",
     toPosition: item ? item.toPosition || "" : "",
     starred: item ? !!item.starred : false,
     giOnly: item ? !!item.giOnly : false,
-    ...(showExercises ? { exerciseIds: item ? [...(item.exerciseIds || [])] : [] } : {}),
+    ...(showExercises && !showBlocks ? { exerciseIds: item ? [...(item.exerciseIds || [])] : [] } : {}),
+    ...(showBlocks
+      ? {
+          blocks: toDraftBlocks(item ? item.blocks : defaults.blocks),
+          groups: ((item ? item.groups : defaults.groups) || []).map((g) => ({ ...g })),
+        }
+      : {}),
   }));
   const [tagDraft, setTagDraft] = useState("");
   const tagSuggestions = useMemo(() => tagUsage(items, todayISO()), [items]);
@@ -47,8 +63,13 @@ export default function FolderItemEditor({ item, defaults = {}, items, setItems,
   }, [folders]);
 
   const save = () => {
-    const fields = cleanFields(form);
+    const { blocks: draftBlocks, groups: draftGroups, ...rest } = form;
+    const fields = cleanFields(rest);
     if (!fields.name) return;
+    if (showBlocks) {
+      const { blocks, groups } = tidyGroups(fromDraftBlocks(draftBlocks), draftGroups);
+      Object.assign(fields, { blocks, groups, exerciseIds: blockExerciseIds(blocks) });
+    }
     let saved;
     if (item) {
       saved = { ...item, ...fields };
@@ -86,6 +107,8 @@ export default function FolderItemEditor({ item, defaults = {}, items, setItems,
       showExercises={showExercises}
       exerciseOptions={exercises}
       exerciseUsage={exerciseUsage}
+      showSets={showBlocks}
+      setsHistory={history}
       textLabel={textLabel}
       textPlaceholder={textPlaceholder}
       saveLabel={item ? "Save changes" : `Save ${itemNoun}`}

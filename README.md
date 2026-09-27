@@ -69,7 +69,21 @@ superset or circuit: they share a `groupId`, and the session lists
 and so on; see `src/lib/groups.js`). A set with `drop: true` carries straight
 on from the one before (dropsets, rest-pause). The session's `exerciseIds` is kept
 as the distinct exercises of its blocks, which is what links, usage counts
-and search go by (journals and routines just have `exerciseIds`).
+and search go by (journals just have `exerciseIds`).
+
+**Routines are plans in the same shape.** A routine stores `blocks` and
+`groups` exactly like a session, plus `exerciseIds` derived from its blocks
+the same way. Its sets are the *planned* numbers (a block with no sets means
+"just do it"); rep ranges and RPE go in the block's `note`. Adding a routine
+to a session appends its whole plan to the end, as if done right after what's
+already there: every block (no dedupe — two routines with Plank give two
+Plank blocks), its supersets/circuits and its notes, with fresh ids. The
+planned sets arrive as empty rows with the plan's numbers greyed in the
+boxes and a "Plan: …" line with **As planned** to fill them; only what's
+typed or filled is saved, and the plan itself is never stored on the session
+(see `applyRoutine` in `src/lib/routines.js`). A session is a copy: editing
+the routine later never changes it. **Save as routine** on a session's sheet
+does the reverse (`routineFromSession`).
 
 **Logged sets.** Which fields a set has depends on how it was logged
 (weight × reps, reps, time as `seconds`, `distance` with optional time,
@@ -147,7 +161,7 @@ footprint.
 - **Temporary "Add test data" button in the sidebar (added 2026-09-26).**
   For pilot testing: it fills the signed-in account with ~300 made-up,
   fully linked records (9 months of sessions with sets and notes, routines
-  in folders, a Library covering every way of logging sets, journals, rolls,
+  in folders with planned sets, a Library covering every way of logging sets, journals, rolls,
   techniques that chain into a Flow). Every generated record's id starts
   with `demo-`, and the same button then reads "Remove test data" and
   deletes exactly those, leaving anything typed in by hand. It writes to
@@ -206,8 +220,8 @@ footprint.
   fine into the thousands of records.
 - **Back up by exporting JSON, regularly.** Nothing is backed up
   automatically, and deleting a record deletes its Firestore document for
-  good. JSON is the only complete export: it keeps sets, exercise links and
-  routine links exactly. CSV has a fixed set of columns and loses those links
+  good. JSON is the only complete export: it keeps sets, routine plans,
+  exercise links and routine links exactly. CSV has a fixed set of columns and loses those links
   and the set numbers on re-import.
 - **Editing the *same* record on two devices: the last save wins
   (2026-09-25).** Each record is its own document, so edits to different
@@ -280,9 +294,9 @@ footprint.
   - **A progress chart** on each exercise's history sheet.
   - **Weekly volume** (sets × reps × weight) per exercise or per tag, e.g.
     total `legs` volume.
-  - **Routines with target sets,** so adding "Squat 3×10" to a session
-    prefills three rows. Today a routine's `prescription` is free text and
-    isn't used to fill sets.
+  - **Rep ranges and progression in routine plans.** Plans hold exact
+    numbers today (ranges/RPE go in the block note). Structured ranges would
+    allow "hit the top of the range → go up" suggestions.
 - **Things the timestamps and routine links make possible (2026-09-25).**
   Every record has `createdAt`/`updatedAt`, and sessions/journals record
   `routineIds`. None of these are built:

@@ -151,3 +151,20 @@ export function normalizeGroups(raw) {
     .filter((g) => g && typeof g === "object" && typeof g.id === "string" && g.id)
     .map((g) => ({ id: g.id, kind: GROUP_KINDS[g.kind] ? g.kind : "superset" }));
 }
+
+// A copy of some blocks and their groups with new ids throughout, each
+// block's groupId following its group — for bringing a routine's plan into a
+// session (or a session's blocks into a new routine) without the two sharing
+// ids. `newId` makes each id (uid unless given). Blocks' other fields are
+// copied as they are, sets included.
+export function withFreshIds(blocks, groups, newId = uid) {
+  const groupIds = new Map((groups || []).map((g) => [g.id, newId()]));
+  return {
+    blocks: (blocks || []).map((b) => {
+      const { groupId, ...rest } = b;
+      const copy = { ...rest, id: newId(), sets: (b.sets || []).map((s) => ({ ...s })) };
+      return groupId && groupIds.has(groupId) ? { ...copy, groupId: groupIds.get(groupId) } : copy;
+    }),
+    groups: (groups || []).map((g) => ({ ...g, id: groupIds.get(g.id) })),
+  };
+}

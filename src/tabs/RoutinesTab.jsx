@@ -15,6 +15,7 @@ export const ROUTINE_CONFIG = {
   textPlaceholder: "Warm-up, then A1) Back squat 5x5, A2) Romanian deadlift 4x8, B1) Walking lunges..., finish with core circuit...",
   accent: ACCENT,
   showExercises: true,
+  showBlocks: true,
 };
 
 // What deleting a routine does to the entries built from it, for the
@@ -49,6 +50,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
       {...ROUTINE_CONFIG}
       exercises={exercises}
       exerciseUsage={exerciseUsage}
+      history={sessions}
       pick={pick}
       usageFor={(routine) => usageSummary(usesOf(routine))}
       onOpenItem={(routine) => sheets.open({ kind: "routine", id: routine.id, ...(pick ? { hideDelete: true } : {}) })}

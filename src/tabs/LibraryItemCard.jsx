@@ -20,6 +20,9 @@ export default function LibraryItemCard({
   // Optional usageSummary output (see lib/links.js) — "8 sessions · last …" —
   // shown under the text, for routines.
   usage,
+  // Optional content shown under the tags, above the text (a routine's plan
+  // in brief).
+  summary,
   // Optional: tapping anywhere on the card that isn't one of its buttons
   // (edit, delete, star, folder, a tag chip, show more) calls this, e.g. to
   // open a routine's history sheet.
@@ -90,6 +93,8 @@ export default function LibraryItemCard({
           )}
         </div>
       </div>
+
+      {summary}
 
       {item.text && (
         <p

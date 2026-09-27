@@ -110,11 +110,98 @@ test("usageList joins the parts for a sentence", () => {
   assert.equal(usageList({}), "");
 });
 
-test("applyRoutine on a session form appends a block per routine exercise it doesn't have yet", () => {
-  const form = { title: "", tags: [], text: "", routineIds: [], blocks: [{ key: "k1", exerciseId: "e1", rows: [], note: "" }] };
-  const out = applyRoutine(form, { id: "r1", name: "Legs", tags: [], text: "", exerciseIds: ["e1", "e2", "e3", "e2"] });
-  assert.deepEqual(out.blocks.map((b) => b.exerciseId), ["e1", "e2", "e3"]);
-  assert.deepEqual(out.blocks[0], form.blocks[0]);
+/* ============================== routine plans ============================== */
+
+import { routineFromSession } from "../../src/lib/routines.js";
+import { fromDraftBlocks, hasLoggedBlocks, planHints } from "../../src/lib/sets.js";
+
+const legs = {
+  id: "r1",
+  name: "Legs",
+  tags: [],
+  text: "",
+  exerciseIds: ["e1", "e2", "e3"],
+  blocks: [
+    { id: "b1", exerciseId: "e1", sets: [{ weight: 225, weightUnit: "lb", reps: 5 }, { weight: 225, weightUnit: "lb", reps: 5 }], note: "pause at bottom" },
+    { id: "b2", exerciseId: "e2", sets: [{ reps: 10 }], groupId: "g1" },
+    { id: "b3", exerciseId: "e3", sets: [], groupId: "g1" },
+  ],
+  groups: [{ id: "g1", kind: "superset" }],
+};
+const sessionForm = { title: "", tags: [], text: "", routineIds: [], blocks: [{ key: "k1", exerciseId: "e1", rows: [], note: "" }], groups: [] };
+
+test("applyRoutine on a session form appends the routine's whole plan after what's there, repeats included", () => {
+  const out = applyRoutine(sessionForm, legs);
+  assert.deepEqual(out.blocks.map((b) => b.exerciseId), ["e1", "e1", "e2", "e3"]);
+  assert.deepEqual(out.blocks[0], sessionForm.blocks[0]);
   assert.equal("exerciseIds" in out, false);
   assert.deepEqual(out.routineIds, ["r1"]);
+});
+
+test("applyRoutine gives the plan fresh ids and keeps its superset together", () => {
+  const out = applyRoutine(sessionForm, legs);
+  const [, squat, a, b] = out.blocks;
+  assert.notEqual(squat.key, "b1");
+  assert.equal(out.groups.length, 1);
+  assert.notEqual(out.groups[0].id, "g1");
+  assert.equal(out.groups[0].kind, "superset");
+  assert.equal(a.groupId, out.groups[0].id);
+  assert.equal(b.groupId, out.groups[0].id);
+  assert.equal("groupId" in squat, false);
+});
+
+test("applyRoutine adding the same plan twice gives two separate copies", () => {
+  const out = applyRoutine(applyRoutine(sessionForm, legs), { ...legs, id: "r2" });
+  assert.equal(out.blocks.length, 7);
+  assert.equal(out.groups.length, 2);
+  assert.equal(new Set(out.blocks.map((b) => b.key)).size, 7);
+});
+
+test("applyRoutine brings planned sets as empty rows with the plan kept for hints, and copies the note", () => {
+  const squat = applyRoutine(sessionForm, legs).blocks[1];
+  assert.deepEqual(squat.rows, [
+    { weight: "", reps: "" },
+    { weight: "", reps: "" },
+  ]);
+  assert.deepEqual(squat.plan, legs.blocks[0].sets);
+  assert.equal(squat.note, "pause at bottom");
+  assert.deepEqual(planHints(squat.plan)[0], { weight: "225", reps: "5" });
+});
+
+test("a plan's untouched rows are never saved as sets, and the plan itself isn't saved", () => {
+  const out = applyRoutine(sessionForm, { ...legs, blocks: legs.blocks.map((b) => ({ ...b, note: undefined })) });
+  assert.equal(hasLoggedBlocks(out.blocks), false);
+  const saved = fromDraftBlocks(out.blocks);
+  assert.deepEqual(saved[1].sets, []);
+  assert.equal(saved.some((b) => "plan" in b), false);
+});
+
+test("applyRoutine doesn't change the routine it copies from", () => {
+  const before = JSON.stringify(legs);
+  applyRoutine(sessionForm, legs);
+  assert.equal(JSON.stringify(legs), before);
+});
+
+test("applyRoutine on a journal form still links the routine's exercises it doesn't have", () => {
+  const out = applyRoutine({ title: "", tags: [], text: "", exerciseIds: ["e2"] }, legs);
+  assert.deepEqual(out.exerciseIds, ["e2", "e1", "e3"]);
+  assert.equal("blocks" in out, false);
+});
+
+test("routineFromSession copies the session's blocks and groups as a plan with fresh ids", () => {
+  const session = { id: "s1", title: "Leg day", tags: ["legs"], text: "felt strong", blocks: legs.blocks, groups: legs.groups };
+  const out = routineFromSession(session);
+  assert.equal(out.name, "Leg day");
+  assert.deepEqual(out.tags, ["legs"]);
+  assert.equal(out.text, "");
+  assert.deepEqual(out.blocks.map((b) => [b.exerciseId, b.sets.length, b.note]), [
+    ["e1", 2, "pause at bottom"],
+    ["e2", 1, undefined],
+    ["e3", 0, undefined],
+  ]);
+  assert.notEqual(out.blocks[0].id, "b1");
+  assert.equal(out.blocks[1].groupId, out.groups[0].id);
+  assert.notEqual(out.groups[0].id, "g1");
+  out.blocks[0].sets[0].weight = 1;
+  assert.equal(legs.blocks[0].sets[0].weight, 225);
 });

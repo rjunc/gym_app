@@ -11,6 +11,7 @@ import GiModeToggle from "../ui/GiModeToggle.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
+import SetsSummary from "../ui/SetsSummary.jsx";
 import PickBar from "../ui/PickBar.jsx";
 import FolderRow from "./FolderRow.jsx";
 import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
@@ -35,6 +36,11 @@ export default function FolderLibraryTab({
   showStar = false,
   showGiOnly = false,
   showExercises = false,
+  // Routines: the exercises are a plan of blocks (see FolderItemEditor), and
+  // each card shows it in brief (see SetsSummary). `history` is the sessions,
+  // for the editor's "Last" lines.
+  showBlocks = false,
+  history = [],
   exercises = [],
   // Session usage counts (exerciseUsageCounts) that rank the Exercises picker.
   exerciseUsage,
@@ -287,6 +293,7 @@ export default function FolderLibraryTab({
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                     usage={usageFor ? usageFor(r) : undefined}
                     onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
+                    summary={showBlocks ? <SetsSummary entry={r} exerciseNameById={exerciseNameById} accent={accent} includeEmpty style={{ marginTop: 8 }} /> : undefined}
                   />
                 ))}
               </div>
@@ -372,6 +379,7 @@ export default function FolderLibraryTab({
                     onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
                     usage={usageFor ? usageFor(r) : undefined}
                     onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
+                    summary={showBlocks ? <SetsSummary entry={r} exerciseNameById={exerciseNameById} accent={accent} includeEmpty style={{ marginTop: 8 }} /> : undefined}
                   />
                 ))}
               </div>
@@ -387,9 +395,10 @@ export default function FolderLibraryTab({
           items={items}
           setItems={setItems}
           folders={folders}
-          config={{ itemNoun, namePlaceholder, textLabel, textPlaceholder, accent, showPositions, showStar, showGiOnly, showExercises }}
+          config={{ itemNoun, namePlaceholder, textLabel, textPlaceholder, accent, showPositions, showStar, showGiOnly, showExercises, showBlocks }}
           exercises={exercises}
           exerciseUsage={exerciseUsage}
+          history={history}
           // Created while picking for an entry: that's what it's for.
           onSaved={(saved) => {
             if (!composer.item && pick) pick.onAdd(saved);

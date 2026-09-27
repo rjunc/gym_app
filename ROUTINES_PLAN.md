@@ -1,8 +1,7 @@
 # Plan: structured routines
 
-Status: **planned, not started** (written 2026-09-26). Four decisions are
-still open — see [Decisions](#decisions-to-confirm-before-building). Ask the
-owner before building if they haven't been answered below.
+Status: **done** (built 2026-09-27, including the optional "Save as
+routine"). Kept for the record; README → Data model describes the result.
 
 ## Goal
 
@@ -177,7 +176,17 @@ session sheet is cheap: copy blocks, groups and sets into a new routine
    safety net: a routine without `blocks` is read as its `exerciseIds`, one
    block each (a one-line fallback), in case pilot users made some.
 
-Answers: _(fill in)_
+Answers (owner, 2026-09-27):
+
+1. Hints. Each planned set arrives as an empty row with the plan's numbers
+   greyed in its boxes; **As planned** fills the block.
+2. Exact numbers only; ranges/RPE go in the block note.
+3. No dedupe. (The Routines picker already hides a routine the session has,
+   so it can't be added twice by accident; no extra confirmation needed.)
+4. No fallback: there are no routines from before this change.
+5. A routine block's note is **copied** into the session block's note.
+6. "Save as routine" is included.
+7. Editing a routine never changes past sessions (they hold a copy).
 
 ## Order of work
 

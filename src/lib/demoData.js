@@ -3,8 +3,8 @@
 //
 // Builds a believable, fully linked log for trying the app out as someone who
 // has been training for months: a Library of exercises logged in every way
-// sets can be measured, routines in nested folders built from those
-// exercises, sessions built from those routines (blocks in the order done,
+// sets can be measured, routines in nested folders with planned sets for
+// those exercises, sessions built from those routines' plans (blocks in the order done,
 // with sets that progress over time, notes, the odd extra exercise, some
 // exercises done twice, supersets and circuits, and dropsets), journal
 // entries, BJJ rolls, and techniques whose positions chain into a flow.
@@ -15,7 +15,8 @@
 
 import { uid } from "./id.js";
 import { toISO } from "./activity.js";
-import { tidyGroups } from "./groups.js";
+import { tidyGroups, withFreshIds } from "./groups.js";
+import { blockExerciseIds } from "./sets.js";
 
 export const DEMO_PREFIX = "demo-";
 export const isDemoRecord = (record) => typeof record.id === "string" && record.id.startsWith(DEMO_PREFIX);
@@ -75,21 +76,23 @@ const EXERCISES = [
   { name: "Good morning", tags: [], measure: "weight_reps", weight: 45, reps: 10 },
 ];
 
-// Routine folders (a path per folder) and routines: which folder, which
-// exercises (by name), tags and the routine's own text. `groups` are runs of
-// its exercises done as a superset or circuit when the routine is logged.
+// Routine folders (a path per folder) and routines: which folder, the plan's
+// exercises in order (by name, or { name, note, backOff } for a planned note
+// or a lighter back-off round of an exercise already done), tags and the
+// routine's own text. `groups` are runs of its exercises done as a superset
+// or circuit. Each planned exercise gets planned sets (see planSets).
 const ROUTINE_FOLDERS = ["Strength", "Strength/Upper", "Strength/Lower", "Conditioning", "Mobility"];
 const ROUTINES = [
-  { name: "Lower A", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: ["Back squat", "Romanian deadlift", "Bulgarian split squat", "Plank"], text: "Squat heavy, RDL moderate. Finish with core." },
+  { name: "Lower A", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: [{ name: "Back squat", note: "last set AMRAP" }, "Romanian deadlift", "Bulgarian split squat", "Plank"], text: "Squat heavy, RDL moderate. Finish with core." },
   { name: "Lower B", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: ["Deadlift", "Front squat", "Walking lunge", "Hanging leg raise"] },
-  { name: "Upper push", folder: "Strength/Upper", tags: ["strength", "push"], exercises: ["Bench press", "Overhead press", "Incline dumbbell press", "Dips", "Tricep pushdown"], groups: [{ kind: "superset", exercises: ["Dips", "Tricep pushdown"] }], text: "Rest 2–3 min on the big lifts." },
+  { name: "Upper push", folder: "Strength/Upper", tags: ["strength", "push"], exercises: [{ name: "Bench press", note: "pause on the chest" }, "Overhead press", "Incline dumbbell press", "Dips", "Tricep pushdown"], groups: [{ kind: "superset", exercises: ["Dips", "Tricep pushdown"] }], text: "Rest 2–3 min on the big lifts." },
   { name: "Upper pull", folder: "Strength/Upper", tags: ["strength", "pull"], exercises: ["Pull-ups", "Barbell row", "Lat pulldown", "Face pull", "Bicep curl"], groups: [{ kind: "superset", exercises: ["Face pull", "Bicep curl"] }] },
-  { name: "Full body", folder: "Strength", tags: ["strength"], exercises: ["Back squat", "Bench press", "Barbell row", "Farmer carry"] },
+  { name: "Full body", folder: "Strength", tags: ["strength"], exercises: ["Back squat", "Bench press", "Barbell row", "Farmer carry", { name: "Back squat", note: "back-off sets", backOff: true }] },
   { name: "Conditioning circuit", folder: "Conditioning", tags: ["conditioning"], exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"], groups: [{ kind: "circuit", exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"] }], text: "4 rounds, 90s rest between rounds." },
   { name: "Easy cardio", folder: "Conditioning", tags: ["cardio"], exercises: ["Stairmaster", "Row"] },
   { name: "Long run", folder: "Conditioning", tags: ["cardio"], exercises: ["Run"] },
   { name: "Bike intervals", folder: "Conditioning", tags: ["cardio", "conditioning"], exercises: ["Assault bike", "Jump rope"] },
-  { name: "Morning mobility", folder: "Mobility", tags: ["mobility"], exercises: ["Cat-cow", "World's greatest stretch", "Hip flexor stretch"] },
+  { name: "Morning mobility", folder: "Mobility", tags: ["mobility"], exercises: ["Cat-cow", "World's greatest stretch", "Hip flexor stretch", "Plank"] },
   { name: "Hips & back", folder: "Mobility", tags: ["mobility"], exercises: ["Couch stretch", "Hip flexor stretch", "Dead hang"] },
   { name: "Core finisher", folder: null, tags: ["core"], exercises: ["Ab wheel", "Side plank", "Weighted plank"], groups: [{ kind: "circuit", exercises: ["Ab wheel", "Side plank", "Weighted plank"] }] },
 ];
@@ -181,18 +184,20 @@ const DROPSET_EXERCISES = ["Lat pulldown", "Bicep curl", "Tricep pushdown", "Leg
 // One exercise's sets on a session `progress` of the way (0..1) through the
 // log, creeping its numbers up over time.
 // `count` fixes how many (a circuit's rounds); machine and cable work
-// sometimes ends in a dropset.
-function setsFor(ex, progress, count = ex.measure === "distance" || ex.measure === "time_level" ? 1 : between(2, 5)) {
+// sometimes ends in a dropset. With `plan`, they're a routine's planned sets
+// instead: all the same, no tiring on the last one, no drops.
+function setsFor(ex, progress, count = ex.measure === "distance" || ex.measure === "time_level" ? 1 : between(2, 5), { plan = false } = {}) {
   const grow = 1 + progress * 0.3;
   const sets = [];
   for (let i = 0; i < count; i++) {
-    const tired = i >= count - 1 && chance(0.4) ? 1 : 0;
+    const tired = !plan && i >= count - 1 && chance(0.4) ? 1 : 0;
+    const fade = plan ? 0 : i;
     switch (ex.measure) {
       case "weight_reps":
         sets.push({ weight: roundTo(ex.weight * grow, 5) || 5, weightUnit: "lb", reps: Math.max(1, ex.reps - tired) });
         break;
       case "reps":
-        sets.push({ reps: Math.max(1, Math.round(ex.reps * grow) - tired - i) });
+        sets.push({ reps: Math.max(1, Math.round(ex.reps * grow) - tired - fade) });
         break;
       case "time":
         sets.push({ seconds: roundTo(ex.seconds * grow, 5), timeUnit: ex.timeUnit || "sec" });
@@ -217,7 +222,7 @@ function setsFor(ex, progress, count = ex.measure === "distance" || ex.measure =
         break;
     }
   }
-  if (DROPSET_EXERCISES.includes(ex.name) && sets.length > 0 && chance(0.4)) {
+  if (!plan && DROPSET_EXERCISES.includes(ex.name) && sets.length > 0 && chance(0.4)) {
     let last = sets[sets.length - 1];
     for (let d = between(1, 2); d > 0 && last.weight > 10; d--) {
       last = { ...last, weight: roundTo(last.weight * 0.75, 5), reps: Math.max(3, last.reps - between(0, 2)), drop: true };
@@ -226,6 +231,17 @@ function setsFor(ex, progress, count = ex.measure === "distance" || ex.measure =
   }
   return sets;
 }
+
+// How many sets a routine plans for an exercise: one for cardio, the group's
+// rounds in a superset/circuit, 5 for a "5x5" lift, otherwise 3.
+function plannedCount(ex, rounds) {
+  if (ex.measure === "distance" || ex.measure === "time_level") return 1;
+  if (rounds) return rounds;
+  return ex.prescription === "5x5" ? 5 : 3;
+}
+
+// A back-off round: the same sets, lighter.
+const backOffSets = (sets) => sets.slice(0, 2).map((set) => (set.weight ? { ...set, weight: roundTo(set.weight * 0.8, 5) || 5 } : set));
 
 // Everything, as { exercises, folders, routines, sessions, journals, rolls,
 // jitsFolders, techniques }, with sessions and the rest spread over the
@@ -249,17 +265,34 @@ export function generateDemoData(today = new Date(), months = 9) {
   const exerciseByName = new Map(EXERCISES.map((ex, i) => [ex.name, { ...ex, id: exercises[i].id }]));
 
   const { folders, idByPath: folderIdByPath } = buildFolders(ROUTINE_FOLDERS, setupStamp);
-  const routines = ROUTINES.map((r) => ({
-    id: demoId(),
-    name: r.name,
-    folderId: r.folder ? folderIdByPath.get(r.folder) : null,
-    tags: r.tags,
-    text: r.text || "",
-    exerciseIds: r.exercises.map((name) => exerciseByName.get(name).id),
-    createdAt: setupStamp,
-    updatedAt: setupStamp,
-  }));
-  const routineByName = new Map(ROUTINES.map((r, i) => [r.name, { ...r, id: routines[i].id }]));
+  // Each routine's plan: a block per planned exercise, with planned sets
+  // about halfway along the numbers the sessions progress through, so early
+  // sessions fall short of it and later ones beat it.
+  const routines = ROUTINES.map((r) => {
+    const groups = (r.groups || []).map((g) => ({ id: demoId(), kind: g.kind, exercises: g.exercises, rounds: g.kind === "circuit" ? 4 : 3 }));
+    const blocks = r.exercises.map((entry) => {
+      const { name, note, backOff } = typeof entry === "string" ? { name: entry } : entry;
+      const ex = exerciseByName.get(name);
+      const group = !backOff && groups.find((g) => g.exercises.includes(name));
+      const sets = setsFor(ex, 0.5, plannedCount(ex, group && group.rounds), { plan: true });
+      return { id: demoId(), exerciseId: ex.id, sets: backOff ? backOffSets(sets) : sets, ...(note ? { note } : {}), ...(group ? { groupId: group.id } : {}) };
+    });
+    const tidy = tidyGroups(blocks, groups.map(({ id, kind }) => ({ id, kind })));
+    return {
+      id: demoId(),
+      name: r.name,
+      folderId: r.folder ? folderIdByPath.get(r.folder) : null,
+      tags: r.tags,
+      text: r.text || "",
+      exerciseIds: blockExerciseIds(tidy.blocks),
+      blocks: tidy.blocks,
+      groups: tidy.groups,
+      createdAt: setupStamp,
+      updatedAt: setupStamp,
+    };
+  });
+  const routineByName = new Map(ROUTINES.map((r, i) => [r.name, routines[i]]));
+  const exerciseById = new Map([...exerciseByName.values()].map((ex) => [ex.id, ex]));
 
   // Sessions: most days following WEEK_PLAN, with rest days, the odd missed
   // week, a sometimes-added extra exercise, and some linked but not logged.
@@ -278,29 +311,32 @@ export function generateDemoData(today = new Date(), months = 9) {
     if (weekday !== 0 && chance(0.62)) {
       const plan = WEEK_PLAN[planIndex++ % WEEK_PLAN.length];
       const used = plan.map((name) => routineByName.get(name));
-      const exerciseNames = [...new Set(used.flatMap((r) => r.exercises))];
-      if (chance(0.25)) exerciseNames.push(pick(EXERCISES.filter((e) => e.active !== false)).name);
-      // The routines' supersets and circuits (skipped now and then, as if
-      // done straight), each with a shared number of rounds.
-      const sessionGroups = used
-        .flatMap((r) => r.groups || [])
-        .filter(() => chance(0.85))
-        .map((g) => ({ id: demoId(), kind: g.kind, exercises: g.exercises, rounds: between(3, 4) }));
-      const groupOf = (name) => sessionGroups.find((g) => g.exercises.includes(name));
-      // One block per exercise in the routines' order, sometimes with the
-      // first one done again at the end (back-off sets, a second round).
-      const blocks = exerciseNames.map((name) => {
-        const ex = exerciseByName.get(name);
-        const group = groupOf(name);
-        const sets = group ? setsFor(ex, progress, group.rounds) : chance(0.88) ? setsFor(ex, progress) : [];
-        return { id: demoId(), exerciseId: ex.id, sets, ...(chance(0.12) ? { note: pick(EXERCISE_NOTES) } : {}), ...(group ? { groupId: group.id } : {}) };
-      });
-      const first = exerciseByName.get(exerciseNames[0]);
-      if (chance(0.3) && first.measure !== "distance" && first.measure !== "time_level") {
-        const backOff = setsFor(first, progress * 0.5).slice(0, 2).map((set) => (set.weight ? { ...set, weight: roundTo(set.weight * 0.8, 5) || 5 } : set));
-        blocks.push({ id: demoId(), exerciseId: first.id, sets: backOff, note: pick(["back-off sets", "second round", "finisher"]) });
+      // The routines' plans copied in one after the other, the way adding
+      // them to a session does (see applyRoutine), then logged: numbers
+      // progressing over time, the planned number of sets (a circuit's
+      // rounds) most of the time, the odd exercise with nothing logged, the
+      // routine's notes kept or one of the day's instead. Supersets and
+      // circuits are sometimes done straight instead.
+      const copied = used.map((r) => withFreshIds(r.blocks, r.groups, demoId));
+      const straight = new Set(copied.flatMap((c) => c.groups).filter(() => chance(0.15)).map((g) => g.id));
+      const blocks = copied
+        .flatMap((c) => c.blocks)
+        .map((b) => {
+          const ex = exerciseById.get(b.exerciseId);
+          const grouped = b.groupId && !straight.has(b.groupId);
+          const planned = b.sets.length;
+          const count = grouped || chance(0.7) ? planned : undefined;
+          let sets = grouped || chance(0.88) ? setsFor(ex, progress, count || undefined) : [];
+          if (b.note === "back-off sets") sets = backOffSets(setsFor(ex, progress * 0.5, 2));
+          const note = b.note || (chance(0.12) ? pick(EXERCISE_NOTES) : "");
+          return { id: b.id, exerciseId: b.exerciseId, sets, ...(note ? { note } : {}), ...(grouped ? { groupId: b.groupId } : {}) };
+        });
+      // Now and then, an extra exercise not in the plan.
+      if (chance(0.25)) {
+        const extra = exerciseByName.get(pick(EXERCISES.filter((e) => e.active !== false)).name);
+        blocks.push({ id: demoId(), exerciseId: extra.id, sets: setsFor(extra, progress) });
       }
-      const tidy = tidyGroups(blocks, sessionGroups.map(({ id, kind }) => ({ id, kind })));
+      const tidy = tidyGroups(blocks, copied.flatMap((c) => c.groups));
       const text = pick(SESSION_NOTES);
       sessions.push({
         id: demoId(),
@@ -308,7 +344,7 @@ export function generateDemoData(today = new Date(), months = 9) {
         title: chance(0.2) ? pick(SESSION_TITLES) : "",
         tags: [...new Set([...used.flatMap((r) => r.tags), ...(chance(0.1) ? ["deload"] : [])])],
         text,
-        exerciseIds: [...new Set(tidy.blocks.map((b) => b.exerciseId))],
+        exerciseIds: blockExerciseIds(tidy.blocks),
         routineIds: used.map((r) => r.id),
         blocks: tidy.blocks,
         groups: tidy.groups,

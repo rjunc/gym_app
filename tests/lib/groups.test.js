@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tidyGroups, layoutBlocks, linkWithNext, ungroup, setGroupKind, moveBlockInLayout, moveItem, normalizeGroups, defaultKind } from "../../src/lib/groups.js";
+import { tidyGroups, layoutBlocks, linkWithNext, ungroup, setGroupKind, moveBlockInLayout, moveItem, normalizeGroups, defaultKind, withFreshIds } from "../../src/lib/groups.js";
 
 // Blocks as just their ids and group, which is all the grouping logic reads.
 const b = (id, groupId) => ({ id, ...(groupId ? { groupId } : {}) });
@@ -82,4 +82,26 @@ test("normalizeGroups keeps groups with an id, defaulting unknown kinds to super
   assert.equal(normalizeGroups("nope"), undefined);
   assert.equal(defaultKind(2), "superset");
   assert.equal(defaultKind(3), "circuit");
+});
+
+test("withFreshIds copies blocks and groups with new ids, remapping groupIds", () => {
+  let n = 0;
+  const blocks = [
+    { id: "b1", exerciseId: "e1", sets: [{ reps: 5 }] },
+    { id: "b2", exerciseId: "e2", sets: [], groupId: "g1", note: "slow" },
+    { id: "b3", exerciseId: "e3", sets: [], groupId: "g1" },
+  ];
+  const out = withFreshIds(blocks, [{ id: "g1", kind: "circuit" }], () => `n${++n}`);
+  assert.deepEqual(out.groups, [{ id: "n1", kind: "circuit" }]);
+  assert.deepEqual(out.blocks, [
+    { id: "n2", exerciseId: "e1", sets: [{ reps: 5 }] },
+    { id: "n3", exerciseId: "e2", sets: [], note: "slow", groupId: "n1" },
+    { id: "n4", exerciseId: "e3", sets: [], groupId: "n1" },
+  ]);
+  out.blocks[0].sets[0].reps = 9;
+  assert.equal(blocks[0].sets[0].reps, 5);
+});
+
+test("withFreshIds tolerates missing blocks and groups", () => {
+  assert.deepEqual(withFreshIds(undefined, undefined), { blocks: [], groups: [] });
 });

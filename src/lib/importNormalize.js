@@ -1,7 +1,7 @@
 import { uid, todayISO } from "./id.js";
 import { normalizeTags } from "./combinedCsv.js";
 import { importedTimestamps } from "./records.js";
-import { normalizeBlocks, MEASURES } from "./sets.js";
+import { normalizeBlocks, blockExerciseIds, MEASURES } from "./sets.js";
 import { normalizeGroups, tidyGroups } from "./groups.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
@@ -41,22 +41,32 @@ export function normalizeSimpleEntries(arr) {
 // one helper normalizes either out of an imported JSON payload. Techniques
 // additionally carry an optional position -> toPosition pair for the Flow tab,
 // a giOnly flag for the Gi/No-Gi mode filter, and a starred flag marking a
-// go-to that sorts to the top. Routines carry an optional exerciseIds link
-// into the exercise Library, which round-trips here the same way.
+// go-to that sorts to the top. Routines carry their plan the same way a
+// session carries what was done (blocks and groups, checked the same way),
+// and exerciseIds, which for a routine with blocks is derived from them so
+// the two always agree.
 export function normalizeFolderItems(arr, defaultName, { techniqueExtras = false } = {}) {
   return Array.isArray(arr)
-    ? arr.map((r) => ({
-        id: r.id || uid(),
-        name: r.name || defaultName,
-        folderId: r.folderId || null,
-        tags: normalizeTags(r.tags),
-        text: r.text || "",
-        ...(Array.isArray(r.exerciseIds) ? { exerciseIds: r.exerciseIds.filter((id) => typeof id === "string") } : {}),
-        ...(techniqueExtras
-          ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly, starred: !!r.starred }
-          : {}),
-        ...importedTimestamps(r),
-      }))
+    ? arr.map((r) => {
+        const plan = techniqueExtras ? {} : blocksAndGroups(r);
+        return {
+          id: r.id || uid(),
+          name: r.name || defaultName,
+          folderId: r.folderId || null,
+          tags: normalizeTags(r.tags),
+          text: r.text || "",
+          ...(plan.blocks
+            ? { exerciseIds: blockExerciseIds(plan.blocks) }
+            : Array.isArray(r.exerciseIds)
+              ? { exerciseIds: r.exerciseIds.filter((id) => typeof id === "string") }
+              : {}),
+          ...plan,
+          ...(techniqueExtras
+            ? { position: r.position || "", toPosition: r.toPosition || "", giOnly: !!r.giOnly, starred: !!r.starred }
+            : {}),
+          ...importedTimestamps(r),
+        };
+      })
     : [];
 }
 

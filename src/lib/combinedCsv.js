@@ -35,20 +35,24 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   // for reading only, like the exercise names (JSON keeps the numbers).
   // A session's blocks in order, one "Name: sets (note)" each, skipping
   // blocks with neither; a superset or circuit as "Superset (A: … + B: …)".
+  // A routine's plan reads the same, except that every block is listed
+  // (`all`), since a planned exercise with no numbers is still in the plan.
   const blockText = (b) => {
     const parts = [(b.sets || []).length > 0 ? formatSets(b.sets) : "", b.note ? `(${b.note})` : ""].filter(Boolean).join(" ");
-    return `${exerciseNameById.get(b.exerciseId) || "Deleted exercise"}: ${parts}`;
+    const name = exerciseNameById.get(b.exerciseId) || "Deleted exercise";
+    return parts ? `${name}: ${parts}` : name;
   };
-  const logged = (b) => (b.sets || []).length > 0 || b.note;
-  const setsText = (record) =>
-    layoutBlocks(blocksOf(record), record.groups)
+  const setsText = (record, all = false) => {
+    const shown = (b) => all || (b.sets || []).length > 0 || b.note;
+    return layoutBlocks(blocksOf(record), record.groups)
       .map((item) => {
-        if (item.type === "block") return logged(item.block) ? blockText(item.block) : "";
-        const members = item.members.map((m) => m.block).filter(logged);
+        if (item.type === "block") return shown(item.block) ? blockText(item.block) : "";
+        const members = item.members.map((m) => m.block).filter(shown);
         return members.length > 0 ? `${GROUP_KINDS[item.group.kind]} (${members.map(blockText).join(" + ")})` : "";
       })
       .filter(Boolean)
       .join("; ");
+  };
 
   const header = [
     "type", "id", "date", "name", "folder_path", "tags", "text", "position", "to_position", "gi_only", "starred", "prescription", "active", "exercises",
@@ -119,21 +123,21 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   // Every row ends with the same columns: the routines a session/journal was
   // built from (names, human-readable only, like "exercises"), the record's
   // createdAt/updatedAt (these round-trip), an exercise's measure (round-trips)
-  // and a session's sets (human-readable only).
-  const withTail = (records, rows) =>
+  // and a session's sets or a routine's plan (human-readable only).
+  const withTail = (records, rows, allBlocks = false) =>
     rows.map((row, i) => [
       ...row,
       routineNames(records[i].routineIds),
       records[i].createdAt || "",
       records[i].updatedAt || "",
       records[i].measure || "",
-      setsText(records[i]),
+      setsText(records[i], allBlocks),
     ]);
   return [
     header,
     ...withTail(sessions, sessionRows),
     ...withTail(journals, journalRows),
-    ...withTail(routines, routineRows),
+    ...withTail(routines, routineRows, true),
     ...withTail(rolls, rollRows),
     ...withTail(techniques, techniqueRows),
     ...withTail(exercises, exerciseRows),
