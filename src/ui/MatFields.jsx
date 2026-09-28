@@ -13,6 +13,14 @@ import { labelStyle, inputStyle, tagPillStyle, ghostLinkStyle } from "./styles.j
 // an attempt dim.
 export const RESULT_COLORS = { hit: "--accent2", attempted: "--text-dim", caught: "--danger" };
 
+// Sizes a textarea to its text, so a long round note is all in view while
+// it's written (used as its ref, for the text it opens with, and on input).
+const growToFit = (el) => {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+};
+
 const iconBtnStyle = { background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 2 };
 
 // The small "Hit ▾" switch after a technique in a round.
@@ -235,12 +243,15 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
                 >
                   <RotateCcw size={12} /> Restart after a tap
                 </button>
-                <input
+                <textarea
                   value={round.note || ""}
                   onChange={(e) => updateRound(round.key, (r) => ({ ...r, note: e.target.value }))}
+                  ref={growToFit}
+                  onInput={(e) => growToFit(e.target)}
+                  rows={1}
                   placeholder="Note for this round…"
                   aria-label={`Round ${i + 1} note`}
-                  style={{ ...inputStyle, padding: "7px 8px", fontSize: 13 }}
+                  style={{ ...inputStyle, padding: "7px 8px", fontSize: 13, resize: "none", overflow: "hidden", lineHeight: 1.4, fontFamily: "inherit" }}
                 />
               </div>
             );

@@ -8,6 +8,8 @@ import { createContext, useContext } from "react";
 //   open(sheet)  pushes one of:
 //                { kind: "routine", id }   { kind: "exercise", id }
 //                { kind: "technique", id }
+//                { kind: "round", source: "rolls", id, roundId }  (one round of
+//                a mat session)
 //                { kind: "entry", source: "sessions" | "journals" | "rolls", id }
 //                Add `hideDelete: true` when opened while picking for an
 //                entry (see PagePicker), so nothing it links can be deleted;

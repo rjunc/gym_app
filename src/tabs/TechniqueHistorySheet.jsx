@@ -4,6 +4,7 @@ import { techniqueStats, RESULTS, roundParts } from "../lib/mat.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { RESULT_COLORS } from "../ui/MatFields.jsx";
+import { SheetLink } from "../ui/SheetNav.jsx";
 import { labelStyle } from "../ui/styles.js";
 
 // Read-only bottom sheet opened by tapping a technique: the technique itself
@@ -29,7 +30,10 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
       onClose={onClose}
       emptyLabel="Not in any mat sessions yet. Add it to one as a drill or in a round when logging."
       // Whether it was drilled that day, and how it went in each round, with
-      // that round's note under it (once per round, after its last line).
+      // that round's note under it (once per round, after its last line, cut
+      // to 3 lines). Tapping a round's line or note opens that round on its
+      // own (RoundSheet), with the note in full; tapping elsewhere opens the
+      // whole session.
       detail={(entry, entryAccent) => {
         const drilled = (entry.drilledIds || []).includes(technique.id);
         const lines = (entry.rounds || []).flatMap((r, i) => {
@@ -40,21 +44,36 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
               .map((t, k) => (
                 <div key={`${r.id}-${p}-${k}`} style={{ fontSize: 13 }}>
                   <span style={{ fontWeight: 700, color: `var(${RESULT_COLORS[t.result]})` }}>{RESULTS[t.result]}</span>
-                  <span style={{ color: "var(--text-dim)" }}>
-                    {" "}
-                    · round {i + 1}
+                  <span style={{ color: "var(--text-dim)" }}> · </span>
+                  <SheetLink sheet={{ kind: "round", source: "rolls", id: entry.id, roundId: r.id }} style={{ color: "var(--text-dim)" }}>
+                    round {i + 1}
                     {parts.length > 1 ? `, part ${p + 1}` : ""}
                     {r.partner ? ` with ${r.partner}` : ""}
-                  </span>
+                  </SheetLink>
                 </div>
               ))
           );
           if (results.length === 0 || !r.note) return results;
           return [
             ...results,
-            <div key={`${r.id}-note`} style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginBottom: 2 }}>
+            <SheetLink
+              key={`${r.id}-note`}
+              sheet={{ kind: "round", source: "rolls", id: entry.id, roundId: r.id }}
+              style={{
+                fontSize: 12,
+                color: "var(--text-dim)",
+                fontStyle: "italic",
+                marginBottom: 2,
+                textDecoration: "none",
+                whiteSpace: "pre-wrap",
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
               {r.note}
-            </div>,
+            </SheetLink>,
           ];
         });
         return (

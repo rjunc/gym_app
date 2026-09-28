@@ -67,7 +67,7 @@ export default function MatDetail({ entry, accent }) {
                     </div>
                   )
                 )}
-                {r.note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 4 }}>{r.note}</div>}
+                {r.note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 4, whiteSpace: "pre-wrap" }}>{r.note}</div>}
               </div>
             ))}
           </div>

@@ -1,4 +1,5 @@
 import { uid } from "./id.js";
+import { cleanText } from "./text.js";
 
 // A mat session (BJJ class / open mat), stored in the `rolls` log. Besides
 // the date, title, tags and text every entry has, it can hold:
@@ -51,6 +52,8 @@ export const toDraftRounds = (rounds, { fresh = false } = {}) =>
   }));
 
 const oneLine = (s) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
+// A round's note can run to several lines; tidied like any other text.
+const noteText = (s) => (typeof s === "string" ? cleanText(s) : "");
 
 // One round's technique list, checked: a technique id and a known result
 // (DEFAULT_RESULT otherwise).
@@ -61,12 +64,13 @@ const cleanTechniques = (list) =>
 
 // The form's draft rounds -> what's saved, in order. Every round and part is
 // kept, even an empty one (it still says a round was rolled, or restarted
-// after a tap), and a round always has at least one part; partner and note
-// are trimmed to one line and left out when blank.
+// after a tap), and a round always has at least one part; the partner is
+// trimmed to one line, the note tidied (line breaks kept), and each left out
+// when blank.
 export const fromDraftRounds = (drafts) =>
   (drafts || []).map((r) => {
     const partner = oneLine(r.partner);
-    const note = oneLine(r.note);
+    const note = noteText(r.note);
     const parts = (r.parts && r.parts.length > 0 ? r.parts : [newDraftPart()]).map((p) => ({ id: p.key, techniques: cleanTechniques(p.techniques) }));
     return { id: r.key, ...(partner ? { partner } : {}), ...(note ? { note } : {}), parts };
   });
@@ -98,7 +102,7 @@ export function normalizeMat(raw) {
       .filter((r) => r && typeof r === "object")
       .map((r) => {
         const partner = oneLine(r.partner);
-        const note = oneLine(r.note);
+        const note = noteText(r.note);
         const rawParts = Array.isArray(r.parts) ? r.parts.filter((p) => p && typeof p === "object") : [];
         const parts = (rawParts.length > 0 ? rawParts : [{}]).map((p) => ({ id: typeof p.id === "string" && p.id ? p.id : uid(), techniques: cleanTechniques(p.techniques) }));
         return { id: typeof r.id === "string" && r.id ? r.id : uid(), ...(partner ? { partner } : {}), ...(note ? { note } : {}), parts };

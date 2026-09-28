@@ -14,6 +14,7 @@ import ExerciseEditor from "../tabs/ExerciseEditor.jsx";
 import { ROUTINE_CONFIG, routineDeleteWarning } from "../tabs/RoutinesTab.jsx";
 import { TECHNIQUE_CONFIG, rollsByTechnique, techniqueDeleteWarning } from "../tabs/TechniquesTab.jsx";
 import TechniqueHistorySheet from "../tabs/TechniqueHistorySheet.jsx";
+import RoundSheet from "./RoundSheet.jsx";
 import EntryDetailSheet from "./EntryDetailSheet.jsx";
 import EntrySheet from "./EntrySheet.jsx";
 
@@ -160,6 +161,8 @@ export default function SheetStack({ stack, setStack }) {
             onClose={closeAll}
           />
         );
+      case "round":
+        return <RoundSheet entry={record} roundId={level.roundId} onBack={onBack} onClose={closeAll} />;
       case "editTechnique":
         return <FolderItemEditor item={record} items={techniques} setItems={setTechniques} folders={jitsFolders} config={TECHNIQUE_CONFIG} onClose={back} />;
       case "entry": {

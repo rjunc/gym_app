@@ -129,3 +129,9 @@ test("matSummaryText reads gi, drilled and each round", () => {
     "Round 1 (Sam): Part 1: Caught by: Triangle | Part 2: Hit: Kimura | Part 3"
   );
 });
+
+test("a round note keeps its line breaks, tidied like other text", () => {
+  const [round] = fromDraftRounds([{ key: "k", partner: "", note: "  first line  \n\n\n\nsecond line ", parts: [] }]);
+  assert.equal(round.note, "first line\n\nsecond line");
+  assert.equal(normalizeMat({ rounds: [{ note: "a\nb" }] }).rounds[0].note, "a\nb");
+});
