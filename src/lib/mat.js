@@ -4,9 +4,11 @@ import { uid } from "./id.js";
 // the date, title, tags and text every entry has, it can hold:
 //   gi          "gi" | "no-gi" — the whole session is one or the other
 //   drilledIds  techniques taught or drilled, in order (technique ids)
-//   rounds      [{ id, partner?, note?, techniques: [{ techniqueId, result }] }]
-//               one per round rolled, in order; `result` is how that
-//               technique went in that round (see RESULTS)
+//   rounds      [{ id, partner?, note?, parts: [{ id, techniques: [{ techniqueId, result }] }] }]
+//               one per round rolled (e.g. 5 minutes with one partner), in
+//               order. A round has one part, plus one more each time you
+//               restart from scratch after a tap within it. `result` is how
+//               that technique went in that part (see RESULTS)
 //   techniqueIds  every technique the session mentions, drilled first then
 //               in round order, each once — derived on save (see
 //               matTechniqueIds), which is what backlinks, usage and search go
@@ -19,24 +21,33 @@ export const GI_KINDS = { gi: "Gi", "no-gi": "No-Gi" };
 export const RESULTS = { hit: "Hit", attempted: "Attempted", caught: "Caught by" };
 export const DEFAULT_RESULT = "hit";
 
+// A round's parts, always at least one (a round with none reads as one
+// empty part).
+export const roundParts = (round) => (round && Array.isArray(round.parts) && round.parts.length > 0 ? round.parts : [{ id: "", techniques: [] }]);
+
+// Every technique in a round, across its parts, in order.
+export const roundTechniques = (round) => roundParts(round).flatMap((p) => p.techniques || []);
+
 // Every technique a mat session mentions, each once: drilled first, then
 // the rounds', in order.
 export function matTechniqueIds({ drilledIds, rounds } = {}) {
-  const ids = [...(drilledIds || []), ...(rounds || []).flatMap((r) => (r.techniques || []).map((t) => t.techniqueId))];
+  const ids = [...(drilledIds || []), ...(rounds || []).flatMap((r) => roundTechniques(r).map((t) => t.techniqueId))];
   return [...new Set(ids.filter((id) => typeof id === "string" && id))];
 }
 
-// A round just added to the form.
-export const newDraftRound = () => ({ key: uid(), partner: "", note: "", techniques: [] });
+// A part just started in a round (a restart after a tap), and a round just
+// added to the form, which starts with one part.
+export const newDraftPart = () => ({ key: uid(), techniques: [] });
+export const newDraftRound = () => ({ key: uid(), partner: "", note: "", parts: [newDraftPart()] });
 
-// Stored rounds -> the form's draft: `key` is the round's id, or a fresh
-// one with `fresh` (a redo starts new rounds).
+// Stored rounds -> the form's draft: `key` is the round's or part's id, or a
+// fresh one with `fresh` (a redo starts new rounds).
 export const toDraftRounds = (rounds, { fresh = false } = {}) =>
   (rounds || []).map((r) => ({
     key: fresh || !r.id ? uid() : r.id,
     partner: r.partner || "",
     note: r.note || "",
-    techniques: (r.techniques || []).map((t) => ({ ...t })),
+    parts: roundParts(r).map((p) => ({ key: fresh || !p.id ? uid() : p.id, techniques: (p.techniques || []).map((t) => ({ ...t })) })),
   }));
 
 const oneLine = (s) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
@@ -48,14 +59,16 @@ const cleanTechniques = (list) =>
     .filter((t) => t && typeof t.techniqueId === "string" && t.techniqueId)
     .map((t) => ({ techniqueId: t.techniqueId, result: RESULTS[t.result] ? t.result : DEFAULT_RESULT }));
 
-// The form's draft rounds -> what's saved, in order. Every round is kept,
-// even an empty one (it still says a round was rolled); partner and note are
-// trimmed to one line and left out when blank.
+// The form's draft rounds -> what's saved, in order. Every round and part is
+// kept, even an empty one (it still says a round was rolled, or restarted
+// after a tap), and a round always has at least one part; partner and note
+// are trimmed to one line and left out when blank.
 export const fromDraftRounds = (drafts) =>
   (drafts || []).map((r) => {
     const partner = oneLine(r.partner);
     const note = oneLine(r.note);
-    return { id: r.key, ...(partner ? { partner } : {}), ...(note ? { note } : {}), techniques: cleanTechniques(r.techniques) };
+    const parts = (r.parts && r.parts.length > 0 ? r.parts : [newDraftPart()]).map((p) => ({ id: p.key, techniques: cleanTechniques(p.techniques) }));
+    return { id: r.key, ...(partner ? { partner } : {}), ...(note ? { note } : {}), parts };
   });
 
 // The mat fields of a mat session form, ready to save: gi if picked,
@@ -86,7 +99,9 @@ export function normalizeMat(raw) {
       .map((r) => {
         const partner = oneLine(r.partner);
         const note = oneLine(r.note);
-        return { id: typeof r.id === "string" && r.id ? r.id : uid(), ...(partner ? { partner } : {}), ...(note ? { note } : {}), techniques: cleanTechniques(r.techniques) };
+        const rawParts = Array.isArray(r.parts) ? r.parts.filter((p) => p && typeof p === "object") : [];
+        const parts = (rawParts.length > 0 ? rawParts : [{}]).map((p) => ({ id: typeof p.id === "string" && p.id ? p.id : uid(), techniques: cleanTechniques(p.techniques) }));
+        return { id: typeof r.id === "string" && r.id ? r.id : uid(), ...(partner ? { partner } : {}), ...(note ? { note } : {}), parts };
       });
   }
   if (out.drilledIds || out.rounds) out.techniqueIds = matTechniqueIds(out);
@@ -100,7 +115,7 @@ export function techniqueStats(entries, techniqueId) {
   (entries || []).forEach((e) => {
     if ((e.drilledIds || []).includes(techniqueId)) stats.drilled += 1;
     (e.rounds || []).forEach((r) =>
-      (r.techniques || []).forEach((t) => {
+      roundTechniques(r).forEach((t) => {
         if (t.techniqueId === techniqueId && t.result in stats) stats[t.result] += 1;
       })
     );
@@ -130,7 +145,9 @@ function resultParts(techniques, nameOf) {
 
 // A mat session as one line, for the CSV and anywhere text is needed:
 // "No-Gi · Drilled: Scissor sweep, Armbar · Round 1 (Sam): Hit: Triangle;
-// Caught by: Kimura — good pace · Round 2: …". "" when it has none of it.
+// Caught by: Kimura — good pace · Round 2: …". A round restarted after a tap
+// lists its parts: "Round 3: Part 1: Hit: Triangle | Part 2: Caught by:
+// Kimura". "" when it has none of it.
 export function matSummaryText(entry, nameById) {
   const nameOf = (id) => nameById.get(id) || "Deleted technique";
   const parts = [];
@@ -138,7 +155,11 @@ export function matSummaryText(entry, nameById) {
   if ((entry.drilledIds || []).length) parts.push(`Drilled: ${entry.drilledIds.map(nameOf).join(", ")}`);
   (entry.rounds || []).forEach((r, i) => {
     const head = `Round ${i + 1}${r.partner ? ` (${r.partner})` : ""}`;
-    const body = resultParts(r.techniques || [], nameOf).join("; ");
+    const pieces = roundParts(r);
+    const body =
+      pieces.length === 1
+        ? resultParts(pieces[0].techniques || [], nameOf).join("; ")
+        : pieces.map((p, k) => [`Part ${k + 1}`, resultParts(p.techniques || [], nameOf).join("; ")].filter(Boolean).join(": ")).join(" | ");
     parts.push([body ? `${head}: ${body}` : head, r.note].filter(Boolean).join(" — "));
   });
   return parts.join(" · ");

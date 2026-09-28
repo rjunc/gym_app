@@ -405,8 +405,13 @@ export function generateDemoData(today = new Date(), months = 9) {
         : Array.from({ length: between(3, 6) }, () => {
             const partner = chance(0.85) ? pick(PARTNERS) : "";
             const note = chance(0.2) ? pick(ROUND_NOTES) : "";
-            const ids = [...new Set(Array.from({ length: between(0, 3) }, () => pick(usable).id))];
-            return { id: demoId(), ...(partner ? { partner } : {}), ...(note ? { note } : {}), techniques: ids.map((techniqueId) => ({ techniqueId, result: pick(RESULT_WEIGHTS) })) };
+            // Most rounds go the distance; some restart after a tap, once or
+            // twice.
+            const parts = Array.from({ length: chance(0.7) ? 1 : between(2, 3) }, () => {
+              const ids = [...new Set(Array.from({ length: between(0, 3) }, () => pick(usable).id))];
+              return { id: demoId(), techniques: ids.map((techniqueId) => ({ techniqueId, result: pick(RESULT_WEIGHTS) })) };
+            });
+            return { id: demoId(), ...(partner ? { partner } : {}), ...(note ? { note } : {}), parts };
           });
       const text = pick(ROLL_TEXTS) || (quick ? "Open mat, rolled a bunch." : "");
       rolls.push({

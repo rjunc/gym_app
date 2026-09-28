@@ -1,6 +1,6 @@
 import { MoveRight, Shirt } from "lucide-react";
 import { formatDateTime, wasEdited } from "../lib/id.js";
-import { techniqueStats, RESULTS } from "../lib/mat.js";
+import { techniqueStats, RESULTS, roundParts } from "../lib/mat.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { RESULT_COLORS } from "../ui/MatFields.jsx";
@@ -30,20 +30,24 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
       // Whether it was drilled that day, and how it went in each round.
       detail={(entry, entryAccent) => {
         const drilled = (entry.drilledIds || []).includes(technique.id);
-        const lines = (entry.rounds || []).flatMap((r, i) =>
-          (r.techniques || [])
-            .filter((t) => t.techniqueId === technique.id)
-            .map((t, k) => (
-              <div key={`${r.id}-${k}`} style={{ fontSize: 13 }}>
-                <span style={{ fontWeight: 700, color: `var(${RESULT_COLORS[t.result]})` }}>{RESULTS[t.result]}</span>
-                <span style={{ color: "var(--text-dim)" }}>
-                  {" "}
-                  · round {i + 1}
-                  {r.partner ? ` with ${r.partner}` : ""}
-                </span>
-              </div>
-            ))
-        );
+        const lines = (entry.rounds || []).flatMap((r, i) => {
+          const parts = roundParts(r);
+          return parts.flatMap((part, p) =>
+            (part.techniques || [])
+              .filter((t) => t.techniqueId === technique.id)
+              .map((t, k) => (
+                <div key={`${r.id}-${p}-${k}`} style={{ fontSize: 13 }}>
+                  <span style={{ fontWeight: 700, color: `var(${RESULT_COLORS[t.result]})` }}>{RESULTS[t.result]}</span>
+                  <span style={{ color: "var(--text-dim)" }}>
+                    {" "}
+                    · round {i + 1}
+                    {parts.length > 1 ? `, part ${p + 1}` : ""}
+                    {r.partner ? ` with ${r.partner}` : ""}
+                  </span>
+                </div>
+              ))
+          );
+        });
         return (
           <div style={{ marginTop: 4 }}>
             {drilled && <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})` }}>Drilled</div>}

@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { Plus, X, LayoutGrid } from "lucide-react";
+import { Plus, X, LayoutGrid, RotateCcw } from "lucide-react";
 import { useLog } from "../lib/LogContext.js";
 import { compareByUsage } from "../lib/links.js";
 import { prefixMatchesFirst } from "../lib/search.js";
-import { GI_KINDS, RESULTS, DEFAULT_RESULT, newDraftRound, recentPartners } from "../lib/mat.js";
+import { GI_KINDS, RESULTS, DEFAULT_RESULT, newDraftRound, newDraftPart, recentPartners } from "../lib/mat.js";
 import TagChip from "./TagChip.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import PagePicker from "./PagePicker.jsx";
@@ -106,7 +106,9 @@ export function TechniquePicker({ addedIds = [], onAdd, onRemove, label, placeho
 //   Rounds       one card per round rolled, in order: an optional partner
 //                (suggesting partners from earlier sessions in `history`),
 //                the techniques that came up — each marked Hit, Attempted or
-//                Caught by (being caught by it) — and a note
+//                Caught by (being caught by it) — and a note. "Restart"
+//                starts a new part of the same round, for starting over
+//                after a tap; each part has its own techniques
 // Everything is optional; a quick log can skip it all and just use the
 // notes. A technique that isn't in the library yet can be created from
 // Browse.
@@ -121,7 +123,9 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
   const setDrilled = (update) => setForm((f) => ({ ...f, drilledIds: update(f.drilledIds || []) }));
   const setRounds = (update) => setForm((f) => ({ ...f, rounds: update(f.rounds || []) }));
   const updateRound = (key, update) => setRounds((list) => list.map((r) => (r.key === key ? update(r) : r)));
-  const setTechniques = (key, update) => updateRound(key, (r) => ({ ...r, techniques: update(r.techniques || []) }));
+  const setParts = (key, update) => updateRound(key, (r) => ({ ...r, parts: update(r.parts || []) }));
+  const setTechniques = (roundKey, partKey, update) =>
+    setParts(roundKey, (parts) => parts.map((p) => (p.key === partKey ? { ...p, techniques: update(p.techniques || []) } : p)));
 
   const pill = (id, onRemove) => (
     <span key={id} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
@@ -160,7 +164,7 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
         <span style={labelStyle}>Rounds</span>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {rounds.map((round, i) => {
-            const ids = (round.techniques || []).map((t) => t.techniqueId);
+            const parts = round.parts || [];
             return (
               <div key={round.key} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -177,36 +181,60 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
                   aria-label={`Round ${i + 1} partner`}
                   style={{ ...inputStyle, padding: "7px 8px", fontSize: 13 }}
                 />
-                {(round.techniques || []).map((t, k) => (
-                  <div key={`${t.techniqueId}-${k}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0 }}>{nameOf(t.techniqueId)}</span>
-                    <select
-                      value={t.result}
-                      onChange={(e) => {
-                        const result = e.target.value;
-                        setTechniques(round.key, (list) => list.map((x, j) => (j === k ? { ...x, result } : x)));
-                      }}
-                      aria-label={`${nameOf(t.techniqueId)} result`}
-                      style={{ ...resultSelectStyle, color: `var(${RESULT_COLORS[t.result]})` }}
-                    >
-                      {Object.entries(RESULTS).map(([key, label]) => (
-                        <option key={key} value={key}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <button onClick={() => setTechniques(round.key, (list) => list.filter((_, j) => j !== k))} aria-label={`Remove ${nameOf(t.techniqueId)}`} style={iconBtnStyle}>
-                      <X size={14} />
-                    </button>
+                {parts.map((part, p) => (
+                  <div
+                    key={part.key}
+                    style={{ display: "flex", flexDirection: "column", gap: 8, ...(parts.length > 1 ? { borderLeft: `2px solid var(${accentVar})`, paddingLeft: 8 } : {}) }}
+                  >
+                    {parts.length > 1 && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-dim)", flex: 1 }}>{p === 0 ? "Part 1" : `Part ${p + 1} · restarted`}</span>
+                        <button onClick={() => setParts(round.key, (list) => list.filter((x) => x.key !== part.key))} aria-label={`Remove part ${p + 1} of round ${i + 1}`} style={iconBtnStyle}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                    {(part.techniques || []).map((t, k) => (
+                      <div key={`${t.techniqueId}-${k}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0 }}>{nameOf(t.techniqueId)}</span>
+                        <select
+                          value={t.result}
+                          onChange={(e) => {
+                            const result = e.target.value;
+                            setTechniques(round.key, part.key, (list) => list.map((x, j) => (j === k ? { ...x, result } : x)));
+                          }}
+                          aria-label={`${nameOf(t.techniqueId)} result`}
+                          style={{ ...resultSelectStyle, color: `var(${RESULT_COLORS[t.result]})` }}
+                        >
+                          {Object.entries(RESULTS).map(([key, label]) => (
+                            <option key={key} value={key}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                        <button onClick={() => setTechniques(round.key, part.key, (list) => list.filter((_, j) => j !== k))} aria-label={`Remove ${nameOf(t.techniqueId)}`} style={iconBtnStyle}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <TechniquePicker
+                      addedIds={(part.techniques || []).map((t) => t.techniqueId)}
+                      placeholder="Add a technique that came up…"
+                      onAdd={(tech) =>
+                        setTechniques(round.key, part.key, (list) => (list.some((x) => x.techniqueId === tech.id) ? list : [...list, { techniqueId: tech.id, result: DEFAULT_RESULT }]))
+                      }
+                      onRemove={(id) => setTechniques(round.key, part.key, (list) => list.filter((x) => x.techniqueId !== id))}
+                      accentVar={accentVar}
+                    />
                   </div>
                 ))}
-                <TechniquePicker
-                  addedIds={ids}
-                  placeholder="Add a technique that came up…"
-                  onAdd={(tech) => setTechniques(round.key, (list) => (list.some((x) => x.techniqueId === tech.id) ? list : [...list, { techniqueId: tech.id, result: DEFAULT_RESULT }]))}
-                  onRemove={(id) => setTechniques(round.key, (list) => list.filter((x) => x.techniqueId !== id))}
-                  accentVar={accentVar}
-                />
+                <button
+                  onClick={() => setParts(round.key, (list) => [...list, newDraftPart()])}
+                  title="Started over after a tap, same round"
+                  style={{ ...ghostLinkStyle, color: `var(${accentVar})`, alignSelf: "flex-start" }}
+                >
+                  <RotateCcw size={12} /> Restart after a tap
+                </button>
                 <input
                   value={round.note || ""}
                   onChange={(e) => updateRound(round.key, (r) => ({ ...r, note: e.target.value }))}

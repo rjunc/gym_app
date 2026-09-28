@@ -610,8 +610,8 @@ test("parseImportFile: JSON round trip keeps a mat session's gi, drills and roun
     gi: "no-gi",
     drilledIds: ["t1"],
     rounds: [
-      { id: "r1", partner: "Sam", note: "good pace", techniques: [{ techniqueId: "t2", result: "caught" }] },
-      { id: "r2", techniques: [] },
+      { id: "r1", partner: "Sam", note: "good pace", parts: [{ id: "p1", techniques: [{ techniqueId: "t2", result: "caught" }] }, { id: "p2", techniques: [] }] },
+      { id: "r2", parts: [{ id: "p3", techniques: [] }] },
     ],
     techniqueIds: ["t1", "t2"],
   };
@@ -620,7 +620,7 @@ test("parseImportFile: JSON round trip keeps a mat session's gi, drills and roun
 });
 
 test("combinedToCSV: a mat session's sets column describes its gi, drills and rounds", () => {
-  const roll = { id: "m1", date: "2026-09-20", tags: [], text: "", gi: "gi", drilledIds: ["t1"], rounds: [{ id: "r1", partner: "Sam", techniques: [{ techniqueId: "t1", result: "hit" }] }] };
+  const roll = { id: "m1", date: "2026-09-20", tags: [], text: "", gi: "gi", drilledIds: ["t1"], rounds: [{ id: "r1", partner: "Sam", parts: [{ id: "p1", techniques: [{ techniqueId: "t1", result: "hit" }] }] }] };
   const csv = combinedToCSV([], [], [], [], [roll], [{ id: "t1", name: "Scissor sweep", tags: [] }], [], []);
   const row = parseCSV(csv).find((r) => r[0] === "roll");
   assert.equal(row[row.length - 1], "Gi · Drilled: Scissor sweep · Round 1 (Sam): Hit: Scissor sweep");
