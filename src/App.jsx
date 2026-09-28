@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from "react";
-import { Menu } from "lucide-react";
+import { CloudOff, RotateCw } from "lucide-react";
 // `uid` is taken by the signed-in user's id below, so the id helper is newKey.
 import { todayISO, uid as newKey } from "./lib/id.js";
 import { downloadFile } from "./lib/download.js";
@@ -12,7 +12,9 @@ import { linkUsageCounts } from "./lib/links.js";
 import { useSyncedCollection } from "./lib/useSyncedCollection.js";
 import { LogContext } from "./lib/LogContext.js";
 import { SheetStackContext } from "./lib/SheetStack.js";
+import { ShellContext } from "./lib/ShellContext.js";
 import Shell from "./ui/Shell.jsx";
+import EmptyState from "./ui/EmptyState.jsx";
 import { primaryBtnStyle } from "./ui/styles.js";
 import Sidebar from "./ui/Sidebar.jsx";
 import SheetStack from "./ui/SheetStack.jsx";
@@ -24,17 +26,6 @@ import RollsTab from "./tabs/RollsTab.jsx";
 import TechniquesTab from "./tabs/TechniquesTab.jsx";
 import FlowTab from "./tabs/FlowTab.jsx";
 import ExerciseLibraryTab from "./tabs/ExerciseLibraryTab.jsx";
-
-const PAGE_TITLES = {
-  home: "Home",
-  sessions: "Sessions",
-  journals: "Journals",
-  routines: "Routines",
-  library: "Library",
-  rolls: "Mat sessions",
-  techniques: "Techniques",
-  flow: "Flow",
-};
 
 export default function App({ uid, userEmail, onLogout }) {
   const [page, setPage] = useState("home");
@@ -75,6 +66,7 @@ export default function App({ uid, userEmail, onLogout }) {
   // The summary sheets open on top of the page, drawn by SheetStack (see
   // lib/SheetStack.js).
   const [sheetStack, setSheetStack] = useState([]);
+  const shell = useMemo(() => ({ openMenu: () => setSidebarOpen(true) }), []);
   const sheets = useMemo(
     () => ({
       open: (sheet) => setSheetStack((s) => [...s, { ...sheet, key: newKey() }]),
@@ -152,33 +144,27 @@ export default function App({ uid, userEmail, onLogout }) {
 
   if (loadFailed) {
     return (
-      <Shell>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 14,
-            height: "100%",
-            padding: 24,
-            textAlign: "center",
-            color: "var(--text-dim)",
-          }}
+      <Shell center>
+        <EmptyState
+          icon={CloudOff}
+          title="Couldn't load your log"
+          action={
+            <button onClick={() => window.location.reload()} style={primaryBtnStyle}>
+              <RotateCw size={15} /> Reload
+            </button>
+          }
         >
-          <div>Couldn't load your log, so nothing can be edited right now. Your saved data hasn't been touched.</div>
-          <button onClick={() => window.location.reload()} style={primaryBtnStyle}>
-            Reload
-          </button>
-        </div>
+          Nothing can be edited until it loads. Your saved data hasn't been touched.
+        </EmptyState>
       </Shell>
     );
   }
 
   if (!loaded) {
     return (
-      <Shell>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-dim)" }}>
+      <Shell center>
+        <div role="status" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, color: "var(--text-dim)", fontSize: 13 }}>
+          <div className="spinner" />
           Syncing your log…
         </div>
       </Shell>
@@ -194,94 +180,84 @@ export default function App({ uid, userEmail, onLogout }) {
   return (
     <LogContext.Provider value={log}>
       <SheetStackContext.Provider value={sheets}>
-      <Shell>
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              style={{ background: "none", border: "none", color: "var(--text)", cursor: "pointer", display: "flex" }}
-            >
-              <Menu size={20} />
-            </button>
-            <span style={{ fontWeight: 700, fontSize: 15 }}>{PAGE_TITLES[page]}</span>
-          </div>
+        <ShellContext.Provider value={shell}>
+          <Shell>
+            <Sidebar
+              open={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+              page={page}
+              onNavigate={navigate}
+              userEmail={userEmail}
+              syncError={syncError}
+              importError={importError}
+              onExportCSV={exportCSV}
+              onExportJSON={exportJSON}
+              onImportClick={() => fileInputRef.current?.click()}
+              hasDemoData={hasDemoData}
+              onToggleDemoData={toggleDemoData}
+              onLogout={onLogout}
+            />
 
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            {page === "home" ? (
-              <HomeTab
-                sessions={sessions}
-                rolls={rolls}
-                setSessions={setSessions}
-                setRolls={setRolls}
-                routines={routines}
-                folders={folders}
-                exercises={exercises}
-                exerciseUsage={exerciseUsage}
-                routineUsage={routineUsage}
-              />
-            ) : page === "sessions" ? (
-              <SessionsTab
-                sessions={sessions}
-                setSessions={setSessions}
-                exercises={exercises}
-                exerciseUsage={exerciseUsage}
-                routines={routines}
-                routineUsage={routineUsage}
-                folders={folders}
-              />
-            ) : page === "journals" ? (
-              <JournalsTab
-                journals={journals}
-                setJournals={setJournals}
-                exercises={exercises}
-                exerciseUsage={exerciseUsage}
-                routines={routines}
-                routineUsage={routineUsage}
-                folders={folders}
-              />
-            ) : page === "routines" ? (
-              <RoutinesTab
-                folders={folders}
-                setFolders={setFolders}
-                routines={routines}
-                setRoutines={setRoutines}
-                exercises={exercises}
-                exerciseUsage={exerciseUsage}
-                sessions={sessions}
-                journals={journals}
-              />
-            ) : page === "library" ? (
-              <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} />
-            ) : page === "rolls" ? (
-              <RollsTab rolls={rolls} setRolls={setRolls} />
-            ) : page === "techniques" ? (
-              <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} rolls={rolls} />
-            ) : (
-              <FlowTab techniques={techniques} setTechniques={setTechniques} />
-            )}
-          </div>
+            <main className="app-main">
+              {page === "home" ? (
+                <HomeTab
+                  sessions={sessions}
+                  rolls={rolls}
+                  setSessions={setSessions}
+                  setRolls={setRolls}
+                  routines={routines}
+                  folders={folders}
+                  exercises={exercises}
+                  exerciseUsage={exerciseUsage}
+                  routineUsage={routineUsage}
+                />
+              ) : page === "sessions" ? (
+                <SessionsTab
+                  sessions={sessions}
+                  setSessions={setSessions}
+                  exercises={exercises}
+                  exerciseUsage={exerciseUsage}
+                  routines={routines}
+                  routineUsage={routineUsage}
+                  folders={folders}
+                />
+              ) : page === "journals" ? (
+                <JournalsTab
+                  journals={journals}
+                  setJournals={setJournals}
+                  exercises={exercises}
+                  exerciseUsage={exerciseUsage}
+                  routines={routines}
+                  routineUsage={routineUsage}
+                  folders={folders}
+                />
+              ) : page === "routines" ? (
+                <RoutinesTab
+                  folders={folders}
+                  setFolders={setFolders}
+                  routines={routines}
+                  setRoutines={setRoutines}
+                  exercises={exercises}
+                  exerciseUsage={exerciseUsage}
+                  sessions={sessions}
+                  journals={journals}
+                />
+              ) : page === "library" ? (
+                <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} />
+              ) : page === "rolls" ? (
+                <RollsTab rolls={rolls} setRolls={setRolls} />
+              ) : page === "techniques" ? (
+                <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} rolls={rolls} />
+              ) : (
+                <FlowTab techniques={techniques} setTechniques={setTechniques} />
+              )}
+            </main>
 
-          <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" style={{ display: "none" }} onChange={handleFile} />
+            <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" style={{ display: "none" }} onChange={handleFile} />
 
-          <SheetStack stack={sheetStack} setStack={setSheetStack} />
-
-          <Sidebar
-            open={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-            page={page}
-            onNavigate={navigate}
-            userEmail={userEmail}
-            syncError={syncError}
-            importError={importError}
-            onExportCSV={exportCSV}
-            onExportJSON={exportJSON}
-            onImportClick={() => fileInputRef.current?.click()}
-            hasDemoData={hasDemoData}
-            onToggleDemoData={toggleDemoData}
-            onLogout={onLogout}
-          />
-        </div>
-      </Shell>
+            <SheetStack stack={sheetStack} setStack={setSheetStack} />
+          </Shell>
+        </ShellContext.Provider>
       </SheetStackContext.Provider>
     </LogContext.Provider>
   );

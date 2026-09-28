@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { searchTags, addTagsFromDraft } from "../lib/tags.js";
 import TagChip from "./TagChip.jsx";
-import { labelStyle, inputStyle, tagPillStyle, secondaryBtnStyle } from "./styles.js";
+import { labelStyle, inputStyle, pickedPillStyle, pillRemoveStyle, secondaryBtnStyle, chipRowStyle } from "./styles.js";
 
 export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddTag, onRemoveTag, tagSuggestions, accentVar }) {
   // Suggest against the tag being typed right now (after the last comma), and
@@ -21,12 +21,12 @@ export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddT
   return (
     <div>
       <label style={labelStyle}>Tags</label>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: form.tags.length ? 8 : 0 }}>
+      <div style={{ ...chipRowStyle, marginBottom: form.tags.length ? 8 : 0 }}>
         {form.tags.map((t) => (
-          <span key={t} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
+          <span key={t} style={pickedPillStyle(accentVar)}>
             {t}
-            <button onClick={() => onRemoveTag(t)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}>
-              <X size={11} />
+            <button onClick={() => onRemoveTag(t)} aria-label={`Remove ${t}`} style={pillRemoveStyle}>
+              <X size={13} />
             </button>
           </span>
         ))}
@@ -44,14 +44,14 @@ export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddT
           placeholder="push, plyometrics, legs…"
           style={{ ...inputStyle, flex: 1 }}
         />
-        <button onClick={onAddTag} style={secondaryBtnStyle}>
+        <button onClick={onAddTag} style={{ ...secondaryBtnStyle, minHeight: 44, padding: "0 16px" }}>
           Add
         </button>
       </div>
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <span style={{ ...labelStyle, marginBottom: 4 }}>{draftQuery ? "Matching" : "Most used"}</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <span style={{ ...labelStyle, fontWeight: 500, marginBottom: 6 }}>{draftQuery ? "Matching" : "Most used"}</span>
+          <div style={chipRowStyle}>
             {suggestions.map(({ tag }) => (
               <TagChip key={tag} small accent={accentVar} onClick={() => pickSuggestion(tag)} label={tag} />
             ))}

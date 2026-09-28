@@ -1,20 +1,21 @@
 import { useState, useMemo } from "react";
-import { Plus, FolderPlus, X } from "lucide-react";
+import { Plus, FolderPlus, X, SearchX, BookOpen, AlertTriangle } from "lucide-react";
 import { newRecord, editById } from "../lib/records.js";
 import { folderPath } from "../lib/folders.js";
 import { matchesSearch, folderItemSearchFields, exerciseNameMap } from "../lib/search.js";
 import Breadcrumb from "../ui/Breadcrumb.jsx";
-import TagChip from "../ui/TagChip.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import FolderItemEditor from "./FolderItemEditor.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
-import SearchBox from "../ui/SearchBox.jsx";
-import SegmentedToggle from "../ui/SegmentedToggle.jsx";
+import SearchBox, { TagsToggle } from "../ui/SearchBox.jsx";
+import TagFilter from "../ui/TagFilter.jsx";
+import { PageHeader, PageBody } from "../ui/Page.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
 import SetsSummary from "../ui/SetsSummary.jsx";
 import PickBar from "../ui/PickBar.jsx";
 import FolderRow from "./FolderRow.jsx";
-import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
+import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle, metaStyle } from "../ui/styles.js";
 
 // Routines and Techniques are both a foldered library of named, tagged text
 // items — no dates. Both tabs are thin wrappers around this.
@@ -66,6 +67,7 @@ export default function FolderLibraryTab({
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
   const [giMode, setGiMode] = useState("gi");
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [expanded, setExpanded] = useState(null);
   // The new/edit form: null when closed, else { item } to edit or
   // { defaults } to create (see FolderItemEditor).
@@ -89,12 +91,6 @@ export default function FolderLibraryTab({
   // Starred items always sort first; everything else keeps alphabetical
   // order below them.
   const byStarThenName = (a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0) || a.name.localeCompare(b.name);
-
-  const allTags = useMemo(() => {
-    const set = new Set();
-    visibleItems.forEach((r) => (r.tags || []).forEach((t) => set.add(t)));
-    return Array.from(set).sort();
-  }, [visibleItems]);
 
   const subfolders = useMemo(
     () => folders.filter((f) => (f.parentId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
@@ -195,71 +191,60 @@ export default function FolderLibraryTab({
           }}
         />
       )}
-      <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>{eyebrow}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>{heading}</div>
-          </div>
-          <button onClick={openNewComposer} style={{ ...primaryBtnStyle, background: `var(${accent})` }}>
-            <Plus size={15} /> New {itemNoun}
+      <PageHeader
+        eyebrow={eyebrow}
+        title={heading}
+        hideMenu={!!pick}
+        actions={
+          <button onClick={openNewComposer} style={{ ...primaryBtnStyle, background: `var(${accent})` }} aria-label={`New ${itemNoun}`}>
+            <Plus size={16} /> New
           </button>
-        </div>
-
+        }
+      >
+        {(items.length > 0 || folders.length > 0) && (
+          <>
+            <SearchBox
+              value={search}
+              setValue={setSearch}
+              matchMode={searchMatchMode}
+              setMatchMode={setSearchMatchMode}
+              placeholder={searchPlaceholder}
+              accent={accent}
+              trailing={visibleItems.some((r) => (r.tags || []).length > 0) && <TagsToggle open={tagsOpen} count={activeTags.length} onClick={() => setTagsOpen((v) => !v)} accent={accent} />}
+            />
+            <TagFilter
+              entries={visibleItems}
+              activeTags={activeTags}
+              onToggle={toggleTagFilter}
+              matchMode={tagMatchMode}
+              setMatchMode={setTagMatchMode}
+              accent={accent}
+              collapsed={!tagsOpen}
+            />
+          </>
+        )}
         {showGiOnly && (
-          <div style={{ marginBottom: 10 }}>
+          <div>
             <GiModeToggle mode={giMode} setMode={setGiMode} accent={accent} />
           </div>
         )}
+      </PageHeader>
 
-        <SearchBox
-          value={search}
-          setValue={setSearch}
-          matchMode={searchMatchMode}
-          setMatchMode={setSearchMatchMode}
-          placeholder={searchPlaceholder}
-          accent={accent}
-        />
-
-        {allTags.length > 0 && (
-          // Capped and independently scrollable so a large tag vocabulary
-          // browses its own list instead of pushing folders/items below out
-          // of view — this container sits in a fixed-height shell with no
-          // page-level scroll, so an unbounded chip cloud would strand
-          // everything under it.
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 88, overflowY: "auto" }}>
-            {allTags.map((t) => (
-              <TagChip key={t} label={t} accent={accent} active={activeTags.includes(t)} onClick={() => toggleTagFilter(t)} />
-            ))}
+      <PageBody>
+        {folderError && (
+          <div role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", color: "var(--danger)", background: "var(--danger-dim)", borderRadius: 10, padding: "10px 12px", fontSize: 13 }}>
+            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+            {folderError}
           </div>
         )}
-
-        {activeTags.length > 1 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
-            <SegmentedToggle
-              options={[
-                { key: "all", label: "All tags" },
-                { key: "any", label: "Any tag" },
-              ]}
-              value={tagMatchMode}
-              setValue={setTagMatchMode}
-              accent={accent}
-            />
-          </div>
-        )}
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
-        {folderError && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 10 }}>{folderError}</div>}
 
         {isFiltering ? (
           <>
-            <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 10 }}>
+            <div style={{ ...metaStyle, padding: "0 2px" }}>
               {filteredItems.length} result{filteredItems.length !== 1 ? "s" : ""}
             </div>
             {filteredItems.length === 0 ? (
-              <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "36px 10px", fontSize: 13 }}>
+              <EmptyState icon={SearchX} title="No matches">
                 Nothing matches that search or tag filter.
                 {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
                   <div style={{ marginTop: 6 }}>
@@ -267,92 +252,112 @@ export default function FolderLibraryTab({
                     {hiddenGiOnlyCount !== 1 ? "s" : ""} hidden in No-Gi mode)
                   </div>
                 )}
-              </div>
+              </EmptyState>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {filteredItems.map((r) => (
-                  <LibraryItemCard
-                    key={r.id}
-                    item={r}
-                    accent={accent}
-                    pathLabel={folderPath(folders, r.folderId).map((f) => f.name).join(" / ") || "Top level"}
-                    isOpen={expanded === r.id}
-                    onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
-                    onEdit={() => openEdit(r)}
-                    onDelete={pick ? undefined : () => deleteItem(r.id)}
-                    onAdd={pick ? () => pick.onAdd(r) : undefined}
-                    onRemove={pick ? () => pick.onRemove(r.id) : undefined}
-                    added={pick ? pick.addedIds.includes(r.id) : false}
-                    onJump={() => {
-                      setCurrentFolderId(r.folderId || null);
-                      setSearch("");
-                      setActiveTags([]);
-                    }}
-                    onTagClick={toggleTagFilter}
-                    activeTags={activeTags}
-                    onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
-                    usage={usageFor ? usageFor(r) : undefined}
-                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
-                    summary={showBlocks ? <SetsSummary entry={r} exerciseNameById={exerciseNameById} accent={accent} includeEmpty style={{ marginTop: 8 }} /> : undefined}
-                  />
-                ))}
-              </div>
+              filteredItems.map((r) => (
+                <LibraryItemCard
+                  key={r.id}
+                  item={r}
+                  accent={accent}
+                  pathLabel={folderPath(folders, r.folderId).map((f) => f.name).join(" / ") || "Top level"}
+                  isOpen={expanded === r.id}
+                  onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
+                  onEdit={() => openEdit(r)}
+                  onDelete={pick ? undefined : () => deleteItem(r.id)}
+                  onAdd={pick ? () => pick.onAdd(r) : undefined}
+                  onRemove={pick ? () => pick.onRemove(r.id) : undefined}
+                  added={pick ? pick.addedIds.includes(r.id) : false}
+                  onJump={() => {
+                    setCurrentFolderId(r.folderId || null);
+                    setSearch("");
+                    setActiveTags([]);
+                  }}
+                  onTagClick={toggleTagFilter}
+                  activeTags={activeTags}
+                  onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
+                  usage={usageFor ? usageFor(r) : undefined}
+                  onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
+                  summary={showBlocks ? <SetsSummary entry={r} exerciseNameById={exerciseNameById} accent={accent} includeEmpty style={{ marginTop: 10 }} /> : undefined}
+                />
+              ))
             )}
           </>
+        ) : items.length === 0 && folders.length === 0 && !addingFolder ? (
+          <EmptyState
+            icon={BookOpen}
+            title={`No ${itemNoun}s yet`}
+            action={
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                <button onClick={openNewComposer} style={{ ...primaryBtnStyle, background: `var(${accent})` }}>
+                  <Plus size={16} /> New {itemNoun}
+                </button>
+                <button onClick={() => setAddingFolder(true)} style={secondaryBtnStyle}>
+                  <FolderPlus size={15} /> New folder
+                </button>
+              </div>
+            }
+          >
+            {emptyLabel}
+          </EmptyState>
         ) : (
           <>
-            <Breadcrumb path={breadcrumb} onNavigate={setCurrentFolderId} />
+            <Breadcrumb path={breadcrumb} onNavigate={setCurrentFolderId} rootLabel={`All ${itemNoun}s`} />
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-              {subfolders.map((f) => {
-                const { subCount, itemCount } = folderCounts(f.id);
-                const isRenaming = renamingFolderId === f.id;
-                return (
-                  <FolderRow
-                    key={f.id}
-                    folder={f}
-                    subCount={subCount}
-                    itemCount={itemCount}
-                    itemNoun={itemNoun}
-                    accent={accent}
-                    isRenaming={isRenaming}
-                    renameDraft={renameDraft}
-                    setRenameDraft={setRenameDraft}
-                    onOpen={() => setCurrentFolderId(f.id)}
-                    onStartRename={() => startRename(f)}
-                    onCommitRename={commitRename}
-                    onDelete={pick ? undefined : () => deleteFolder(f)}
-                  />
-                );
-              })}
+            {(subfolders.length > 0 || addingFolder) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {subfolders.map((f) => {
+                  const { subCount, itemCount } = folderCounts(f.id);
+                  const isRenaming = renamingFolderId === f.id;
+                  return (
+                    <FolderRow
+                      key={f.id}
+                      folder={f}
+                      subCount={subCount}
+                      itemCount={itemCount}
+                      itemNoun={itemNoun}
+                      accent={accent}
+                      isRenaming={isRenaming}
+                      renameDraft={renameDraft}
+                      setRenameDraft={setRenameDraft}
+                      onOpen={() => setCurrentFolderId(f.id)}
+                      onStartRename={() => startRename(f)}
+                      onCommitRename={commitRename}
+                      onDelete={pick ? undefined : () => deleteFolder(f)}
+                    />
+                  );
+                })}
+              </div>
+            )}
 
-              {addingFolder ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    autoFocus
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && createFolder()}
-                    placeholder="Folder name"
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <button onClick={createFolder} style={secondaryBtnStyle}>
-                    Add
-                  </button>
-                  <IconBtn onClick={() => setAddingFolder(false)}>
-                    <X size={14} />
-                  </IconBtn>
-                </div>
-              ) : (
-                <button onClick={() => setAddingFolder(true)} style={{ ...ghostLinkStyle, marginTop: 2 }}>
-                  <FolderPlus size={14} /> New folder here
+            {addingFolder ? (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && createFolder()}
+                  placeholder="Folder name"
+                  aria-label="New folder name"
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <button onClick={createFolder} style={{ ...primaryBtnStyle, background: `var(${accent})`, minHeight: 44 }}>
+                  Add
                 </button>
-              )}
-            </div>
+                <IconBtn onClick={() => setAddingFolder(false)} label="Cancel">
+                  <X size={16} />
+                </IconBtn>
+              </div>
+            ) : (
+              <button onClick={() => setAddingFolder(true)} style={{ ...ghostLinkStyle, color: "var(--text-dim)", alignSelf: "flex-start", padding: "2px 2px" }}>
+                <FolderPlus size={15} /> New folder here
+              </button>
+            )}
 
             {itemsInFolder.length === 0 ? (
-              <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
-                {items.length === 0 && folders.length === 0 ? emptyLabel : `No ${itemNoun}s directly in this folder.`}
+              // At the top level, folders are the point; only say so when
+              // there's nothing else here.
+              (currentFolderId !== null || subfolders.length === 0) && <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
+                No {itemNoun}s directly in this folder.
                 {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
                   <div style={{ marginTop: 6 }}>
                     ({hiddenGiOnlyCount} gi-only {itemNoun}
@@ -361,32 +366,30 @@ export default function FolderLibraryTab({
                 )}
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {itemsInFolder.map((r) => (
-                  <LibraryItemCard
-                    key={r.id}
-                    item={r}
-                    accent={accent}
-                    isOpen={expanded === r.id}
-                    onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
-                    onEdit={() => openEdit(r)}
-                    onDelete={pick ? undefined : () => deleteItem(r.id)}
-                    onAdd={pick ? () => pick.onAdd(r) : undefined}
-                    onRemove={pick ? () => pick.onRemove(r.id) : undefined}
-                    added={pick ? pick.addedIds.includes(r.id) : false}
-                    onTagClick={toggleTagFilter}
-                    activeTags={activeTags}
-                    onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
-                    usage={usageFor ? usageFor(r) : undefined}
-                    onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
-                    summary={showBlocks ? <SetsSummary entry={r} exerciseNameById={exerciseNameById} accent={accent} includeEmpty style={{ marginTop: 8 }} /> : undefined}
-                  />
-                ))}
-              </div>
+              itemsInFolder.map((r) => (
+                <LibraryItemCard
+                  key={r.id}
+                  item={r}
+                  accent={accent}
+                  isOpen={expanded === r.id}
+                  onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
+                  onEdit={() => openEdit(r)}
+                  onDelete={pick ? undefined : () => deleteItem(r.id)}
+                  onAdd={pick ? () => pick.onAdd(r) : undefined}
+                  onRemove={pick ? () => pick.onRemove(r.id) : undefined}
+                  added={pick ? pick.addedIds.includes(r.id) : false}
+                  onTagClick={toggleTagFilter}
+                  activeTags={activeTags}
+                  onToggleStar={showStar ? () => toggleStar(r.id) : undefined}
+                  usage={usageFor ? usageFor(r) : undefined}
+                  onOpen={onOpenItem ? () => onOpenItem(r) : undefined}
+                  summary={showBlocks ? <SetsSummary entry={r} exerciseNameById={exerciseNameById} accent={accent} includeEmpty style={{ marginTop: 10 }} /> : undefined}
+                />
+              ))
             )}
           </>
         )}
-      </div>
+      </PageBody>
 
       {composer && (
         <FolderItemEditor

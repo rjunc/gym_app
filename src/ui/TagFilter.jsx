@@ -3,7 +3,7 @@ import { Search, X, ChevronDown, ChevronUp } from "lucide-react";
 import { tagCounts, searchTags } from "../lib/tags.js";
 import TagChip from "./TagChip.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
-import { inputStyle, labelStyle } from "./styles.js";
+import { inputStyle, labelStyle, chipRowStyle } from "./styles.js";
 
 const QUICK_COUNT = 6; // "most used" chips shown once the vocabulary is large
 const SHOW_ALL_UP_TO = 8; // at or below this many tags, just show them all as chips
@@ -18,8 +18,9 @@ const dim = { opacity: 0.6, fontWeight: 500 };
 // and every other tag lives in a scrollable list under the search box. Focusing
 // the box lists all tags (A–Z) so you can browse for one you've forgotten;
 // typing narrows it. `entries` is whatever set of entries the tags should be
-// drawn from (and counted over).
-export default function TagFilter({ entries, activeTags, onToggle, matchMode, setMatchMode, accent = "--accent" }) {
+// drawn from (and counted over). `collapsed` shows only the picked tags (and
+// the match toggle), for when the page has put the rest behind a Tags button.
+export default function TagFilter({ entries, activeTags, onToggle, matchMode, setMatchMode, accent = "--accent", collapsed = false }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -77,12 +78,13 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
   };
 
   if (counts.length === 0 && activeTags.length === 0) return null;
+  if (collapsed && activeTags.length === 0) return null;
 
   return (
     <div>
       {activeTags.length > 0 && (
         // Capped as a safety net; in practice you pick a handful at most.
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8, maxHeight: 72, overflowY: "auto" }}>
+        <div style={{ ...chipRowStyle, marginBottom: collapsed ? 0 : 10, maxHeight: 72, overflowY: "auto" }}>
           {activeTags.map((t) => (
             <TagChip
               key={t}
@@ -91,7 +93,7 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
               onClick={() => onToggle(t)}
               label={
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  {t} <X size={11} />
+                  {t} <X size={13} />
                 </span>
               }
             />
@@ -99,10 +101,10 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
         </div>
       )}
 
-      {quick.length > 0 && (
+      {!collapsed && quick.length > 0 && (
         <>
-          {showSearch && <span style={{ ...labelStyle, marginBottom: 4 }}>Most used</span>}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {showSearch && <span style={{ ...labelStyle, fontWeight: 500, marginBottom: 6 }}>Most used</span>}
+          <div style={chipRowStyle}>
             {quick.map(({ tag, count }) => (
               <TagChip
                 key={tag}
@@ -119,10 +121,10 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
         </>
       )}
 
-      {showSearch && (
+      {!collapsed && showSearch && (
         <div style={{ marginTop: 10 }}>
           <div style={{ position: "relative" }}>
-            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--text-dim)" }} />
+            <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)", pointerEvents: "none" }} />
             <input
               ref={inputRef}
               value={query}
@@ -138,14 +140,14 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
               placeholder={`Find a tag or browse all ${counts.length}…`}
               aria-label="Find a tag"
               aria-expanded={open}
-              style={{ ...inputStyle, padding: "9px 34px 9px 32px" }}
+              style={{ ...inputStyle, padding: "9px 38px 9px 36px", minHeight: 42 }}
             />
             {/* mousedown is swallowed so tapping this doesn't blur the input (which would close the list before the click lands). */}
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={toggleList}
               aria-label={open ? "Hide tag list" : "Show all tags"}
-              style={{ position: "absolute", right: 4, top: 4, background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 6 }}
+              style={{ position: "absolute", right: 5, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 6 }}
             >
               {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
@@ -159,8 +161,8 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
               onMouseDown={(e) => e.preventDefault()}
               style={{
                 marginTop: 6,
-                border: "1px solid var(--border)",
-                borderRadius: 8,
+                border: "1px solid var(--border-strong)",
+                borderRadius: 10,
                 background: "var(--surface-2)",
                 maxHeight: LIST_MAX_HEIGHT,
                 overflowY: "auto",
@@ -181,19 +183,19 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
                       justifyContent: "space-between",
                       alignItems: "center",
                       width: "100%",
-                      padding: "9px 12px",
+                      padding: "10px 12px",
                       background: i === active ? `var(${accent}-dim)` : "transparent", // the one Enter will pick
                       border: "none",
                       borderTop: i === 0 ? "none" : "1px solid var(--border)",
                       color: "var(--text)",
-                      fontSize: 13,
-                      fontWeight: 600,
+                      fontSize: 14,
+                      fontWeight: 500,
                       cursor: "pointer",
                       textAlign: "left",
                     }}
                   >
                     {tag}
-                    <span style={{ fontSize: 11, color: "var(--text-dim)", fontWeight: 500 }}>{count}</span>
+                    <span style={{ fontSize: 12, color: "var(--text-dim)", fontWeight: 500 }}>{count}</span>
                   </button>
                 ))
               )}
@@ -204,7 +206,7 @@ export default function TagFilter({ entries, activeTags, onToggle, matchMode, se
 
       {activeTags.length > 1 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-          <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
+          <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Match</span>
           <SegmentedToggle
             options={[
               { key: "all", label: "All tags" },

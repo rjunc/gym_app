@@ -11,7 +11,9 @@ import ActivityCalendar from "../ui/ActivityCalendar.jsx";
 import DayEntries from "../ui/DayEntries.jsx";
 import EntrySheet from "../ui/EntrySheet.jsx";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
-import { cardStyle, labelStyle, primaryBtnStyle } from "../ui/styles.js";
+import { PageHeader, PageBody } from "../ui/Page.jsx";
+import { TagsToggle } from "../ui/SearchBox.jsx";
+import { cardStyle, primaryBtnStyle, chipRowStyle } from "../ui/styles.js";
 
 // Every kind of dated log the calendar can draw from, with its settings from
 // ENTRY_TYPES (shared with the Sessions/Rolls pages). Order here is the order
@@ -25,6 +27,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [selected, setSelected] = useState(today);
   const [view, setView] = useState(() => ({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 }));
   // null when closed; { entry: null } to add, { entry } to edit that entry, or
@@ -117,74 +120,82 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
     requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
 
+  const todayLabel = new Date(`${today}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  // Logs onto whichever day is selected in the calendar.
+  const logButton = (
+    <button onClick={() => setComposer({ entry: null })} style={primaryBtnStyle}>
+      <Plus size={16} /> Log
+    </button>
+  );
+
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={cardStyle}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ ...labelStyle, marginBottom: 0 }}>Show</span>
-          {/* Logs onto whichever day is selected in the calendar below. */}
-          <button onClick={() => setComposer({ entry: null })} style={{ ...primaryBtnStyle, padding: "6px 12px" }}>
-            <Plus size={14} /> Add
-          </button>
+    <>
+      <PageHeader eyebrow={todayLabel} title="Home" actions={logButton} wide>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div style={chipRowStyle} role="group" aria-label="Show">
+            {SOURCE_KEYS.map((k) => (
+              <TagChip key={k} dot label={SOURCE_META[k].label} accent={SOURCE_META[k].accent} active={shown.includes(k)} onClick={() => toggleSource(k)} />
+            ))}
+          </div>
+          {hasTags && <TagsToggle open={tagsOpen} count={tagsInEffect.length} onClick={() => setTagsOpen((v) => !v)} />}
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: hasTags ? 12 : 0 }}>
-          {SOURCE_KEYS.map((k) => (
-            <TagChip key={k} label={SOURCE_META[k].label} accent={SOURCE_META[k].accent} active={shown.includes(k)} onClick={() => toggleSource(k)} />
-          ))}
-        </div>
-
         {hasTags && (
-          <>
-            <span style={labelStyle}>Tags</span>
-            <TagFilter
-              entries={inScope}
-              activeTags={tagsInEffect}
-              onToggle={toggleTag}
-              matchMode={tagMatchMode}
-              setMatchMode={setTagMatchMode}
-            />
-          </>
+          <TagFilter
+            entries={inScope}
+            activeTags={tagsInEffect}
+            onToggle={toggleTag}
+            matchMode={tagMatchMode}
+            setMatchMode={setTagMatchMode}
+            collapsed={!tagsOpen}
+          />
         )}
-      </div>
+      </PageHeader>
 
-      <div style={cardStyle}>
-        <ActivityCalendar
-          year={view.year}
-          month={view.month}
-          byDate={byDate}
-          sources={SOURCE_KEYS.filter((k) => shown.includes(k)).map((k) => ({ key: k, ...SOURCE_META[k] }))}
-          todayISO={today}
-          selected={selected}
-          onSelect={selectDay}
-          onShift={(delta) => setView((v) => shiftMonth(v, delta))}
-          onToday={() => {
-            setView({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 });
-            setSelected(today);
-          }}
-        />
-        <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 12, textAlign: "center" }}>
-          {activeDays === 0
-            ? "No matching entries this month"
-            : `${activeDays} active ${activeDays === 1 ? "day" : "days"} · ${monthEntries} ${monthEntries === 1 ? "entry" : "entries"} this month`}
+      <PageBody wide>
+        <div className="home-grid">
+          <div style={cardStyle}>
+            <ActivityCalendar
+              year={view.year}
+              month={view.month}
+              byDate={byDate}
+              sources={SOURCE_KEYS.filter((k) => shown.includes(k)).map((k) => ({ key: k, ...SOURCE_META[k] }))}
+              todayISO={today}
+              selected={selected}
+              onSelect={selectDay}
+              onShift={(delta) => setView((v) => shiftMonth(v, delta))}
+              onToday={() => {
+                setView({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) - 1 });
+                setSelected(today);
+              }}
+              footer={
+                <div style={{ display: "flex", borderTop: "1px solid var(--border)", marginTop: 14, paddingTop: 14 }}>
+                  <Stat value={activeDays} label={activeDays === 1 ? "active day" : "active days"} />
+                  <Stat value={monthEntries} label={monthEntries === 1 ? "entry" : "entries"} />
+                </div>
+              }
+            />
+          </div>
+
+          <div ref={detailRef} style={{ scrollMarginBottom: 12 }}>
+            <DayEntries
+              iso={selected}
+              isToday={selected === today}
+              entries={dayEntries}
+              hiddenCount={hiddenCount}
+              sourceMeta={SOURCE_META}
+              activeTags={tagsInEffect}
+              onToggleTag={toggleTag}
+              onLog={() => setComposer({ entry: null })}
+              onEdit={(entry) => setComposer({ entry })}
+              onRedo={(redo) => setComposer({ entry: null, redo })}
+              onDelete={deleteEntry}
+              onOpen={(entry) => sheets.open({ kind: "entry", source: entry.source, id: entry.id })}
+              exerciseNameById={exerciseNameById}
+              routineNameById={routineNameById}
+            />
+          </div>
         </div>
-      </div>
-
-      <div ref={detailRef} style={{ scrollMarginBottom: 12 }}>
-        <DayEntries
-          iso={selected}
-          entries={dayEntries}
-          hiddenCount={hiddenCount}
-          sourceMeta={SOURCE_META}
-          activeTags={tagsInEffect}
-          onToggleTag={toggleTag}
-          onEdit={(entry) => setComposer({ entry })}
-          onRedo={(redo) => setComposer({ entry: null, redo })}
-          onDelete={deleteEntry}
-          onOpen={(entry) => sheets.open({ kind: "entry", source: entry.source, id: entry.id })}
-          exerciseNameById={exerciseNameById}
-          routineNameById={routineNameById}
-        />
-      </div>
+      </PageBody>
 
       {composer && (
         <EntrySheet
@@ -205,6 +216,16 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
           onClose={() => setComposer(null)}
         />
       )}
+    </>
+  );
+}
+
+// One number in the calendar's month summary (for the month shown).
+function Stat({ value, label }) {
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "baseline", gap: 6 }}>
+      <span style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+      <span style={{ fontSize: 13, color: "var(--text-dim)" }}>{label}</span>
     </div>
   );
 }

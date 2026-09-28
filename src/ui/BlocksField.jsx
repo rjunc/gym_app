@@ -23,7 +23,7 @@ import {
   DISTANCE_UNIT,
 } from "../lib/sets.js";
 import { layoutBlocks, linkWithNext, ungroup, setGroupKind, moveBlockInLayout, moveItem, tidyGroups, GROUP_KINDS } from "../lib/groups.js";
-import { inputStyle, ghostLinkStyle } from "./styles.js";
+import { inputStyle, ghostLinkStyle, insetStyle } from "./styles.js";
 
 // How each set field's text box looks: keyboard, placeholder, and the word
 // shown before it or the unit after it (distance's and time's are switches
@@ -42,7 +42,7 @@ const selectStyle = {
   background: "transparent",
   border: "none",
   color: "var(--text-dim)",
-  fontSize: 11,
+  fontSize: 12,
   fontFamily: "inherit",
   cursor: "pointer",
   padding: 0,
@@ -51,7 +51,7 @@ const selectStyle = {
 // One choice in the "Log as" row for an exercise never logged before.
 const measureChipStyle = {
   background: "var(--surface)",
-  border: "1px solid var(--border)",
+  border: "1px solid var(--border-strong)",
   borderRadius: 999,
   padding: "4px 10px",
   fontSize: 12,
@@ -59,7 +59,7 @@ const measureChipStyle = {
   cursor: "pointer",
 };
 
-const iconBtnStyle = { background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 2 };
+const iconBtnStyle = { background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 4, borderRadius: 6 };
 
 const shortDate = (iso) => {
   const d = new Date(iso + "T00:00:00");
@@ -141,10 +141,10 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
       timeUnit: timeUnitOfSets(rows) || timeUnitOfSets(lastSets) || defaultTimeUnit(measure),
     };
     return (
-      <div key={block.key} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 10 }}>
+      <div key={block.key} style={{ ...insetStyle, padding: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 11, color: "var(--text-dim)", fontWeight: 700, minWidth: 14, flexShrink: 0 }}>{pos.label}</span>
-          <span style={{ fontWeight: 700, fontSize: 13, flex: 1, minWidth: 0 }}>{name}</span>
+          <span style={{ fontSize: 12, color: "var(--text-dim)", fontWeight: 600, minWidth: 18, flexShrink: 0 }}>{pos.label}</span>
+          <span style={{ fontWeight: 600, fontSize: 14, flex: 1, minWidth: 0 }}>{name}</span>
           {measure && (
             <select
               value={measure}
@@ -172,8 +172,8 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
 
         {plan.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Plan: {formatSets(plan)}</span>
-            <button onClick={() => setMeasure(block.key, measureOfSets(plan), () => toDraftRows(plan))} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Plan: {formatSets(plan)}</span>
+            <button onClick={() => setMeasure(block.key, measureOfSets(plan), () => toDraftRows(plan))} style={{ ...ghostLinkStyle, fontSize: 12, color: `var(${accentVar})` }}>
               As planned
             </button>
           </div>
@@ -181,19 +181,19 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
 
         {lastBlock && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
               Last ({shortDate(last.date)}
               {last.blocks.length > 1 ? `, ${Math.min(occurrence, last.blocks.length - 1) + 1} of ${last.blocks.length}` : ""}):{" "}
               {lastSets.length > 0 ? formatSets(lastSets) : "no sets"}
             </span>
             {lastSets.length > 0 && (
-              <button onClick={() => setMeasure(block.key, measureOfSets(lastSets), () => toDraftRows(lastSets))} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
+              <button onClick={() => setMeasure(block.key, measureOfSets(lastSets), () => toDraftRows(lastSets))} style={{ ...ghostLinkStyle, fontSize: 12, color: `var(${accentVar})` }}>
                 Use
               </button>
             )}
           </div>
         )}
-        {lastBlock && lastBlock.note && <div style={{ fontSize: 11, color: "var(--text-dim)", fontStyle: "italic", marginTop: 2 }}>“{lastBlock.note}”</div>}
+        {lastBlock && lastBlock.note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 2 }}>“{lastBlock.note}”</div>}
 
         {rows.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
@@ -273,7 +273,7 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
 
         {!measure && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Log as</span>
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Log as</span>
             {Object.entries(MEASURES).map(([key, m]) => (
               <button
                 key={key}
@@ -336,9 +336,9 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
             {item.type === "block" ? (
               renderBlock(item.block, item.index, { label: item.label, ...itemMoves(item.index) })
             ) : (
-              <div style={{ borderLeft: `3px solid var(${accentVar})`, paddingLeft: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ borderLeft: `2px solid var(${accentVar})`, paddingLeft: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-dim)", fontWeight: 700, minWidth: 14 }}>{item.number}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-dim)", fontWeight: 600, minWidth: 18 }}>{item.number}</span>
                   <select
                     value={item.group.kind}
                     onChange={(e) => regroup((bs, gs) => ({ blocks: bs, groups: setGroupKind(gs, item.group.id, e.target.value) }))}
@@ -365,7 +365,7 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
                       </>
                     );
                   })()}
-                  <button onClick={() => regroup((bs, gs) => ungroup(bs, gs, item.group.id))} style={{ ...ghostLinkStyle, fontSize: 11, color: "var(--text-dim)" }}>
+                  <button onClick={() => regroup((bs, gs) => ungroup(bs, gs, item.group.id))} style={{ ...ghostLinkStyle, fontSize: 12, color: "var(--text-dim)" }}>
                     Ungroup
                   </button>
                 </div>
@@ -383,9 +383,9 @@ export default function BlocksField({ form, setForm, exercises, history = [], en
             {!lastItem && (
               <button
                 onClick={() => regroup((bs, gs) => linkWithNext(bs, gs, lastIndexOf(item)))}
-                style={{ ...ghostLinkStyle, alignSelf: "center", fontSize: 11, color: "var(--text-dim)", marginTop: -4, marginBottom: -4 }}
+                style={{ ...ghostLinkStyle, alignSelf: "center", fontSize: 12, fontWeight: 500, color: "var(--text-dim)", padding: "2px 8px", marginTop: -4, marginBottom: -4 }}
               >
-                <Link2 size={12} /> Link with next
+                <Link2 size={13} /> Link with next
               </button>
             )}
           </Fragment>

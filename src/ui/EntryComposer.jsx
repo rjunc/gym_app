@@ -1,4 +1,3 @@
-import { X } from "lucide-react";
 import { labelStyle, inputStyle, primaryBtnStyle } from "./styles.js";
 import {
   NameField,
@@ -13,7 +12,7 @@ import {
   RoutinesField,
 } from "./ComposerFields.jsx";
 import TagsField from "./TagsField.jsx";
-import BottomSheet from "./BottomSheet.jsx";
+import BottomSheet, { SheetHeader } from "./BottomSheet.jsx";
 import BlocksField from "./BlocksField.jsx";
 import MatFields from "./MatFields.jsx";
 
@@ -93,18 +92,31 @@ export default function EntryComposer({
   const accentVar = accent || "--accent";
 
   return (
-    <BottomSheet onClose={onClose} gap={12}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontWeight: 700, fontSize: 16 }}>{title}</div>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer" }}>
-          <X size={18} />
+    <BottomSheet
+      onClose={onClose}
+      gap={18}
+      header={<SheetHeader title={title} onClose={onClose} />}
+      footer={
+        <button
+          onClick={onSave}
+          disabled={saveDisabled}
+          style={{
+            ...primaryBtnStyle,
+            background: `var(${accentVar})`,
+            width: "100%",
+            minHeight: 46,
+            fontSize: 15,
+            opacity: saveDisabled ? 0.4 : 1,
+          }}
+        >
+          {saveLabel}
         </button>
-      </div>
-
+      }
+    >
       {topContent}
 
       {showName && <NameField form={form} setForm={setForm} nameField={nameField} nameLabel={nameLabel} namePlaceholder={namePlaceholder} />}
-      {showName && nameError && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: -6 }}>{nameError}</div>}
+      {showName && nameError && <div role="alert" style={{ color: "var(--danger)", fontSize: 12, marginTop: -12 }}>{nameError}</div>}
 
       {showDate && <DateField form={form} setForm={setForm} />}
 
@@ -117,7 +129,6 @@ export default function EntryComposer({
       {showGiOnly && <GiOnlyField form={form} setForm={setForm} accentVar={accentVar} />}
 
       {showPrescription && <PrescriptionField form={form} setForm={setForm} />}
-
 
       {showActive && <ActiveField form={form} setForm={setForm} accentVar={accentVar} activeLabel={activeLabel} />}
 
@@ -160,30 +171,15 @@ export default function EntryComposer({
         accentVar={accentVar}
       />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", flexDirection: "column" }}>
         <label style={labelStyle}>{textLabel}</label>
         <textarea
           value={form.text}
           onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
           placeholder={textPlaceholder}
-          style={{ ...inputStyle, fontFamily: "'IBM Plex Mono', monospace", minHeight: 150, resize: "vertical", lineHeight: 1.5 }}
+          style={{ ...inputStyle, minHeight: 120, resize: "vertical", lineHeight: 1.55 }}
         />
       </div>
-
-      <button
-        onClick={onSave}
-        disabled={saveDisabled}
-        style={{
-          ...primaryBtnStyle,
-          background: `var(${accentVar})`,
-          justifyContent: "center",
-          padding: "12px 0",
-          opacity: saveDisabled ? 0.45 : 1,
-          cursor: saveDisabled ? "not-allowed" : "pointer",
-        }}
-      >
-        {saveLabel}
-      </button>
     </BottomSheet>
   );
 }

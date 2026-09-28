@@ -3,21 +3,27 @@
 // choices that each have a colour of their own.
 export default function SegmentedToggle({ options, value, setValue, accent = "--accent" }) {
   return (
-    <div style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+    <div
+      role="group"
+      style={{ display: "inline-flex", gap: 2, padding: 3, background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, maxWidth: "100%" }}
+    >
       {options.map(({ key, label, accent: optionAccent }) => {
         const active = value === key;
         return (
           <button
             key={key}
             onClick={() => setValue(key)}
+            aria-pressed={active}
             style={{
-              padding: "6px 12px",
-              fontSize: 12,
-              fontWeight: 700,
+              padding: "5px 12px",
+              fontSize: 13,
+              fontWeight: 600,
               border: "none",
+              borderRadius: 7,
               cursor: "pointer",
-              background: active ? `var(${optionAccent || accent})` : "var(--surface-2)",
-              color: active ? "#15160F" : "var(--text-dim)",
+              whiteSpace: "nowrap",
+              background: active ? `var(${optionAccent || accent})` : "transparent",
+              color: active ? "var(--on-accent)" : "var(--text-dim)",
             }}
           >
             {label}

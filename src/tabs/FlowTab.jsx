@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, RotateCcw, Plus } from "lucide-react";
+import { ChevronRight, RotateCcw, Plus, Route, MapPin } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
 import { collectPositions, techniquesFrom } from "../lib/positions.js";
@@ -10,7 +10,9 @@ import TagChip from "../ui/TagChip.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import FlowOptionCard from "./FlowOptionCard.jsx";
-import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
+import { PageHeader, PageBody } from "../ui/Page.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
+import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle, labelStyle, metaStyle, chipRowStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent4";
 
@@ -109,30 +111,25 @@ export default function FlowTab({ techniques, setTechniques }) {
 
   return (
     <>
-      <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>Live navigation</div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>Flow</div>
-          </div>
-          <GiModeToggle mode={giMode} setMode={setGiMode} accent={ACCENT} />
-        </div>
-
+      <PageHeader eyebrow="BJJ" title="Flow" actions={<GiModeToggle mode={giMode} setMode={setGiMode} accent={ACCENT} />}>
         {path.length > 0 && (
-          <div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             {/* Capped and independently scrollable so a long chain browses
                 in place instead of growing this fixed, non-scrolling header
                 without bound and crowding out the options list below. */}
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, fontSize: 12, maxHeight: 88, overflowY: "auto" }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, fontSize: 13, maxHeight: 88, overflowY: "auto" }}>
               {path.map((step, i) => (
                 <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  {i > 0 && <ChevronRight size={12} color="var(--text-dim)" />}
+                  {i > 0 && <ChevronRight size={14} color="var(--text-faint)" />}
                   <button
                     onClick={() => jumpToStep(i)}
                     style={{
                       ...ghostLinkStyle,
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                      background: i === path.length - 1 ? `var(${ACCENT}-dim)` : "transparent",
                       color: i === path.length - 1 ? `var(${ACCENT})` : "var(--text-dim)",
-                      fontWeight: i === path.length - 1 ? 700 : 600,
+                      fontWeight: i === path.length - 1 ? 600 : 500,
                     }}
                   >
                     {step.position}
@@ -142,73 +139,81 @@ export default function FlowTab({ techniques, setTechniques }) {
             </div>
             {/* Kept outside the scrollable trail above so it's always
                 reachable no matter how long the chain gets. */}
-            <button onClick={startOver} style={{ ...ghostLinkStyle, marginTop: 4, color: "var(--text-dim)" }}>
-              <RotateCcw size={11} /> Start over
+            <button onClick={startOver} style={{ ...secondaryBtnStyle, background: "transparent", minHeight: 30, padding: "3px 10px", fontSize: 12, flexShrink: 0 }}>
+              <RotateCcw size={13} /> Start over
             </button>
           </div>
         )}
-      </div>
+      </PageHeader>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
+      <PageBody>
         {!currentPosition ? (
           <>
-            <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 12 }}>Where are you starting from?</div>
+            <div style={{ padding: "8px 2px 4px" }}>
+              <div style={{ fontSize: 17, fontWeight: 600 }}>Where are you starting from?</div>
+              <div style={{ ...metaStyle, fontSize: 13, marginTop: 4 }}>Pick a position to see the moves you've logged from it, then follow one to where it leads.</div>
+            </div>
             {allPositions.length > 0 && (
               // Capped and independently scrollable so a large position
               // vocabulary browses in place instead of pushing the manual
               // input/Go button further down every time you add one.
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14, maxHeight: 88, overflowY: "auto" }}>
+              <div style={{ ...chipRowStyle, maxHeight: 176, overflowY: "auto" }}>
                 {allPositions.map((p) => (
                   <TagChip key={p} label={p} accent={ACCENT} onClick={() => goTo(p)} />
                 ))}
               </div>
             )}
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                list="position-options"
-                value={positionDraft}
-                onChange={(e) => setPositionDraft(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && goTo(positionDraft)}
-                placeholder="Or type a position, e.g. bottom mount…"
-                style={{ ...inputStyle, flex: 1 }}
-              />
-              <datalist id="position-options">
-                {allPositions.map((p) => (
-                  <option key={p} value={p} />
-                ))}
-              </datalist>
-              <button onClick={() => goTo(positionDraft)} style={secondaryBtnStyle}>
-                Go
-              </button>
+            <div>
+              <label htmlFor="flow-position" style={labelStyle}>
+                {allPositions.length > 0 ? "Or type a position" : "Type a position"}
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  id="flow-position"
+                  list="position-options"
+                  value={positionDraft}
+                  onChange={(e) => setPositionDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && goTo(positionDraft)}
+                  placeholder="e.g. bottom mount…"
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <datalist id="position-options">
+                  {allPositions.map((p) => (
+                    <option key={p} value={p} />
+                  ))}
+                </datalist>
+                <button onClick={() => goTo(positionDraft)} disabled={!positionDraft.trim()} style={{ ...primaryBtnStyle, background: `var(${ACCENT})`, minHeight: 44, opacity: positionDraft.trim() ? 1 : 0.4 }}>
+                  Go
+                </button>
+              </div>
             </div>
           </>
         ) : (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div style={{ fontSize: 13, color: "var(--text-dim)" }}>
-                {tagFilteredOptions.length} option{tagFilteredOptions.length !== 1 ? "s" : ""} from here
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "0 2px" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 17, fontWeight: 600 }}>
+                  <MapPin size={16} color={`var(${ACCENT})`} /> {currentPosition}
+                </div>
+                <div style={metaStyle}>
+                  {tagFilteredOptions.length} option{tagFilteredOptions.length !== 1 ? "s" : ""} from here
+                </div>
               </div>
-              <button onClick={openComposer} style={{ ...ghostLinkStyle, color: `var(${ACCENT})` }}>
-                <Plus size={13} /> Add technique here
+              <button onClick={openComposer} style={{ ...secondaryBtnStyle, background: "transparent" }}>
+                <Plus size={15} /> Add technique
               </button>
             </div>
 
             {tagsHere.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div>
+                <div style={chipRowStyle}>
                   {tagsHere.map((tag) => (
-                    <TagChip
-                      key={tag}
-                      label={tag}
-                      accent={ACCENT}
-                      active={activeTags.includes(tag)}
-                      onClick={() => toggleTagFilter(tag)}
-                    />
+                    <TagChip key={tag} label={tag} accent={ACCENT} active={activeTags.includes(tag)} onClick={() => toggleTagFilter(tag)} />
                   ))}
                 </div>
                 {activeTags.length > 1 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Match:</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Match</span>
                     <SegmentedToggle
                       options={[
                         { key: "all", label: "All tags" },
@@ -224,38 +229,44 @@ export default function FlowTab({ techniques, setTechniques }) {
             )}
 
             {options.length === 0 ? (
-              <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
-                No techniques logged starting from "{currentPosition}" yet.
+              <EmptyState
+                icon={Route}
+                title="Nothing logged from here yet"
+                action={
+                  <button onClick={openComposer} style={{ ...primaryBtnStyle, background: `var(${ACCENT})` }}>
+                    <Plus size={16} /> Add a technique from here
+                  </button>
+                }
+              >
+                No techniques start from "{currentPosition}" yet.
                 {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
                   <div style={{ marginTop: 6 }}>
                     ({hiddenGiOnlyCount} gi-only technique{hiddenGiOnlyCount !== 1 ? "s" : ""} hidden in No-Gi mode)
                   </div>
                 )}
-              </div>
+              </EmptyState>
             ) : tagFilteredOptions.length === 0 ? (
-              <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
+              <EmptyState icon={Route} compact>
                 No techniques tagged that way from "{currentPosition}" yet.
-              </div>
+              </EmptyState>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {tagFilteredOptions.map((t) => (
-                  <FlowOptionCard
-                    key={t.id}
-                    technique={t}
-                    accent={ACCENT}
-                    isOpen={openTechniqueId === t.id}
-                    onToggle={() => setOpenTechniqueId(openTechniqueId === t.id ? null : t.id)}
-                    onGoTo={() => goTo(t.toPosition)}
-                    onToggleStar={() => toggleStar(t.id)}
-                    activeTags={activeTags}
-                    onTagClick={toggleTagFilter}
-                  />
-                ))}
-              </div>
+              tagFilteredOptions.map((t) => (
+                <FlowOptionCard
+                  key={t.id}
+                  technique={t}
+                  accent={ACCENT}
+                  isOpen={openTechniqueId === t.id}
+                  onToggle={() => setOpenTechniqueId(openTechniqueId === t.id ? null : t.id)}
+                  onGoTo={() => goTo(t.toPosition)}
+                  onToggleStar={() => toggleStar(t.id)}
+                  activeTags={activeTags}
+                  onTagClick={toggleTagFilter}
+                />
+              ))
             )}
           </>
         )}
-      </div>
+      </PageBody>
 
       {showComposer && (
         <EntryComposer

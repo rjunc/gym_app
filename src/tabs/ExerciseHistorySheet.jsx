@@ -3,7 +3,7 @@ import { GROUP_KINDS } from "../lib/groups.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { SheetLink } from "../ui/SheetNav.jsx";
-import { labelStyle } from "../ui/styles.js";
+import { labelStyle, chipRowStyle } from "../ui/styles.js";
 
 // Read-only bottom sheet opened by tapping an exercise in the Library: the
 // routines that include it, then every session and journal entry that links
@@ -27,9 +27,9 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
         blocksOf(entry)
           .filter((b) => b.exerciseId === exercise.id && ((b.sets || []).length > 0 || b.note))
           .map((b) => (
-            <div key={b.id} style={{ marginTop: 4 }}>
+            <div key={b.id} style={{ marginTop: 6 }}>
               {(b.sets || []).length > 0 && (
-                <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})` }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: `var(${entryAccent})` }}>
                   {formatSets(b.sets)}
                   {b.groupId && <GroupTag entry={entry} groupId={b.groupId} />}
                 </div>
@@ -38,26 +38,27 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
             </div>
           ))
       }
+      eyebrow="Exercise"
+      accent={accent}
+      title={exercise.name}
+      meta={exercise.prescription}
       header={
-        <>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{exercise.name}</div>
-          {exercise.prescription && <div style={{ fontSize: 12, color: `var(${accent})`, fontWeight: 600 }}>{exercise.prescription}</div>}
-          {exercise.tags && exercise.tags.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {exercise.tags.map((t) => (
-                <TagChip key={t} label={t} small accent={accent} />
-              ))}
-            </div>
-          )}
-        </>
+        exercise.tags &&
+        exercise.tags.length > 0 && (
+          <div style={chipRowStyle}>
+            {exercise.tags.map((t) => (
+              <TagChip key={t} label={t} small accent={accent} />
+            ))}
+          </div>
+        )
       }
     >
       {routines.length > 0 && (
         <div>
           <span style={labelStyle}>In {routines.length === 1 ? "1 routine" : `${routines.length} routines`}</span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {routines.map((r) => (
-              <div key={r.id} style={{ fontSize: 13 }}>
+              <div key={r.id} style={{ fontSize: 14, fontWeight: 600, color: "var(--accent2)" }}>
                 <SheetLink sheet={{ kind: "routine", id: r.id }}>{r.label}</SheetLink>
               </div>
             ))}

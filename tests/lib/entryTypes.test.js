@@ -6,7 +6,7 @@ test("every entry type has the settings the form, cards and pages read", () => {
   for (const [key, t] of Object.entries(ENTRY_TYPES)) {
     for (const field of ["label", "singular", "accent", "textLabel", "textPlaceholder"]) assert.equal(typeof t[field], "string", `${key}.${field}`);
     for (const flag of ["showRoutines", "showExercises", "showSets", "canRedo"]) assert.equal(typeof t[flag], "boolean", `${key}.${flag}`);
-    for (const field of ["eyebrow", "heading", "searchPlaceholder", "emptyLabel"]) assert.equal(typeof t.page[field], "string", `${key}.page.${field}`);
+    for (const field of ["eyebrow", "heading", "newLabel", "newShort", "searchPlaceholder", "emptyTitle", "emptyLabel"]) assert.equal(typeof t.page[field], "string", `${key}.page.${field}`);
   }
 });
 

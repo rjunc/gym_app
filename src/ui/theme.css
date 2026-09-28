@@ -1,0 +1,406 @@
+/* The app's design tokens and the few things inline styles can't do:
+   interaction states (hover, focus, pressed), media queries for the layout,
+   and the sheet/drawer animations. Components keep their own look inline
+   (see styles.js) and reach for these tokens as var(--…). */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, darkest to lightest. */
+  --bg: #111210;
+  --surface: #1a1b18;
+  --surface-2: #22241f;
+  --surface-3: #2b2d28;
+  --border: #2d2f2a;
+  --border-strong: #3c3f37;
+
+  /* Text. --text-faint is for placeholders and decoration only; it doesn't
+     meet contrast for reading. */
+  --text: #efeee7;
+  --text-dim: #a3a298;
+  --text-faint: #6f6e66;
+
+  /* One colour per part of the app: sessions (gold), the library and
+     routines (green), journals (indigo), BJJ (blue). Each has a -dim tint
+     for selected/tinted backgrounds. --on-accent is text on a solid accent. */
+  --accent: #d6ab3c;
+  --accent-dim: rgba(214, 171, 60, 0.14);
+  --accent2: #74b297;
+  --accent2-dim: rgba(116, 178, 151, 0.14);
+  --accent3: #959bd4;
+  --accent3-dim: rgba(149, 155, 212, 0.15);
+  --accent4: #6c9dcc;
+  --accent4-dim: rgba(108, 157, 204, 0.15);
+  --danger: #d86f57;
+  --danger-dim: rgba(216, 111, 87, 0.14);
+  --on-accent: #15160f;
+  --focus: #efeee7;
+
+  --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
+  --shadow-drawer: 8px 0 32px rgba(0, 0, 0, 0.4);
+
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+body {
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  font-feature-settings: "cv11", "ss01";
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: inherit;
+}
+
+button {
+  transition: filter 120ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+button:not(:disabled):hover {
+  filter: brightness(1.12);
+}
+
+button:not(:disabled):active {
+  filter: brightness(0.92);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Keyboard focus only: a clear ring on anything focusable, never on tap. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input,
+textarea,
+select {
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--text-dim) !important;
+  box-shadow: 0 0 0 3px rgba(239, 238, 231, 0.08);
+  outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint);
+}
+
+input:disabled {
+  opacity: 0.6;
+}
+
+select option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Layout ---------- */
+
+/* 100dvh tracks the visible viewport as mobile browser chrome (e.g. Safari's
+   address bar) shows and hides; 100vh stays as the fallback. */
+.app-shell {
+  position: relative;
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Deliberately not positioned, so a page's own sheets (its new/edit forms)
+   cover the whole shell, sidebar included, like the app's sheet stack. */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-inner {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.page-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top);
+}
+
+.page-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The sidebar: a slide-in drawer on phones and tablets, always open beside
+   the page on a wide screen. */
+.app-sidebar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 272px;
+  max-width: 84%;
+  z-index: 21;
+  transform: translateX(-100%);
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: none;
+}
+.app-sidebar.open {
+  transform: none;
+  box-shadow: var(--shadow-drawer);
+}
+.app-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.app-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (min-width: 960px) {
+  .app-sidebar {
+    position: relative;
+    transform: none;
+    flex-shrink: 0;
+    width: 248px;
+    max-width: none;
+    z-index: 1;
+  }
+  .app-sidebar.open {
+    box-shadow: none;
+  }
+  .app-scrim,
+  .wide-hidden {
+    display: none !important;
+  }
+}
+
+/* ---------- Sheets ---------- */
+
+/* Slides up from the bottom on a phone; a centred dialog on a wider screen. */
+.sheet-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  animation: fade-in 160ms ease;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-height: 92%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-top: 1px solid var(--border-strong);
+  border-radius: 20px 20px 0 0;
+  box-shadow: var(--shadow-sheet);
+  overflow-wrap: anywhere;
+  animation: sheet-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sheet-head {
+  flex-shrink: 0;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-foot {
+  flex-shrink: 0;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+@media (min-width: 720px) {
+  .sheet-overlay {
+    align-items: center;
+    padding: 32px;
+  }
+  .sheet-panel {
+    max-width: 620px;
+    max-height: min(88vh, 920px);
+    border: none;
+    border-radius: 16px;
+    box-shadow: var(--shadow-dialog);
+    animation: dialog-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .sheet-foot {
+    border-radius: 0 0 16px 16px;
+  }
+}
+
+/* ---------- Interaction helpers ---------- */
+
+/* A card that opens something when tapped. */
+.card-click {
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+@media (hover: hover) {
+  .card-click:hover {
+    border-color: var(--border-strong) !important;
+    background-color: #1e1f1b !important;
+  }
+  .icon-btn:not(:disabled):hover {
+    background: var(--surface-3) !important;
+    color: var(--text) !important;
+    filter: none;
+  }
+  .icon-btn.danger:not(:disabled):hover {
+    background: var(--danger-dim) !important;
+    color: var(--danger) !important;
+  }
+  .nav-item:hover {
+    background: var(--surface-2);
+    filter: none;
+  }
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--text-dim);
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    transform: translateY(8px) scale(0.98);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* The search boxes draw their own clear button. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Home: calendar and the selected day's entries stacked on a phone, side by
+   side (calendar held in view) on a wide screen. */
+.page-inner.wide {
+  max-width: 1120px;
+}
+.home-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (min-width: 1100px) {
+  .home-grid {
+    display: grid;
+    grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .home-grid > :first-child {
+    position: sticky;
+    top: 0;
+  }
+}
+
+/* Icons keep their size when a button's label is squeezed. */
+button svg {
+  flex-shrink: 0;
+}

@@ -1,17 +1,4 @@
-import { ChevronLeft } from "lucide-react";
 import { useSheets } from "../lib/SheetStack.js";
-
-// "‹ Back" at the top of a sheet opened on top of another (see SheetStack).
-export function BackButton({ onBack }) {
-  return (
-    <button
-      onClick={onBack}
-      style={{ display: "flex", alignItems: "center", gap: 2, background: "none", border: "none", padding: 0, color: "var(--text-dim)", fontSize: 12, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start" }}
-    >
-      <ChevronLeft size={14} /> Back
-    </button>
-  );
-}
 
 // A name that opens its record's sheet on top of the current one: a routine,
 // a Library exercise or a dated entry, as `sheet` (see SheetStack's open).
@@ -38,6 +25,7 @@ export function SheetLink({ sheet, children, style }) {
         textDecoration: "underline",
         textDecorationStyle: "dotted",
         textUnderlineOffset: 3,
+        textDecorationColor: "color-mix(in srgb, currentColor 45%, transparent)",
         ...style,
       }}
     >

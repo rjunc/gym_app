@@ -7,8 +7,8 @@ export default function RoutineLinks({ entry, routineNameById, style }) {
   const names = (entry.routineIds || []).map((id) => routineNameById.get(id)).filter(Boolean);
   if (names.length === 0) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--accent2)", ...style }}>
-      <BookOpen size={11} style={{ flexShrink: 0 }} />
+    <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--accent2)", ...style }}>
+      <BookOpen size={12} style={{ flexShrink: 0 }} />
       <span>{names.join(" · ")}</span>
     </div>
   );

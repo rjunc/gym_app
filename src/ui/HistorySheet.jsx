@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { X, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, History } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import { entryHistory } from "../lib/links.js";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import TagChip from "./TagChip.jsx";
-import BottomSheet from "./BottomSheet.jsx";
+import BottomSheet, { SheetHeader } from "./BottomSheet.jsx";
+import EmptyState from "./EmptyState.jsx";
 import SheetActions from "./SheetActions.jsx";
 import { useSheets } from "../lib/SheetStack.js";
-import { BackButton } from "./SheetNav.jsx";
-import { cardStyle, ghostLinkStyle, labelStyle } from "./styles.js";
+import { cardStyle, ghostLinkStyle, labelStyle, noteTextStyle, clamp, eyebrowStyle, chipRowStyle } from "./styles.js";
 
 // entryHistory's kinds, with their settings from ENTRY_TYPES and the log
 // each lives in.
@@ -16,7 +16,8 @@ const KIND_META = { session: ENTRY_TYPES.sessions, journal: ENTRY_TYPES.journals
 const KIND_SOURCE = { session: "sessions", journal: "journals", roll: "rolls" };
 
 // Read-only bottom sheet for something that dated entries link to (a Library
-// exercise, a routine): `header` at the top next to the close button,
+// exercise, a routine): `eyebrow`, `title` and `meta` at the top (see
+// SheetHeader) with Edit and Delete, then `header` (tags, positions),
 // `children` for anything in between, then every session and journal entry
 // that links it as one newest-first timeline. `detail(entry)` renders what's
 // specific to this kind of link under each entry's title (e.g. the sets
@@ -25,50 +26,48 @@ const KIND_SOURCE = { session: "sessions", journal: "journals", roll: "rolls" };
 // Tapping an entry in the timeline opens its full summary on top (see
 // SheetStack), where it can be edited too. `onBack` adds a Back button when
 // this sheet is itself on top of another.
-export default function HistorySheet({ header, sessions = [], journals = [], rolls = [], detail, emptyLabel, onEdit, onDelete, onBack, onClose, children }) {
+export default function HistorySheet({ eyebrow, accent, title, meta, header, sessions = [], journals = [], rolls = [], detail, emptyLabel, onEdit, onDelete, onBack, onClose, children }) {
   const history = entryHistory(sessions, journals, rolls);
   const sheets = useSheets();
 
   return (
-    <>
-      <BottomSheet onClose={onClose}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-            {onBack && <BackButton onBack={onBack} />}
-            {header}
+    <BottomSheet
+      onClose={onClose}
+      header={
+        <SheetHeader eyebrow={eyebrow} accent={accent} title={title} meta={meta} onBack={onBack} onClose={onClose}>
+          <SheetActions onEdit={onEdit} onDelete={onDelete} />
+        </SheetHeader>
+      }
+    >
+      {header}
+
+      {children}
+
+      <div>
+        <span style={{ ...labelStyle, marginBottom: 10 }}>
+          History{history.length > 0 && <span style={{ fontWeight: 500 }}> · {history.length} {history.length === 1 ? "entry" : "entries"}</span>}
+        </span>
+        {history.length === 0 ? (
+          <div style={{ ...cardStyle, padding: 0, borderStyle: "dashed" }}>
+            <EmptyState icon={History} compact>
+              {emptyLabel}
+            </EmptyState>
           </div>
-          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", flexShrink: 0 }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <SheetActions onEdit={onEdit} onDelete={onDelete} />
-
-        {children}
-
-        <div>
-          <span style={labelStyle}>
-            {history.length === 0 ? "History" : `History · ${history.length} ${history.length === 1 ? "entry" : "entries"}`}
-          </span>
-          {history.length === 0 ? (
-            <div style={{ fontSize: 13, color: "var(--text-dim)", padding: "8px 0" }}>{emptyLabel}</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {history.map(({ kind, entry }) => (
-                <HistoryEntry
-                  key={`${kind}-${entry.id}`}
-                  kind={kind}
-                  entry={entry}
-                  detail={detail}
-                  onOpen={sheets ? () => sheets.open({ kind: "entry", source: KIND_SOURCE[kind], id: entry.id }) : undefined}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </BottomSheet>
-
-    </>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {history.map(({ kind, entry }) => (
+              <HistoryEntry
+                key={`${kind}-${entry.id}`}
+                kind={kind}
+                entry={entry}
+                detail={detail}
+                onOpen={sheets ? () => sheets.open({ kind: "entry", source: KIND_SOURCE[kind], id: entry.id }) : undefined}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </BottomSheet>
   );
 }
 
@@ -85,54 +84,27 @@ function HistoryEntry({ kind, entry, detail, onOpen }) {
       onClick={(ev) => {
         if (onOpen && !ev.target.closest("button")) onOpen();
       }}
-      style={{ ...cardStyle, background: "var(--surface-2)", cursor: "pointer" }}
+      className="card-click"
+      style={{ ...cardStyle, padding: 14 }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{formatDate(entry.date)}</span>
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: 0.3,
-            color: `var(${meta.accent})`,
-            background: `var(${meta.accent}-dim)`,
-            borderRadius: 999,
-            padding: "1px 7px",
-          }}
-        >
-          {meta.singular.toUpperCase()}
-        </span>
+        <span style={{ ...eyebrowStyle, fontSize: 10, color: `var(${meta.accent})`, background: `var(${meta.accent}-dim)`, borderRadius: 999, padding: "2px 8px" }}>{meta.singular}</span>
+        <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{formatDate(entry.date)}</span>
       </div>
-      {entry.title && <div style={{ fontWeight: 700, fontSize: 13, marginTop: 4 }}>{entry.title}</div>}
+      {entry.title && <div style={{ fontWeight: 600, fontSize: 15, marginTop: 6 }}>{entry.title}</div>}
       {detail && detail(entry, meta.accent)}
       {entry.tags && entry.tags.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+        <div style={{ ...chipRowStyle, marginTop: 8 }}>
           {entry.tags.map((t) => (
             <TagChip key={t} label={t} small accent={meta.accent} />
           ))}
         </div>
       )}
       {entry.text && (
-        <p
-          style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 13,
-            lineHeight: 1.55,
-            color: "var(--text)",
-            marginTop: 8,
-            marginBottom: 0,
-            whiteSpace: "pre-wrap",
-            display: "-webkit-box",
-            WebkitLineClamp: open || !isLong ? "unset" : 5,
-            WebkitBoxOrient: "vertical",
-            overflow: open || !isLong ? "visible" : "hidden",
-          }}
-        >
-          {entry.text}
-        </p>
+        <p style={{ ...noteTextStyle, fontSize: 13, color: "var(--text-dim)", marginTop: 8, ...clamp(open || !isLong) }}>{entry.text}</p>
       )}
       {isLong && (
-        <button onClick={() => setOpen((v) => !v)} style={{ ...ghostLinkStyle, marginTop: 6 }}>
+        <button onClick={() => setOpen((v) => !v)} style={{ ...ghostLinkStyle, fontSize: 12, marginTop: 6, color: "var(--text-dim)" }}>
           {open ? (
             <>
               Show less <ChevronUp size={13} />

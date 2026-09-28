@@ -43,10 +43,10 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
       setItems={setRoutines}
       folders={folders}
       setFolders={setFolders}
-      eyebrow="Library"
+      eyebrow="Lifting"
       heading="Routines"
       searchPlaceholder="Search text, folders, exercises…"
-      emptyLabel='No routines yet. Tap "New routine" or add a folder to start organizing your library.'
+      emptyLabel="Save the workouts you repeat, with their exercises and planned sets, then add them to a session in one tap."
       {...ROUTINE_CONFIG}
       exercises={exercises}
       exerciseUsage={exerciseUsage}

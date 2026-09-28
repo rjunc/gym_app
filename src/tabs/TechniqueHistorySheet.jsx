@@ -1,11 +1,12 @@
-import { MoveRight, Shirt } from "lucide-react";
+import { MoveRight } from "lucide-react";
+import { GiOnlyBadge } from "./LibraryItemCard.jsx";
 import { formatDateTime, wasEdited } from "../lib/id.js";
 import { techniqueStats, RESULTS, roundParts } from "../lib/mat.js";
 import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import { RESULT_COLORS } from "../ui/MatFields.jsx";
 import { SheetLink } from "../ui/SheetNav.jsx";
-import { labelStyle } from "../ui/styles.js";
+import { labelStyle, noteTextStyle, metaStyle, chipRowStyle } from "../ui/styles.js";
 
 // Read-only bottom sheet opened by tapping a technique: the technique itself
 // (positions, gi-only, tags, notes), how it's gone across mat sessions — how
@@ -42,7 +43,7 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
             (part.techniques || [])
               .filter((t) => t.techniqueId === technique.id)
               .map((t, k) => (
-                <div key={`${r.id}-${p}-${k}`} style={{ fontSize: 13 }}>
+                <div key={`${r.id}-${p}-${k}`} style={{ fontSize: 13, marginTop: 2 }}>
                   <span style={{ fontWeight: 700, color: `var(${RESULT_COLORS[t.result]})` }}>{RESULTS[t.result]}</span>
                   <span style={{ color: "var(--text-dim)" }}> · </span>
                   <SheetLink sheet={{ kind: "round", source: "rolls", id: entry.id, roundId: r.id }} style={{ color: "var(--text-dim)" }}>
@@ -78,43 +79,47 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
         });
         return (
           <div style={{ marginTop: 4 }}>
-            {drilled && <div style={{ fontSize: 13, fontWeight: 700, color: `var(${entryAccent})` }}>Drilled</div>}
+            {drilled && <div style={{ fontSize: 13, fontWeight: 600, color: `var(${entryAccent})`, marginTop: 2 }}>Drilled</div>}
             {lines}
           </div>
         );
       }}
+      eyebrow="Technique"
+      accent={accent}
+      title={technique.name}
+      meta={pathLabel}
       header={
-        <>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{technique.name}</div>
-          {pathLabel && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{pathLabel}</div>}
-          {(technique.position || technique.toPosition) && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: `var(${accent})` }}>
-              <span>{technique.position || "?"}</span>
-              <MoveRight size={12} />
-              <span>{technique.toPosition || "?"}</span>
-            </div>
-          )}
-          {technique.giOnly && (
-            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700, color: "var(--danger)" }}>
-              <Shirt size={11} /> GI ONLY
-            </span>
-          )}
-          {technique.tags && technique.tags.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {technique.tags.map((t) => (
-                <TagChip key={t} label={t} small accent={accent} />
-              ))}
-            </div>
-          )}
-        </>
+        (technique.position || technique.toPosition || technique.giOnly || (technique.tags || []).length > 0) && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {(technique.position || technique.toPosition || technique.giOnly) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                {(technique.position || technique.toPosition) && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: `var(${accent})` }}>
+                    <span>{technique.position || "?"}</span>
+                    <MoveRight size={14} />
+                    <span>{technique.toPosition || "?"}</span>
+                  </div>
+                )}
+                {technique.giOnly && <GiOnlyBadge />}
+              </div>
+            )}
+            {technique.tags && technique.tags.length > 0 && (
+              <div style={chipRowStyle}>
+                {technique.tags.map((t) => (
+                  <TagChip key={t} label={t} small accent={accent} />
+                ))}
+              </div>
+            )}
+          </div>
+        )
       }
     >
       {statParts.length > 0 && (
         <div>
           <span style={labelStyle}>On the mat</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 13, fontWeight: 700 }}>
+          <div style={chipRowStyle}>
             {statParts.map((p) => (
-              <span key={p.key} style={{ color: `var(${p.color})` }}>
+              <span key={p.key} style={{ fontSize: 13, fontWeight: 600, color: `var(${p.color})`, background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px" }}>
                 {p.text}
               </span>
             ))}
@@ -125,14 +130,12 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
       {technique.text && (
         <div>
           <span style={labelStyle}>Notes</span>
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, lineHeight: 1.55, color: "var(--text)", margin: 0, whiteSpace: "pre-wrap" }}>
-            {technique.text}
-          </p>
+          <p style={noteTextStyle}>{technique.text}</p>
         </div>
       )}
 
       {created && (
-        <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+        <div style={metaStyle}>
           Created {created}
           {wasEdited(technique) && ` · Edited ${formatDateTime(technique.updatedAt)}`}
         </div>

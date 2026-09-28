@@ -3,7 +3,7 @@ import TagChip from "../ui/TagChip.jsx";
 import HistorySheet from "../ui/HistorySheet.jsx";
 import SetsSummary from "../ui/SetsSummary.jsx";
 import BlocksDetail from "../ui/BlocksDetail.jsx";
-import { labelStyle } from "../ui/styles.js";
+import { labelStyle, noteTextStyle, metaStyle, chipRowStyle } from "../ui/styles.js";
 
 // Read-only bottom sheet opened by tapping a routine: the routine itself (its
 // folder, tags, its plan laid out like a session's blocks — numbered, with
@@ -28,18 +28,19 @@ export default function RoutineHistorySheet({ routine, pathLabel, accent, sessio
       onClose={onClose}
       emptyLabel="Not used in any sessions or journal entries yet. Add it to one with the Routines picker when logging."
       detail={(entry, entryAccent) => <SetsSummary entry={entry} exerciseNameById={exerciseNameById} accent={entryAccent} style={{ marginTop: 6 }} />}
+      eyebrow="Routine"
+      accent={accent}
+      title={routine.name}
+      meta={pathLabel}
       header={
-        <>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{routine.name}</div>
-          {pathLabel && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{pathLabel}</div>}
-          {routine.tags && routine.tags.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {routine.tags.map((t) => (
-                <TagChip key={t} label={t} small accent={accent} />
-              ))}
-            </div>
-          )}
-        </>
+        routine.tags &&
+        routine.tags.length > 0 && (
+          <div style={chipRowStyle}>
+            {routine.tags.map((t) => (
+              <TagChip key={t} label={t} small accent={accent} />
+            ))}
+          </div>
+        )
       }
     >
       {blocks.length > 0 && (
@@ -52,14 +53,12 @@ export default function RoutineHistorySheet({ routine, pathLabel, accent, sessio
       {routine.text && (
         <div>
           <span style={labelStyle}>Details</span>
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, lineHeight: 1.55, color: "var(--text)", margin: 0, whiteSpace: "pre-wrap" }}>
-            {routine.text}
-          </p>
+          <p style={noteTextStyle}>{routine.text}</p>
         </div>
       )}
 
       {created && (
-        <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+        <div style={metaStyle}>
           Created {created}
           {wasEdited(routine) && ` · Edited ${formatDateTime(routine.updatedAt)}`}
         </div>

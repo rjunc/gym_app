@@ -1,17 +1,19 @@
 import { useState, useMemo } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Layers, SearchX } from "lucide-react";
 import { matchesTags } from "../lib/activity.js";
 import { entriesByExercise, exerciseDeleteWarning } from "../lib/exercises.js";
 import { matchesSearch, exerciseSearchFields } from "../lib/search.js";
 import { useSheets } from "../lib/SheetStack.js";
 import TagChip from "../ui/TagChip.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
-import SearchBox from "../ui/SearchBox.jsx";
+import SearchBox, { TagsToggle } from "../ui/SearchBox.jsx";
+import { PageHeader, PageBody } from "../ui/Page.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import ExerciseCard from "./ExerciseCard.jsx";
 import ExerciseEditor from "./ExerciseEditor.jsx";
 import PickBar from "../ui/PickBar.jsx";
-import { primaryBtnStyle } from "../ui/styles.js";
+import { primaryBtnStyle, secondaryBtnStyle } from "../ui/styles.js";
 
 const ACCENT = "--accent2"; // matches Routines/Techniques, the other library-style tabs
 
@@ -42,6 +44,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
   // A quick way to find exercises a future random-pick builder could never
   // select, because they have no category tag to be found by.
   const [untaggedOnly, setUntaggedOnly] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [expanded, setExpanded] = useState(null);
   // The new/edit form: null when closed, else { exercise } to edit or
   // { initialName } to create (see ExerciseEditor).
@@ -91,17 +94,16 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
       {pick && (
         <PickBar noun="exercises" onDone={pick.onDone} accent={ACCENT} chosen={pick.chosen} onRemove={pick.onRemove} onOpen={openSheet} />
       )}
-      <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>Library</div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>Exercises</div>
-          </div>
-          <button onClick={openNewComposer} style={{ ...primaryBtnStyle, background: `var(${ACCENT})` }}>
-            <Plus size={15} /> New exercise
+      <PageHeader
+        eyebrow="Lifting"
+        title="Exercises"
+        hideMenu={!!pick}
+        actions={
+          <button onClick={openNewComposer} style={{ ...primaryBtnStyle, background: `var(${ACCENT})` }} aria-label="New exercise">
+            <Plus size={16} /> New
           </button>
-        </div>
-
+        }
+      >
         <SearchBox
           value={search}
           setValue={setSearch}
@@ -109,9 +111,10 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
           setMatchMode={setSearchMatchMode}
           placeholder="Search text, tags, prescription…"
           accent={ACCENT}
+          trailing={!untaggedOnly && exercises.some((e) => (e.tags || []).length > 0) && <TagsToggle open={tagsOpen} count={activeTags.length} onClick={() => setTagsOpen((v) => !v)} accent={ACCENT} />}
         />
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <SegmentedToggle
             options={[
               { key: "active", label: "Active" },
@@ -123,7 +126,7 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
             accent={ACCENT}
           />
           {untaggedCount > 0 && (
-            <TagChip label={`No tags (${untaggedCount})`} accent="--danger" active={untaggedOnly} onClick={() => setUntaggedOnly((v) => !v)} />
+            <TagChip label={`Untagged · ${untaggedCount}`} accent="--danger" active={untaggedOnly} onClick={() => setUntaggedOnly((v) => !v)} />
           )}
         </div>
 
@@ -135,40 +138,67 @@ export default function ExerciseLibraryTab({ exercises, setExercises, sessions =
             matchMode={tagMatchMode}
             setMatchMode={setTagMatchMode}
             accent={ACCENT}
+            collapsed={!tagsOpen}
           />
         )}
-      </div>
+      </PageHeader>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
-        {filtered.length === 0 ? (
-          <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "36px 10px", fontSize: 13 }}>
-            {exercises.length === 0 ? 'No exercises yet. Tap "New exercise" to add your first one.' : "Nothing matches the current search or filters."}
-          </div>
+      <PageBody>
+        {exercises.length === 0 ? (
+          <EmptyState
+            icon={Layers}
+            title="No exercises yet"
+            action={
+              <button onClick={openNewComposer} style={{ ...primaryBtnStyle, background: `var(${ACCENT})` }}>
+                <Plus size={16} /> New exercise
+              </button>
+            }
+          >
+            Add the exercises you do, tagged by what they train, so sessions and routines can link to them.
+          </EmptyState>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={SearchX}
+            title="No matches"
+            action={
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setActiveTags([]);
+                  setUntaggedOnly(false);
+                  setStatus("all");
+                }}
+                style={secondaryBtnStyle}
+              >
+                Clear filters
+              </button>
+            }
+          >
+            Nothing matches the current search or filters.
+          </EmptyState>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filtered.map((e) => (
-              <ExerciseCard
-                key={e.id}
-                exercise={e}
-                accent={ACCENT}
-                isOpen={expanded === e.id}
-                onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
-                onEdit={() => openEdit(e)}
-                onDelete={pick ? undefined : () => deleteExercise(e.id)}
-                onAdd={pick ? () => pick.onAdd(e) : undefined}
-                onRemove={pick ? () => pick.onRemove(e.id) : undefined}
-                added={pick ? pick.addedIds.includes(e.id) : false}
-                onOpen={() => openSheet(e.id)}
-                activeTags={activeTags}
-                onTagClick={toggleTagFilter}
-                usedInSessions={sessionsByExercise.get(e.id) || []}
-                usedInJournals={journalsByExercise.get(e.id) || []}
-                usedInRoutines={routinesByExercise.get(e.id) || []}
-              />
-            ))}
-          </div>
+          filtered.map((e) => (
+            <ExerciseCard
+              key={e.id}
+              exercise={e}
+              accent={ACCENT}
+              isOpen={expanded === e.id}
+              onToggle={() => setExpanded(expanded === e.id ? null : e.id)}
+              onEdit={() => openEdit(e)}
+              onDelete={pick ? undefined : () => deleteExercise(e.id)}
+              onAdd={pick ? () => pick.onAdd(e) : undefined}
+              onRemove={pick ? () => pick.onRemove(e.id) : undefined}
+              added={pick ? pick.addedIds.includes(e.id) : false}
+              onOpen={() => openSheet(e.id)}
+              activeTags={activeTags}
+              onTagClick={toggleTagFilter}
+              usedInSessions={sessionsByExercise.get(e.id) || []}
+              usedInJournals={journalsByExercise.get(e.id) || []}
+              usedInRoutines={routinesByExercise.get(e.id) || []}
+            />
+          ))
         )}
-      </div>
+      </PageBody>
 
       {composer && (
         <ExerciseEditor

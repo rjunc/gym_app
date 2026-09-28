@@ -7,7 +7,7 @@ import { GI_KINDS, RESULTS, DEFAULT_RESULT, newDraftRound, newDraftPart, recentP
 import TagChip from "./TagChip.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import PagePicker from "./PagePicker.jsx";
-import { labelStyle, inputStyle, tagPillStyle, ghostLinkStyle } from "./styles.js";
+import { labelStyle, inputStyle, pickedPillStyle, pillRemoveStyle, ghostLinkStyle, insetStyle, chipRowStyle } from "./styles.js";
 
 // The colour a round's result reads in: a hit in green, being caught in red,
 // an attempt dim.
@@ -21,7 +21,7 @@ const growToFit = (el) => {
   el.style.height = `${el.scrollHeight}px`;
 };
 
-const iconBtnStyle = { background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 2 };
+const iconBtnStyle = { background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 4, borderRadius: 6 };
 
 // The small "Hit ▾" switch after a technique in a round.
 const resultSelectStyle = {
@@ -64,8 +64,8 @@ export function TechniquePicker({ addedIds = [], onAdd, onRemove, label, placeho
     setQuery("");
   };
   const browse = (
-    <button onClick={() => setBrowsing(true)} style={{ ...ghostLinkStyle, color: `var(${accentVar})`, flexShrink: 0 }}>
-      <LayoutGrid size={12} /> Browse
+    <button onClick={() => setBrowsing(true)} style={{ ...ghostLinkStyle, fontSize: 12, color: `var(${accentVar})`, flexShrink: 0 }}>
+      <LayoutGrid size={13} /> Browse
     </button>
   );
   const input = (
@@ -81,7 +81,7 @@ export function TechniquePicker({ addedIds = [], onAdd, onRemove, label, placeho
     <div>
       {label ? (
         <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <span style={{ ...labelStyle, marginBottom: 0 }}>{label}</span>
             {browse}
           </div>
@@ -95,7 +95,7 @@ export function TechniquePicker({ addedIds = [], onAdd, onRemove, label, placeho
         </div>
       )}
       {suggestions.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+        <div style={{ ...chipRowStyle, marginTop: 8 }}>
           {suggestions.map((t) => (
             <TagChip key={t.id} small accent={accentVar} label={t.name} onClick={() => add(t)} />
           ))}
@@ -136,10 +136,10 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
     setParts(roundKey, (parts) => parts.map((p) => (p.key === partKey ? { ...p, techniques: update(p.techniques || []) } : p)));
 
   const pill = (id, onRemove) => (
-    <span key={id} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
+    <span key={id} style={pickedPillStyle(accentVar)}>
       {nameOf(id)}
-      <button onClick={onRemove} aria-label={`Remove ${nameOf(id)}`} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}>
-        <X size={11} />
+      <button onClick={onRemove} aria-label={`Remove ${nameOf(id)}`} style={pillRemoveStyle}>
+        <X size={13} />
       </button>
     </span>
   );
@@ -164,7 +164,7 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
         accentVar={accentVar}
       >
         {drilledIds.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{drilledIds.map((id) => pill(id, () => setDrilled((ids) => ids.filter((x) => x !== id))))}</div>
+          <div style={{ ...chipRowStyle, marginBottom: 8 }}>{drilledIds.map((id) => pill(id, () => setDrilled((ids) => ids.filter((x) => x !== id))))}</div>
         )}
       </TechniquePicker>
 
@@ -174,9 +174,9 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
           {rounds.map((round, i) => {
             const parts = round.parts || [];
             return (
-              <div key={round.key} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div key={round.key} style={{ ...insetStyle, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>Round {i + 1}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>Round {i + 1}</span>
                   <button onClick={() => setRounds((list) => list.filter((r) => r.key !== round.key))} aria-label={`Remove round ${i + 1}`} style={iconBtnStyle}>
                     <X size={15} />
                   </button>
@@ -204,7 +204,7 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
                     )}
                     {(part.techniques || []).map((t, k) => (
                       <div key={`${t.techniqueId}-${k}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0 }}>{nameOf(t.techniqueId)}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500, flex: 1, minWidth: 0 }}>{nameOf(t.techniqueId)}</span>
                         <select
                           value={t.result}
                           onChange={(e) => {
@@ -239,9 +239,9 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
                 <button
                   onClick={() => setParts(round.key, (list) => [...list, newDraftPart()])}
                   title="Started over after a tap, same round"
-                  style={{ ...ghostLinkStyle, color: `var(${accentVar})`, alignSelf: "flex-start" }}
+                  style={{ ...ghostLinkStyle, fontSize: 12, color: `var(${accentVar})`, alignSelf: "flex-start" }}
                 >
-                  <RotateCcw size={12} /> Restart after a tap
+                  <RotateCcw size={13} /> Restart after a tap
                 </button>
                 <textarea
                   value={round.note || ""}
@@ -257,8 +257,11 @@ export default function MatFields({ form, setForm, history = [], accentVar }) {
             );
           })}
         </div>
-        <button onClick={() => setRounds((list) => [...list, newDraftRound()])} style={{ ...ghostLinkStyle, color: `var(${accentVar})`, marginTop: rounds.length ? 10 : 0 }}>
-          <Plus size={13} /> Add round
+        <button
+          onClick={() => setRounds((list) => [...list, newDraftRound()])}
+          style={{ ...ghostLinkStyle, justifyContent: "center", width: "100%", minHeight: 42, borderRadius: 12, border: "1px dashed var(--border-strong)", color: `var(${accentVar})`, marginTop: rounds.length ? 10 : 0 }}
+        >
+          <Plus size={15} /> Add round
         </button>
         <datalist id="mat-partners">
           {partners.map((p) => (

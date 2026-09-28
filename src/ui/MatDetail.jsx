@@ -3,7 +3,7 @@ import { useLog } from "../lib/LogContext.js";
 import { GI_KINDS, RESULTS, roundParts, roundTechniques } from "../lib/mat.js";
 import { RESULT_COLORS } from "./MatFields.jsx";
 import { SheetLink } from "./SheetNav.jsx";
-import { labelStyle } from "./styles.js";
+import { labelStyle, insetStyle } from "./styles.js";
 
 // Technique id -> name, from the log.
 function useTechniqueNames() {
@@ -28,14 +28,14 @@ export default function MatDetail({ entry, accent }) {
   return (
     <>
       {GI_KINDS[entry.gi] && (
-        <div style={{ fontSize: 12, fontWeight: 700, color: `var(${accent})` }}>{GI_KINDS[entry.gi]}</div>
+        <div style={{ alignSelf: "flex-start", fontSize: 12, fontWeight: 600, color: `var(${accent})`, background: `var(${accent}-dim)`, borderRadius: 999, padding: "3px 10px" }}>{GI_KINDS[entry.gi]}</div>
       )}
       {(entry.drilledIds || []).length > 0 && (
         <div>
           <span style={labelStyle}>Taught / drilled</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {entry.drilledIds.map((id) => (
-              <div key={id} style={{ fontSize: 13, fontWeight: 600, color: `var(${accent})` }}>
+              <div key={id} style={{ fontSize: 14, fontWeight: 600, color: `var(${accent})` }}>
                 {link(id)}
               </div>
             ))}
@@ -47,8 +47,8 @@ export default function MatDetail({ entry, accent }) {
           <span style={labelStyle}>{rounds.length === 1 ? "1 round" : `${rounds.length} rounds`}</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {rounds.map((r, i) => (
-              <div key={r.id} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px" }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>
+              <div key={r.id} style={insetStyle}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>
                   <span style={{ color: "var(--text-dim)", marginRight: 6 }}>{i + 1}</span>
                   {r.partner || <span style={{ color: "var(--text-dim)", fontWeight: 500 }}>Round {i + 1}</span>}
                 </div>
@@ -59,15 +59,15 @@ export default function MatDetail({ entry, accent }) {
                         <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)" }}>{p === 0 ? "Part 1" : `Part ${p + 1} · restarted`}</div>
                       )}
                       {(part.techniques || []).map((t, k) => (
-                        <div key={k} style={{ display: "flex", gap: 8, fontSize: 13 }}>
-                          <span style={{ color: `var(${RESULT_COLORS[t.result]})`, fontWeight: 700, minWidth: 74, flexShrink: 0 }}>{RESULTS[t.result]}</span>
+                        <div key={k} style={{ display: "flex", gap: 10, fontSize: 14 }}>
+                          <span style={{ color: `var(${RESULT_COLORS[t.result]})`, fontWeight: 600, minWidth: 80, flexShrink: 0 }}>{RESULTS[t.result]}</span>
                           <span style={{ color: `var(${accent})`, fontWeight: 600 }}>{link(t.techniqueId)}</span>
                         </div>
                       ))}
                     </div>
                   )
                 )}
-                {r.note && <div style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginTop: 4, whiteSpace: "pre-wrap" }}>{r.note}</div>}
+                {r.note && <div style={{ fontSize: 13, color: "var(--text-dim)", fontStyle: "italic", marginTop: 6, whiteSpace: "pre-wrap" }}>{r.note}</div>}
               </div>
             ))}
           </div>
@@ -97,18 +97,18 @@ export function MatSummary({ entry, accent, style }) {
     })
     .filter((g) => g.items.length > 0);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 12, lineHeight: 1.4, ...style }}>
-      {firstLine && <div style={{ fontWeight: 700, color: `var(${accent})` }}>{firstLine}</div>}
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, lineHeight: 1.45, ...style }}>
+      {firstLine && <div style={{ fontWeight: 600, color: `var(${accent})` }}>{firstLine}</div>}
       {rounds.length > 0 && (
         <div>
-          <span style={{ fontWeight: 700, color: "var(--text-dim)" }}>
+          <span style={{ fontWeight: 600, color: "var(--text-dim)" }}>
             {rounds.length === 1 ? "1 round" : `${rounds.length} rounds`}
             {restarts > 0 && ` · ${restarts === 1 ? "1 restart" : `${restarts} restarts`}`}
           </span>
           {byResult.map((g) => (
             <Fragment key={g.result}>
               <span style={{ color: "var(--text-dim)" }}> · </span>
-              <span style={{ fontWeight: 700, color: `var(${RESULT_COLORS[g.result]})` }}>{RESULTS[g.result]}: </span>
+              <span style={{ fontWeight: 600, color: `var(${RESULT_COLORS[g.result]})` }}>{RESULTS[g.result]}: </span>
               <span>{g.items.join(", ")}</span>
             </Fragment>
           ))}

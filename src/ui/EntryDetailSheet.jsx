@@ -1,12 +1,12 @@
-import { X, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { formatDate, formatDateTime, wasEdited } from "../lib/id.js";
 import TagChip from "./TagChip.jsx";
-import BottomSheet from "./BottomSheet.jsx";
+import BottomSheet, { SheetHeader } from "./BottomSheet.jsx";
 import SheetActions from "./SheetActions.jsx";
 import BlocksDetail from "./BlocksDetail.jsx";
 import MatDetail from "./MatDetail.jsx";
-import { BackButton, SheetLink } from "./SheetNav.jsx";
-import { labelStyle } from "./styles.js";
+import { SheetLink } from "./SheetNav.jsx";
+import { labelStyle, noteTextStyle, metaStyle, chipRowStyle } from "./styles.js";
 
 // Read-only summary of one dated entry (session, journal entry or roll),
 // opened by tapping its card: everything the edit form holds, laid out to
@@ -32,28 +32,21 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
   const logged = formatDateTime(entry.createdAt);
 
   return (
-    <BottomSheet onClose={onClose}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-          {onBack && <BackButton onBack={onBack} />}
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: `var(${accent})` }}>{kindLabel}</span>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{entry.title || formatDate(entry.date)}</div>
-          {entry.title && <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{formatDate(entry.date)}</div>}
-        </div>
-        <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", flexShrink: 0 }}>
-          <X size={18} />
-        </button>
-      </div>
-
-      <SheetActions onEdit={onEdit} onRedo={onRedo} onSaveAsRoutine={onSaveAsRoutine} onDelete={onDelete} />
-
+    <BottomSheet
+      onClose={onClose}
+      header={
+        <SheetHeader eyebrow={kindLabel} accent={accent} title={entry.title || formatDate(entry.date)} meta={entry.title ? formatDate(entry.date) : null} onBack={onBack} onClose={onClose}>
+          <SheetActions onEdit={onEdit} onRedo={onRedo} onSaveAsRoutine={onSaveAsRoutine} onDelete={onDelete} />
+        </SheetHeader>
+      }
+    >
       {routineIds.length > 0 && (
         <div>
           <span style={labelStyle}>Built from</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {routineIds.map((id) => (
-              <div key={id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--accent2)", fontWeight: 600 }}>
-                <BookOpen size={12} /> <SheetLink sheet={{ kind: "routine", id }}>{routineNameById.get(id)}</SheetLink>
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--accent2)", fontWeight: 600 }}>
+                <BookOpen size={14} /> <SheetLink sheet={{ kind: "routine", id }}>{routineNameById.get(id)}</SheetLink>
               </div>
             ))}
           </div>
@@ -77,30 +70,25 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
       <MatDetail entry={entry} accent={accent} />
 
       {entry.tags && entry.tags.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {entry.tags.map((t) => (
-            <TagChip key={t} label={t} small accent={accent} />
-          ))}
+        <div>
+          <span style={labelStyle}>Tags</span>
+          <div style={chipRowStyle}>
+            {entry.tags.map((t) => (
+              <TagChip key={t} label={t} small accent={accent} />
+            ))}
+          </div>
         </div>
       )}
 
       {entry.text && (
-        <p
-          style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 13,
-            lineHeight: 1.55,
-            color: "var(--text)",
-            margin: 0,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {entry.text}
-        </p>
+        <div>
+          <span style={labelStyle}>Notes</span>
+          <p style={noteTextStyle}>{entry.text}</p>
+        </div>
       )}
 
       {logged && (
-        <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+        <div style={{ ...metaStyle, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
           Logged {logged}
           {wasEdited(entry) && ` · Edited ${formatDateTime(entry.updatedAt)}`}
         </div>

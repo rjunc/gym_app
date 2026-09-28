@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Star, X, LayoutGrid } from "lucide-react";
-import { labelStyle, inputStyle, tagPillStyle, ghostLinkStyle } from "./styles.js";
+import { labelStyle, inputStyle, pickedPillStyle, pillRemoveStyle, ghostLinkStyle, chipRowStyle } from "./styles.js";
 import { applyRoutine } from "../lib/routines.js";
 import { compareByUsage } from "../lib/links.js";
 import { prefixMatchesFirst } from "../lib/search.js";
@@ -12,10 +12,10 @@ import PagePicker from "./PagePicker.jsx";
 // to pick from (see PagePicker).
 function LabelWithBrowse({ label, onBrowse, accentVar }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
       <label style={{ ...labelStyle, marginBottom: 0 }}>{label}</label>
-      <button onClick={onBrowse} style={{ ...ghostLinkStyle, color: `var(${accentVar})` }}>
-        <LayoutGrid size={12} /> Browse
+      <button onClick={onBrowse} style={{ ...ghostLinkStyle, fontSize: 12, color: `var(${accentVar})` }}>
+        <LayoutGrid size={13} /> Browse
       </button>
     </div>
   );
@@ -115,31 +115,49 @@ export function PositionsField({ form, setForm, positionOptions }) {
   );
 }
 
+// A checkbox with its explanation, as one full-width tappable row.
+const checkRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  fontSize: 14,
+  cursor: "pointer",
+  padding: "11px 12px",
+  borderRadius: 10,
+  background: "var(--surface-2)",
+  border: "1px solid var(--border)",
+};
+const checkboxStyle = (accentVar) => ({ width: 18, height: 18, margin: 0, accentColor: `var(${accentVar})`, flexShrink: 0 });
+
 export function StarField({ form, setForm }) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+    <label style={checkRowStyle}>
       <input
         type="checkbox"
         checked={!!form.starred}
         onChange={(e) => setForm((f) => ({ ...f, starred: e.target.checked }))}
-        style={{ width: 16, height: 16, accentColor: "var(--accent)" }}
+        style={checkboxStyle("--accent")}
       />
-      <Star size={14} color="var(--accent)" fill={form.starred ? "var(--accent)" : "none"} />
-      Go-to — sorts to the top of its position/list
+      <span style={{ flex: 1 }}>
+        Go-to <span style={{ color: "var(--text-dim)" }}>— sorts to the top of its position/list</span>
+      </span>
+      <Star size={16} color="var(--accent)" fill={form.starred ? "var(--accent)" : "none"} />
     </label>
   );
 }
 
 export function GiOnlyField({ form, setForm, accentVar }) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+    <label style={checkRowStyle}>
       <input
         type="checkbox"
         checked={!!form.giOnly}
         onChange={(e) => setForm((f) => ({ ...f, giOnly: e.target.checked }))}
-        style={{ width: 16, height: 16, accentColor: `var(${accentVar})` }}
+        style={checkboxStyle(accentVar)}
       />
-      Gi only — won't work without the gi
+      <span>
+        Gi only <span style={{ color: "var(--text-dim)" }}>— won't work without the gi</span>
+      </span>
     </label>
   );
 }
@@ -206,15 +224,16 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, asB
     <div>
       <LabelWithBrowse label="Exercises" onBrowse={() => setBrowsing(true)} accentVar={accentVar} />
       {selected.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        <div style={{ ...chipRowStyle, marginBottom: 8 }}>
           {selected.map((e) => (
-            <span key={e.id} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
+            <span key={e.id} style={pickedPillStyle(accentVar)}>
               {e.name}
               <button
                 onClick={() => removeExercise(e.id)}
-                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}
+                aria-label={`Remove ${e.name}`}
+                style={pillRemoveStyle}
               >
-                <X size={11} />
+                <X size={13} />
               </button>
             </span>
           ))}
@@ -229,8 +248,8 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, asB
       />
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <span style={{ ...labelStyle, marginBottom: 4 }}>Matching</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <span style={{ ...labelStyle, fontWeight: 500, marginBottom: 6 }}>Tap to add</span>
+          <div style={chipRowStyle}>
             {suggestions.map((e) => (
               <TagChip key={e.id} small accent={accentVar} label={e.name} onClick={() => addExercise(e.id)} />
             ))}
@@ -295,15 +314,16 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
     <div>
       <LabelWithBrowse label="Routines" onBrowse={() => setBrowsing(true)} accentVar={accentVar} />
       {added.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        <div style={{ ...chipRowStyle, marginBottom: 8 }}>
           {added.map((o) => (
-            <span key={o.id} style={{ ...tagPillStyle, background: `var(${accentVar}-dim)`, borderColor: `var(${accentVar})`, color: `var(${accentVar})` }}>
+            <span key={o.id} style={pickedPillStyle(accentVar)}>
               {o.label}
               <button
                 onClick={() => unlinkRoutine(o.id)}
-                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex" }}
+                aria-label={`Remove ${o.label}`}
+                style={pillRemoveStyle}
               >
-                <X size={11} />
+                <X size={13} />
               </button>
             </span>
           ))}
@@ -318,8 +338,8 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
       />
       {suggestions.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <span style={{ ...labelStyle, marginBottom: 4 }}>Matching</span>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <span style={{ ...labelStyle, fontWeight: 500, marginBottom: 6 }}>Tap to add</span>
+          <div style={chipRowStyle}>
             {suggestions.map((o) => (
               <TagChip key={o.id} small accent={accentVar} label={o.label} onClick={() => addRoutine(routines.find((r) => r.id === o.id))} />
             ))}
@@ -335,12 +355,12 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
 
 export function ActiveField({ form, setForm, accentVar, activeLabel }) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+    <label style={checkRowStyle}>
       <input
         type="checkbox"
         checked={form.active !== false}
         onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-        style={{ width: 16, height: 16, accentColor: `var(${accentVar})` }}
+        style={checkboxStyle(accentVar)}
       />
       {activeLabel}
     </label>

@@ -43,10 +43,10 @@ export default function TechniquesTab({ folders, setFolders, techniques, setTech
       setItems={setTechniques}
       folders={folders}
       setFolders={setFolders}
-      eyebrow="Library"
+      eyebrow="BJJ"
       heading="Techniques"
       searchPlaceholder="Search text, folders, positions…"
-      emptyLabel='No techniques yet. Tap "New technique" or add a folder to start organizing your library.'
+      emptyLabel="Build your library of moves, with the position each starts from and where it leads, organized in folders."
       {...TECHNIQUE_CONFIG}
       pick={pick}
       usageFor={(t) => usageSummary({ rolls: byTechnique.get(t.id) })}

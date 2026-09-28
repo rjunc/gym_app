@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Dumbbell, AlertTriangle } from "lucide-react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -6,76 +7,29 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, firebaseConfigured } from "./firebase.js";
-
-const shellStyle = {
-  "--bg": "#15160F",
-  "--surface": "#1E1F17",
-  "--surface-2": "#262819",
-  "--border": "#3A3C2E",
-  "--text": "#EDEBDD",
-  "--text-dim": "#9B9C8D",
-  "--accent": "#C9A227",
-  "--danger": "#C2604A",
-  background: "var(--bg)",
-  color: "var(--text)",
-  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  maxWidth: 480,
-  margin: "0 auto",
-  maxHeight: 800,
-  borderRadius: 18,
-  overflow: "hidden",
-  border: "1px solid var(--border)",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 24,
-  gap: 14,
-  textAlign: "center",
-};
-
-const inputStyle = {
-  width: "100%",
-  background: "var(--surface-2)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: "10px 12px",
-  color: "var(--text)",
-  // Keep at/above 16px — iOS Safari auto-zooms on focus for smaller inputs
-  // and doesn't reliably zoom back out on blur.
-  fontSize: 16,
-  outline: "none",
-};
-
-const buttonStyle = {
-  background: "var(--accent)",
-  color: "#15160F",
-  border: "none",
-  borderRadius: 9,
-  padding: "10px 0",
-  fontWeight: 700,
-  fontSize: 13,
-  cursor: "pointer",
-  width: "100%",
-};
+import Shell from "./ui/Shell.jsx";
+import { cardStyle, inputStyle, labelStyle, primaryBtnStyle, ghostLinkStyle } from "./ui/styles.js";
 
 // Shared wrapper for all three AuthGate screens (setup notice, loading,
-// login form). Carries its own box-sizing reset since these screens render
-// before the main app's <Shell> does — without it, width:100% inputs with
-// padding overflow their container and get clipped by shellStyle's
-// overflow:hidden, which looks like "no gap on the right edge."
+// login form): a centred column on the app's background (see theme.css).
 function AuthShell({ children }) {
   return (
-    <div className="auth-shell" style={shellStyle}>
-      {/* 100dvh tracks the visible viewport as mobile browser chrome (e.g.
-          Safari's address bar) shows/hides, unlike a plain 100vh which is
-          computed against the largest possible viewport. 100vh stays as a
-          fallback for browsers without dvh support. */}
-      <style>{`
-        * { box-sizing: border-box; }
-        .auth-shell { min-height: 100vh; min-height: 100dvh; }
-      `}</style>
-      {children}
+    <Shell center>
+      <div style={{ width: "100%", maxWidth: 380, display: "flex", flexDirection: "column", alignItems: "center", gap: 20, textAlign: "center" }}>{children}</div>
+    </Shell>
+  );
+}
+
+function Brand({ subtitle }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: "var(--accent)", color: "var(--on-accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Dumbbell size={26} strokeWidth={2.25} />
+      </div>
+      <div>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.01em" }}>Session Log</div>
+        {subtitle && <div style={{ color: "var(--text-dim)", fontSize: 14, marginTop: 4 }}>{subtitle}</div>}
+      </div>
     </div>
   );
 }
@@ -85,11 +39,14 @@ function AuthShell({ children }) {
 function SetupNeeded() {
   return (
     <AuthShell>
-      <div style={{ fontWeight: 700, fontSize: 16 }}>Firebase isn't configured yet</div>
-      <div style={{ color: "var(--text-dim)", fontSize: 13, lineHeight: 1.5 }}>
+      <Brand />
+      <div style={{ ...cardStyle, textAlign: "left", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ fontWeight: 600, fontSize: 15 }}>Firebase isn't configured yet</div>
+        <div style={{ color: "var(--text-dim)", fontSize: 13, lineHeight: 1.55 }}>
         Add your Firebase project credentials as environment variables (see the README) and
         redeploy. Locally, create a <code>.env.local</code> file with the
         <code> VITE_FIREBASE_*</code> keys and restart <code>npm run dev</code>.
+        </div>
       </div>
     </AuthShell>
   );
@@ -121,48 +78,63 @@ function LoginForm() {
 
   return (
     <AuthShell>
-      <div>
-        <div style={{ fontSize: 20, fontWeight: 700 }}>Session Log</div>
-        <div style={{ color: "var(--text-dim)", fontSize: 13, marginTop: 4 }}>
-          {mode === "login" ? "Log in to sync your data" : "Create an account to sync your data"}
-        </div>
-      </div>
+      <Brand subtitle={mode === "login" ? "Log in to sync your training log" : "Create an account to sync your training log"} />
 
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-        <input
-          type="email"
-          required
-          autoComplete="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
-        />
-        <input
-          type="password"
-          required
-          minLength={6}
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={inputStyle}
-        />
-        {error && <div style={{ color: "var(--danger)", fontSize: 12 }}>{error}</div>}
-        <button type="submit" disabled={busy} style={{ ...buttonStyle, opacity: busy ? 0.6 : 1 }}>
-          {busy ? "Please wait…" : mode === "login" ? "Log in" : "Sign up"}
+      <form onSubmit={submit} style={{ ...cardStyle, padding: 20, display: "flex", flexDirection: "column", gap: 14, width: "100%", textAlign: "left" }}>
+        <div>
+          <label htmlFor="auth-email" style={labelStyle}>
+            Email
+          </label>
+          <input
+            id="auth-email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label htmlFor="auth-password" style={labelStyle}>
+            Password
+          </label>
+          <input
+            id="auth-password"
+            type="password"
+            required
+            minLength={6}
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            placeholder={mode === "login" ? "Your password" : "At least 6 characters"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        {error && (
+          <div role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", color: "var(--danger)", background: "var(--danger-dim)", borderRadius: 10, padding: "8px 10px", fontSize: 13 }}>
+            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+            {error}
+          </div>
+        )}
+        <button type="submit" disabled={busy} style={{ ...primaryBtnStyle, width: "100%", minHeight: 44, marginTop: 2, opacity: busy ? 0.6 : 1 }}>
+          {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
         </button>
       </form>
 
-      <button
-        onClick={() => {
-          setMode(mode === "login" ? "signup" : "login");
-          setError("");
-        }}
-        style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-      >
-        {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
-      </button>
+      <div style={{ fontSize: 13, color: "var(--text-dim)" }}>
+        {mode === "login" ? "Need an account? " : "Already have an account? "}
+        <button
+          onClick={() => {
+            setMode(mode === "login" ? "signup" : "login");
+            setError("");
+          }}
+          style={ghostLinkStyle}
+        >
+          {mode === "login" ? "Sign up" : "Log in"}
+        </button>
+      </div>
     </AuthShell>
   );
 }
@@ -189,7 +161,12 @@ export default function AuthGate({ children }) {
   }, []);
 
   if (!firebaseConfigured) return <SetupNeeded />;
-  if (user === undefined) return <AuthShell>Loading…</AuthShell>;
+  if (user === undefined)
+    return (
+      <AuthShell>
+        <div role="status" className="spinner" aria-label="Loading" />
+      </AuthShell>
+    );
   if (user === null) return <LoginForm />;
 
   return children({ uid: user.uid, email: user.email, logout: () => signOut(auth) });

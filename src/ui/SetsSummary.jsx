@@ -19,17 +19,17 @@ export default function SetsSummary({ entry, exerciseNameById, accent = "--accen
 
   const part = (b) => (
     <>
-      <span style={{ fontWeight: 700, color: `var(${accent})` }}>{exerciseNameById.get(b.exerciseId) || "Deleted exercise"}</span>
+      <span style={{ fontWeight: 600, color: `var(${accent})` }}>{exerciseNameById.get(b.exerciseId) || "Deleted exercise"}</span>
       {(b.sets || []).length > 0 && <span style={{ color: "var(--text)" }}> {formatSets(b.sets)}</span>}
-      {b.note && <span style={{ color: "var(--text-dim)", fontStyle: "italic" }}> — {b.note}</span>}
+      {b.note && <span style={{ color: "var(--text-dim)", fontStyle: "italic" }}> · {b.note}</span>}
     </>
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 3, ...style }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, fontVariantNumeric: "tabular-nums", ...style }}>
       {lines.map((line) => (
-        <div key={line.key} style={{ fontSize: 12, lineHeight: 1.4 }}>
-          {line.kind && <span style={{ color: "var(--text-dim)", fontWeight: 700 }}>{GROUP_KINDS[line.kind]}: </span>}
+        <div key={line.key} style={{ fontSize: 13, lineHeight: 1.45 }}>
+          {line.kind && <span style={{ color: "var(--text-dim)", fontWeight: 600 }}>{GROUP_KINDS[line.kind]}: </span>}
           {line.blocks.map((b, i) => (
             <Fragment key={b.id}>
               {i > 0 && <span style={{ color: "var(--text-dim)" }}> + </span>}

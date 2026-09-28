@@ -13,7 +13,9 @@
 //   showMat            a mat session's gi, drilled techniques and rounds
 //                      (see lib/mat.js)
 //   canRedo            a Redo action that starts a new entry from this one
-//   page               the list page's own wording
+//   page               the list page's own wording: its group (eyebrow),
+//                      title, main button (its full wording, and the short label it
+//                      shows), search box and empty state
 export const ENTRY_TYPES = {
   sessions: {
     label: "Sessions",
@@ -28,10 +30,13 @@ export const ENTRY_TYPES = {
     showSets: true,
     canRedo: true,
     page: {
-      eyebrow: "Training journal",
-      heading: "Session Log",
+      eyebrow: "Lifting",
+      heading: "Sessions",
+      newLabel: "Log session",
+      newShort: "Log",
       searchPlaceholder: "Search text, tags, exercises, routines…",
-      emptyLabel: 'No sessions logged yet. Tap "New entry" to write your first one.',
+      emptyTitle: "No sessions yet",
+      emptyLabel: "Log a workout — its exercises, sets and notes — and it'll show up here, newest first.",
     },
   },
   journals: {
@@ -45,10 +50,13 @@ export const ENTRY_TYPES = {
     showSets: false,
     canRedo: false,
     page: {
-      eyebrow: "Personal journal",
-      heading: "Journal",
+      eyebrow: "Lifting",
+      heading: "Journals",
+      newLabel: "New entry",
+      newShort: "New",
       searchPlaceholder: "Search text, tags, exercises, routines…",
-      emptyLabel: 'No journal entries yet. Tap "New entry" to write your first one.',
+      emptyTitle: "No journal entries yet",
+      emptyLabel: "Write down how training's going — energy, sleep, motivation, anything worth remembering.",
     },
   },
   // Stored in the `rolls` log; shown as mat sessions (a class, open mat or
@@ -66,10 +74,13 @@ export const ENTRY_TYPES = {
     showMat: true,
     canRedo: true,
     page: {
-      eyebrow: "Training journal",
-      heading: "Mat Sessions",
+      eyebrow: "BJJ",
+      heading: "Mat sessions",
+      newLabel: "Log mat session",
+      newShort: "Log",
       searchPlaceholder: "Search text, tags, techniques, partners…",
-      emptyLabel: 'No mat sessions logged yet. Tap "New entry" to log your first one.',
+      emptyTitle: "No mat sessions yet",
+      emptyLabel: "Log a class, open mat or private — what was drilled, each round and how it went.",
     },
   },
 };

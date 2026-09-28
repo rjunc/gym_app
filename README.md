@@ -41,6 +41,24 @@ they're saved in Vercel's dashboard, so if you ever change a Firebase config
 value, trigger a fresh deploy (don't reuse the build cache) after updating it
 in **Settings → Environment Variables**.
 
+## UI
+
+The look lives in two places:
+
+- **`src/ui/theme.css`** holds the design tokens (colours, including one
+  accent per part of the app: gold for sessions, green for routines and
+  exercises, indigo for journals, blue for BJJ), the layout (full-screen
+  shell, a sidebar that's a drawer on phones and always open from 960px,
+  sheets that slide up on phones and open as centred dialogs from 720px),
+  and interaction states (hover, keyboard focus, sheet animations, reduced
+  motion).
+- **`src/ui/styles.js`** holds the shared inline styles for the building
+  blocks (cards, buttons, inputs, labels, pills, note text), with the type
+  scale and spacing steps noted at the top.
+
+Pages are built from `PageHeader` / `PageBody` (`src/ui/Page.jsx`), sheets
+from `BottomSheet` + `SheetHeader`, and empty lists from `EmptyState`.
+
 ## Data model
 
 Every record is its own Firestore document, grouped by kind:

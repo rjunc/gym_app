@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Plus } from "lucide-react";
+import { useState, useMemo, Fragment } from "react";
+import { Plus, ClipboardList, NotebookPen, SearchX } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { useSheets } from "../lib/SheetStack.js";
 import { newRecord, editById } from "../lib/records.js";
@@ -8,9 +8,17 @@ import { matchesSearch, entrySearchFields, exerciseNameMap, nameMap } from "../l
 import { useLog } from "../lib/LogContext.js";
 import EntrySheet from "../ui/EntrySheet.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
-import SearchBox from "../ui/SearchBox.jsx";
+import SearchBox, { TagsToggle } from "../ui/SearchBox.jsx";
+import { PageHeader, PageBody } from "../ui/Page.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 import EntryCard from "../ui/EntryCard.jsx";
-import { primaryBtnStyle } from "../ui/styles.js";
+import { primaryBtnStyle, secondaryBtnStyle, eyebrowStyle } from "../ui/styles.js";
+
+// "September 2026", the heading above each month of entries.
+const monthLabel = (iso) => {
+  const d = new Date(`${iso.slice(0, 7)}-01T00:00:00`);
+  return isNaN(d) ? iso : d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+};
 
 // Sessions, journals and rolls are each just a flat, most-recent-first list of
 // dated entries with tags — no folders. All three tabs are thin wrappers
@@ -40,6 +48,7 @@ export default function SimpleEntryTab({
   const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all"); // "all" (AND) or "any" (OR)
+  const [tagsOpen, setTagsOpen] = useState(false);
   // null when closed; otherwise {} to add, { entry } to edit, { redo } to redo.
   const [composer, setComposer] = useState(null);
   const sheets = useSheets();
@@ -86,48 +95,78 @@ export default function SimpleEntryTab({
 
   const toggleTagFilter = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
+  const newButton = (
+    <button onClick={() => setComposer({})} aria-label={page.newLabel} style={{ ...primaryBtnStyle, background: `var(${accent})` }}>
+      <Plus size={16} /> {page.newShort}
+    </button>
+  );
+  const hasTags = entries.some((e) => (e.tags || []).length > 0);
+
   return (
     <>
-      <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", letterSpacing: 0.3 }}>{page.eyebrow}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 0.2 }}>{page.heading}</div>
-          </div>
-          <button onClick={() => setComposer({})} style={{ ...primaryBtnStyle, background: `var(${accent})` }}>
-            <Plus size={15} /> New entry
-          </button>
-        </div>
+      <PageHeader eyebrow={page.eyebrow} title={page.heading} actions={entries.length > 0 && newButton}>
+        {entries.length > 0 && (
+          <>
+            <SearchBox
+              value={search}
+              setValue={setSearch}
+              matchMode={searchMatchMode}
+              setMatchMode={setSearchMatchMode}
+              placeholder={page.searchPlaceholder}
+              accent={accent}
+              trailing={hasTags && <TagsToggle open={tagsOpen} count={activeTags.length} onClick={() => setTagsOpen((v) => !v)} accent={accent} />}
+            />
+            <TagFilter
+              entries={entries}
+              activeTags={activeTags}
+              onToggle={toggleTagFilter}
+              matchMode={tagMatchMode}
+              setMatchMode={setTagMatchMode}
+              accent={accent}
+              collapsed={!tagsOpen}
+            />
+          </>
+        )}
+      </PageHeader>
 
-        <SearchBox
-          value={search}
-          setValue={setSearch}
-          matchMode={searchMatchMode}
-          setMatchMode={setSearchMatchMode}
-          placeholder={page.searchPlaceholder}
-          accent={accent}
-        />
-
-        <TagFilter
-          entries={entries}
-          activeTags={activeTags}
-          onToggle={toggleTagFilter}
-          matchMode={tagMatchMode}
-          setMatchMode={setTagMatchMode}
-          accent={accent}
-        />
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
-        {filtered.length === 0 ? (
-          <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "36px 10px", fontSize: 13 }}>
-            {entries.length === 0 ? page.emptyLabel : "Nothing matches that search or tag filter."}
-          </div>
+      <PageBody>
+        {entries.length === 0 ? (
+          <EmptyState
+            icon={source === "journals" ? NotebookPen : ClipboardList}
+            title={page.emptyTitle}
+            action={
+              <button onClick={() => setComposer({})} style={{ ...primaryBtnStyle, background: `var(${accent})` }}>
+                <Plus size={16} /> {page.newLabel}
+              </button>
+            }
+          >
+            {page.emptyLabel}
+          </EmptyState>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={SearchX}
+            title="No matches"
+            action={
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setActiveTags([]);
+                }}
+                style={secondaryBtnStyle}
+              >
+                Clear search and tags
+              </button>
+            }
+          >
+            Nothing matches that search or tag filter.
+          </EmptyState>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filtered.map((s) => (
+          filtered.map((s, i) => (
+            <Fragment key={s.id}>
+              {(i === 0 || s.date.slice(0, 7) !== filtered[i - 1].date.slice(0, 7)) && (
+                <div style={{ ...eyebrowStyle, color: "var(--text-dim)", padding: i === 0 ? "0 2px" : "12px 2px 0" }}>{monthLabel(s.date)}</div>
+              )}
               <EntryCard
-                key={s.id}
                 entry={s}
                 accent={accent}
                 showDate
@@ -140,10 +179,10 @@ export default function SimpleEntryTab({
                 routineNameById={routineNameById}
                 onOpen={() => sheets.open({ kind: "entry", source, id: s.id })}
               />
-            ))}
-          </div>
+            </Fragment>
+          ))
         )}
-      </div>
+      </PageBody>
 
       {composer && (
         <EntrySheet
@@ -159,7 +198,7 @@ export default function SimpleEntryTab({
           initialType="entry"
           // New entries and redos are dated today.
           initialDate={todayISO()}
-          newTitle="New entry"
+          newTitle={page.newLabel}
           onSave={saveEntry}
           onClose={() => setComposer(null)}
         />
