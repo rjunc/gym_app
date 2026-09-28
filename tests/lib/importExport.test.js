@@ -599,3 +599,29 @@ test("combinedToCSV: a routine's sets column lists its whole plan, numberless ex
   const row = parseCSV(csv)[1];
   assert.equal(row[row.length - 1], "Back squat: 2×5 @ 225 lb; Superset (Plank + Dips: 10 reps (slow))");
 });
+
+test("parseImportFile: JSON round trip keeps a mat session's gi, drills and rounds", () => {
+  const roll = {
+    id: "m1",
+    date: "2026-09-20",
+    title: "",
+    tags: [],
+    text: "",
+    gi: "no-gi",
+    drilledIds: ["t1"],
+    rounds: [
+      { id: "r1", partner: "Sam", note: "good pace", techniques: [{ techniqueId: "t2", result: "caught" }] },
+      { id: "r2", techniques: [] },
+    ],
+    techniqueIds: ["t1", "t2"],
+  };
+  const result = parseImportFile("export.json", JSON.stringify({ rolls: [roll] }), [], []);
+  assert.deepEqual(result.rolls[0], roll);
+});
+
+test("combinedToCSV: a mat session's sets column describes its gi, drills and rounds", () => {
+  const roll = { id: "m1", date: "2026-09-20", tags: [], text: "", gi: "gi", drilledIds: ["t1"], rounds: [{ id: "r1", partner: "Sam", techniques: [{ techniqueId: "t1", result: "hit" }] }] };
+  const csv = combinedToCSV([], [], [], [], [roll], [{ id: "t1", name: "Scissor sweep", tags: [] }], [], []);
+  const row = parseCSV(csv).find((r) => r[0] === "roll");
+  assert.equal(row[row.length - 1], "Gi · Drilled: Scissor sweep · Round 1 (Sam): Hit: Scissor sweep");
+});

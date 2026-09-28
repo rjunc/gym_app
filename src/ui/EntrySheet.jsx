@@ -6,6 +6,7 @@ import { todayISO } from "../lib/id.js";
 import { cleanFields } from "../lib/text.js";
 import { toDraftBlocks, fromDraftBlocks, hasLoggedBlocks, blockExerciseIds } from "../lib/sets.js";
 import { tidyGroups } from "../lib/groups.js";
+import { toDraftRounds, matFields, hasMatContent } from "../lib/mat.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
@@ -26,6 +27,9 @@ import { labelStyle } from "./styles.js";
 // draws on that type's own entries. Pass `entry` to edit, or `redo`
 // (an existing entry) to add a new one copied from it and dated `initialDate`;
 // with neither, it starts blank on `initialType` and `initialDate`. An entry's
+// Types flagged `showMat` (mat sessions) get Gi/No-Gi, taught/drilled
+// techniques and rounds (see MatFields); a mat session can still be saved with
+// just its notes. An entry's
 // type comes from its `source` (Home's merged entries carry one), falling back
 // to `initialType`. `newTitle` is the sheet's heading when adding.
 export default function EntrySheet({
@@ -49,6 +53,7 @@ export default function EntrySheet({
   // Forms that can log sessions keep what was done as draft blocks (see
   // lib/sets.js); the others (journals) link exercises by id.
   const withBlocks = Object.values(types).some((t) => t.showSets);
+  const withMat = Object.values(types).some((t) => t.showMat);
   const [form, setForm] = useState(() => {
     const base = isEdit
       ? {
@@ -62,11 +67,20 @@ export default function EntrySheet({
       : redo
         ? redoFields(redo, initialDate)
         : { date: initialDate, title: "", tags: [], text: "", exerciseIds: [], routineIds: [] };
-    if (!withBlocks) return base;
-    const { blocks: _stored, groups: _storedGroups, ...rest } = base;
     const from = isEdit ? entry : redo;
+    const mat = withMat
+      ? {
+          gi: (from && from.gi) || "",
+          drilledIds: from ? [...(from.drilledIds || [])] : [],
+          // A redo starts with no rounds (see redoFields).
+          rounds: isEdit ? toDraftRounds(entry.rounds) : [],
+        }
+      : {};
+    if (!withBlocks) return { ...base, ...mat };
+    const { blocks: _stored, groups: _storedGroups, ...rest } = base;
     return {
       ...rest,
+      ...mat,
       blocks: from ? toDraftBlocks(from.blocks, { fresh: !isEdit }) : [],
       groups: from ? (from.groups || []).map((g) => ({ ...g })) : [],
     };
@@ -74,8 +88,9 @@ export default function EntrySheet({
   const [tagDraft, setTagDraft] = useState("");
 
   const meta = types[type];
-  // Text, or a set or note in a block (a session can be just the numbers).
-  const hasContent = form.text.trim() !== "" || (meta.showSets && hasLoggedBlocks(form.blocks));
+  // Text, or a set or note in a block (a session can be just the numbers), or
+  // a drilled technique or round (a mat session can be just those).
+  const hasContent = form.text.trim() !== "" || (meta.showSets && hasLoggedBlocks(form.blocks)) || (meta.showMat && hasMatContent(form));
   const canSave = hasContent && form.date !== "";
   // Sessions and rolls have different vocabularies (legs vs. guard), so suggest
   // from the type being logged.
@@ -102,6 +117,7 @@ export default function EntrySheet({
       fields.exerciseIds = form.exerciseIds || [];
     }
     if (meta.showRoutines) fields.routineIds = form.routineIds || [];
+    if (meta.showMat) Object.assign(fields, matFields(form));
     onSave(type, fields);
   };
 
@@ -142,6 +158,7 @@ export default function EntrySheet({
       exerciseOptions={exercises}
       exerciseUsage={exerciseUsage}
       showSets={meta.showSets}
+      showMat={meta.showMat}
       setsHistory={entriesByType[type]}
       entryId={isEdit ? entry.id : undefined}
       textLabel={meta.textLabel}

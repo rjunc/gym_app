@@ -12,6 +12,8 @@ import ExerciseHistorySheet from "../tabs/ExerciseHistorySheet.jsx";
 import FolderItemEditor from "../tabs/FolderItemEditor.jsx";
 import ExerciseEditor from "../tabs/ExerciseEditor.jsx";
 import { ROUTINE_CONFIG, routineDeleteWarning } from "../tabs/RoutinesTab.jsx";
+import { TECHNIQUE_CONFIG, rollsByTechnique, techniqueDeleteWarning } from "../tabs/TechniquesTab.jsx";
+import TechniqueHistorySheet from "../tabs/TechniqueHistorySheet.jsx";
 import EntryDetailSheet from "./EntryDetailSheet.jsx";
 import EntrySheet from "./EntrySheet.jsx";
 
@@ -32,7 +34,7 @@ const ENTRY_TYPE_GROUPS = {
 // is deleted drops out of the stack by itself.
 //
 // Levels, besides the summary sheets SheetStack.open takes:
-//   { kind: "editRoutine" | "editExercise", id }
+//   { kind: "editRoutine" | "editExercise" | "editTechnique", id }
 //   { kind: "editEntry" | "redoEntry", source, id }
 //   { kind: "routineFromEntry", source, id }  (a new routine from a session)
 // Every edit form returns to the sheet it was opened from, on save or cancel,
@@ -40,7 +42,7 @@ const ENTRY_TYPE_GROUPS = {
 // the form's place.
 export default function SheetStack({ stack, setStack }) {
   const log = useLog();
-  const { sessions, journals, rolls, routines, setRoutines, folders, exercises, setExercises, exerciseUsage, routineUsage } = log;
+  const { sessions, journals, rolls, routines, setRoutines, folders, exercises, setExercises, exerciseUsage, routineUsage, techniques = [], setTechniques, jitsFolders = [] } = log;
   const entryLogs = { sessions, journals, rolls };
   const entrySetters = { sessions: log.setSessions, journals: log.setJournals, rolls: log.setRolls };
 
@@ -54,6 +56,7 @@ export default function SheetStack({ stack, setStack }) {
   const recordOf = (level) => {
     if (level.kind === "routine" || level.kind === "editRoutine") return routines.find((r) => r.id === level.id);
     if (level.kind === "exercise" || level.kind === "editExercise") return exercises.find((e) => e.id === level.id);
+    if (level.kind === "technique" || level.kind === "editTechnique") return techniques.find((t) => t.id === level.id);
     return (entryLogs[level.source] || []).find((e) => e.id === level.id);
   };
 
@@ -74,6 +77,12 @@ export default function SheetStack({ stack, setStack }) {
     const warning = exerciseDeleteWarning(exercise.id, sessions, journals, routines);
     if (!window.confirm(`Delete this exercise?${warning} This can't be undone.`)) return;
     setExercises((prev) => prev.filter((e) => e.id !== exercise.id));
+  };
+
+  const deleteTechnique = (technique) => {
+    const warning = techniqueDeleteWarning(technique, rolls);
+    if (!window.confirm(`Delete this technique?${warning ? ` ${warning}` : ""} This can't be undone.`)) return;
+    setTechniques((prev) => prev.filter((t) => t.id !== technique.id));
   };
 
   const deleteEntry = (source, entry) => {
@@ -138,6 +147,21 @@ export default function SheetStack({ stack, setStack }) {
           />
         );
       }
+      case "technique":
+        return (
+          <TechniqueHistorySheet
+            technique={record}
+            pathLabel={folderPath(jitsFolders, record.folderId).map((f) => f.name).join(" / ")}
+            accent={TECHNIQUE_CONFIG.accent}
+            rolls={rollsByTechnique(rolls).get(record.id) || []}
+            onEdit={() => push({ kind: "editTechnique", id: record.id })}
+            onDelete={canDelete ? () => deleteTechnique(record) : undefined}
+            onBack={onBack}
+            onClose={closeAll}
+          />
+        );
+      case "editTechnique":
+        return <FolderItemEditor item={record} items={techniques} setItems={setTechniques} folders={jitsFolders} config={TECHNIQUE_CONFIG} onClose={back} />;
       case "entry": {
         const meta = ENTRY_TYPES[level.source];
         return (

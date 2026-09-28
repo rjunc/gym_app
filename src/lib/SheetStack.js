@@ -7,6 +7,7 @@ import { createContext, useContext } from "react";
 // is drawn by ui/SheetStack.jsx.
 //   open(sheet)  pushes one of:
 //                { kind: "routine", id }   { kind: "exercise", id }
+//                { kind: "technique", id }
 //                { kind: "entry", source: "sessions" | "journals" | "rolls", id }
 //                Add `hideDelete: true` when opened while picking for an
 //                entry (see PagePicker), so nothing it links can be deleted;

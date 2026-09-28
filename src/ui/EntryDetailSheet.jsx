@@ -4,6 +4,7 @@ import TagChip from "./TagChip.jsx";
 import BottomSheet from "./BottomSheet.jsx";
 import SheetActions from "./SheetActions.jsx";
 import BlocksDetail from "./BlocksDetail.jsx";
+import MatDetail from "./MatDetail.jsx";
 import { BackButton, SheetLink } from "./SheetNav.jsx";
 import { labelStyle } from "./styles.js";
 
@@ -11,7 +12,8 @@ import { labelStyle } from "./styles.js";
 // opened by tapping its card: everything the edit form holds, laid out to
 // read — the routines it was built from, what was done in order (a session's
 // blocks, numbered, with supersets/circuits bracketed together and every set
-// listed, drops marked ↳; a journal's linked exercises), tags, the full text
+// listed, drops marked ↳; a journal's linked exercises; a mat session's
+// gi, drilled techniques and rounds), tags, the full text
 // (never clamped), and when it was logged and last edited. Edit, Redo, Save as
 // routine and Delete act on it from here; pass only the ones that apply (e.g.
 // no onRedo for journals, no onSaveAsRoutine for anything but a session).
@@ -71,6 +73,8 @@ export default function EntryDetailSheet({ entry, kindLabel, accent = "--accent"
           />
         </div>
       )}
+
+      <MatDetail entry={entry} accent={accent} />
 
       {entry.tags && entry.tags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>

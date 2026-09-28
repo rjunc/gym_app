@@ -1,7 +1,8 @@
 import { shiftISODate } from "./id.js";
 
 // Helpers for records that other records link to by id — Library exercises
-// (via an entry's exerciseIds) and routines (via routineIds). `field` names
+// (via an entry's exerciseIds), routines (via routineIds) and techniques (via
+// a mat session's techniqueIds). `field` names
 // the id list on the linking records, e.g. "exerciseIds".
 
 // How often each linked id appears in `entries`, keyed by id: `recent`
@@ -45,23 +46,27 @@ export function entriesByLink(entries, field) {
   return map;
 }
 
-// One timeline of sessions and journal entries together, newest first, each
-// tagged with its `kind` so the timeline can label it. Ties on the same day
-// list sessions first.
-export function entryHistory(sessions, journals) {
-  return [...sessions.map((entry) => ({ kind: "session", entry })), ...journals.map((entry) => ({ kind: "journal", entry }))].sort(
-    (a, b) => (a.entry.date < b.entry.date ? 1 : a.entry.date > b.entry.date ? -1 : a.kind === b.kind ? 0 : a.kind === "session" ? -1 : 1)
-  );
+// One timeline of sessions, journal entries and mat sessions (rolls)
+// together, newest first, each tagged with its `kind` so the timeline can
+// label it. Ties on the same day keep that order of kinds.
+const KIND_ORDER = { session: 0, journal: 1, roll: 2 };
+export function entryHistory(sessions, journals, rolls = []) {
+  return [
+    ...sessions.map((entry) => ({ kind: "session", entry })),
+    ...journals.map((entry) => ({ kind: "journal", entry })),
+    ...rolls.map((entry) => ({ kind: "roll", entry })),
+  ].sort((a, b) => (a.entry.date < b.entry.date ? 1 : a.entry.date > b.entry.date ? -1 : KIND_ORDER[a.kind] - KIND_ORDER[b.kind]));
 }
 
-// "12 sessions", "3 journal entries", "2 routines" — one part per kind that
-// has any, in that order.
-function usageParts({ sessions = [], journals = [], routines = [] }) {
+// "12 sessions", "3 journal entries", "2 routines", "4 mat sessions" — one
+// part per kind that has any, in that order.
+function usageParts({ sessions = [], journals = [], routines = [], rolls = [] }) {
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const parts = [];
   if (sessions.length) parts.push(plural(sessions.length, "session", "sessions"));
   if (journals.length) parts.push(plural(journals.length, "journal entry", "journal entries"));
   if (routines.length) parts.push(plural(routines.length, "routine", "routines"));
+  if (rolls.length) parts.push(plural(rolls.length, "mat session", "mat sessions"));
   return parts;
 }
 
@@ -69,8 +74,8 @@ function usageParts({ sessions = [], journals = [], routines = [] }) {
 // routines", with the most recent dated use (or null when it's never been
 // logged). Empty parts are left out; `text` is "" if it's used nowhere.
 export function usageSummary(uses) {
-  const { sessions = [], journals = [] } = uses;
-  const lastDate = [...sessions, ...journals].reduce((latest, e) => (typeof e.date === "string" && e.date > latest ? e.date : latest), "");
+  const { sessions = [], journals = [], rolls = [] } = uses;
+  const lastDate = [...sessions, ...journals, ...rolls].reduce((latest, e) => (typeof e.date === "string" && e.date > latest ? e.date : latest), "");
   return { text: usageParts(uses).join(" · "), lastDate: lastDate || null };
 }
 

@@ -61,10 +61,11 @@ export const exerciseNameMap = nameMap;
 // the Home calendar covers finding things by date, and number searches like
 // "225" shouldn't start matching them.
 
-// Sessions, journals and rolls: the names of linked exercises and of the
-// routines an entry was built from are searchable too, and so are the notes
-// on a session's blocks.
-export function entrySearchFields(entry, exerciseNameById, routineNameById = new Map()) {
+// Sessions, journals and mat sessions: the names of linked exercises and of
+// the routines an entry was built from are searchable too, and so are the
+// notes on a session's blocks. For a mat session, so are its techniques
+// (drilled or rolled), partners and round notes.
+export function entrySearchFields(entry, exerciseNameById, routineNameById = new Map(), techniqueNameById = new Map()) {
   return [
     entry.title,
     entry.text,
@@ -72,6 +73,8 @@ export function entrySearchFields(entry, exerciseNameById, routineNameById = new
     (entry.blocks || []).map((b) => b.note),
     linkedNames(entry, "exerciseIds", exerciseNameById),
     linkedNames(entry, "routineIds", routineNameById),
+    linkedNames(entry, "techniqueIds", techniqueNameById),
+    (entry.rounds || []).flatMap((r) => [r.partner, r.note]),
   ];
 }
 

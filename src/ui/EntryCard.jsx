@@ -4,13 +4,15 @@ import { formatDate } from "../lib/id.js";
 import TagChip from "./TagChip.jsx";
 import IconBtn from "./IconBtn.jsx";
 import SetsSummary from "./SetsSummary.jsx";
+import { MatSummary } from "./MatDetail.jsx";
 import RoutineLinks from "./RoutineLinks.jsx";
 import { cardStyle, ghostLinkStyle } from "./styles.js";
 
-// One dated entry (session, journal entry or roll) as a card — the same card
-// on Home's day list and on the Sessions/Journals/Rolls pages. Shows the
-// title, the routines it was built from, tags, logged sets and text (long
-// text clamps to 5 lines with Show more).
+// One dated entry (session, journal entry or mat session) as a card — the
+// same card on Home's day list and on the Sessions/Journals/Mat sessions
+// pages. Shows the title, the routines it was built from, tags, logged sets
+// or a mat session's drills and rounds in brief, and text (long text clamps
+// to 5 lines with Show more).
 //
 // The two places differ only through props:
 //   kindLabel  Home passes the entry's kind ("Session") — shown above the
@@ -80,6 +82,7 @@ export default function EntryCard({
       </div>
 
       <SetsSummary entry={entry} exerciseNameById={exerciseNameById} accent={accent} style={{ marginTop: 8 }} />
+      <MatSummary entry={entry} accent={accent} style={{ marginTop: 8 }} />
 
       {entry.text && (
         <p

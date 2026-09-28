@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useLog } from "../lib/LogContext.js";
 import RoutinesTab from "../tabs/RoutinesTab.jsx";
 import ExerciseLibraryTab from "../tabs/ExerciseLibraryTab.jsx";
+import TechniquesTab from "../tabs/TechniquesTab.jsx";
 
-// The real Routines or Library page, opened over the entry form to pick from:
+// The real Routines, Library or Techniques page, opened over the entry form
+// to pick from:
 // every folder, search, filter, preview and "New …" button works exactly as
 // on the page, plus an Add button on each card (see the pages' `pick` prop).
 // The form underneath stays open, so the draft is never lost. Covers the
@@ -13,7 +15,7 @@ import ExerciseLibraryTab from "../tabs/ExerciseLibraryTab.jsx";
 // in order. So taking back something added on this visit leaves no trace —
 // which matters for routines, whose tags, exercises and text merge into the
 // form for good once applied.
-//   kind          "routines" or "exercises"
+//   kind          "routines", "exercises" or "techniques"
 //   addedIds      what's already in the entry, shown as "Added"
 //   onAdd(record) adds one to the entry — also called for anything created
 //                 from here, since that's why it was created
@@ -23,7 +25,7 @@ import ExerciseLibraryTab from "../tabs/ExerciseLibraryTab.jsx";
 export default function PagePicker({ kind, addedIds, onAdd, onRemove, onDone, initialQuery = "" }) {
   const log = useLog();
   const [held, setHeld] = useState([]);
-  const current = kind === "routines" ? log.routines : log.exercises;
+  const current = kind === "routines" ? log.routines : kind === "techniques" ? log.techniques : log.exercises;
   const latest = (r) => current.find((c) => c.id === r.id) || r;
   // For the bar's chips: what the entry will have after Done, in order.
   const chosen = [
@@ -56,6 +58,8 @@ export default function PagePicker({ kind, addedIds, onAdd, onRemove, onDone, in
           journals={log.journals}
           pick={pick}
         />
+      ) : kind === "techniques" ? (
+        <TechniquesTab folders={log.jitsFolders} setFolders={log.setJitsFolders} techniques={log.techniques} setTechniques={log.setTechniques} rolls={log.rolls} pick={pick} />
       ) : (
         <ExerciseLibraryTab
           exercises={log.exercises}

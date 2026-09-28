@@ -15,6 +15,7 @@ import {
 import TagsField from "./TagsField.jsx";
 import BottomSheet from "./BottomSheet.jsx";
 import BlocksField from "./BlocksField.jsx";
+import MatFields from "./MatFields.jsx";
 
 export default function EntryComposer({
   title,
@@ -62,6 +63,9 @@ export default function EntryComposer({
   // `setsHistory` is the sessions the "Last time" hint looks through, and
   // `entryId` the entry being edited, so it never suggests itself.
   showSets,
+  // A mat session's gi, drilled techniques and rounds (see MatFields);
+  // `setsHistory` then holds the mat sessions, for partner suggestions.
+  showMat,
   setsHistory = [],
   entryId,
   // A picker that copies routines (tags, exercises, text) into the form, any
@@ -142,6 +146,8 @@ export default function EntryComposer({
       {showExercises && showSets && (
         <BlocksField form={form} setForm={setForm} exercises={exerciseOptions} history={setsHistory} entryId={entryId} accentVar={accentVar} />
       )}
+
+      {showMat && <MatFields form={form} setForm={setForm} history={setsHistory} accentVar={accentVar} />}
 
       <TagsField
         form={form}

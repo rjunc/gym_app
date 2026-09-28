@@ -7,7 +7,8 @@
 // those exercises, sessions built from those routines' plans (blocks in the order done,
 // with sets that progress over time, notes, the odd extra exercise, some
 // exercises done twice, supersets and circuits, and dropsets), journal
-// entries, BJJ rolls, and techniques whose positions chain into a flow.
+// entries, BJJ mat sessions (gi or no-gi, drills, rounds with partners and
+// how techniques went), and techniques whose positions chain into a flow.
 //
 // Every record's id starts with DEMO_PREFIX, which is the only way test data
 // is told apart from real data: isDemoRecord finds it again so it can be
@@ -17,6 +18,7 @@ import { uid } from "./id.js";
 import { toISO } from "./activity.js";
 import { tidyGroups, withFreshIds } from "./groups.js";
 import { blockExerciseIds } from "./sets.js";
+import { matTechniqueIds } from "./mat.js";
 
 export const DEMO_PREFIX = "demo-";
 export const isDemoRecord = (record) => typeof record.id === "string" && record.id.startsWith(DEMO_PREFIX);
@@ -153,16 +155,23 @@ const TECHNIQUES = [
   { name: "Side control frame and shrimp", folder: "Escapes", position: "Side control bottom", toPosition: "Closed guard", tags: ["escape"] },
   { name: "Mount to back take", folder: "Top", position: "Mount", toPosition: "Back control", tags: ["transition"] },
 ];
+// Mat sessions: notes (a quick log is just one of these), who you roll with,
+// and round notes.
 const ROLL_TEXTS = [
-  "Gi class. Drilled scissor sweep to mount, then 5 x 5 min rounds. Got stuck under side control a lot.",
-  "No-gi open mat. Hit a knee slice twice, got caught in a triangle once.",
-  "Fundamentals: upa escape and elbow-knee. Positional sparring from mount.",
+  "Got stuck under side control a lot. Frames before shrimping.",
   "Hard rounds today. Cardio is getting better.",
   "Worked half guard all class. Dogfight to back take finally clicked.",
-  "Competition class, lots of takedowns. Shoulder a bit sore.",
+  "Lots of takedowns. Shoulder a bit sore.",
   "Light flow rolls, focused on staying calm on the bottom.",
+  "Positional sparring from mount, then open rounds.",
+  "",
+  "",
 ];
-const ROLL_TAGS = ["gi", "no-gi", "open mat", "fundamentals", "competition"];
+const ROLL_TAGS = ["open mat", "fundamentals", "competition", "drilling"];
+const PARTNERS = ["Sam", "Alex", "Jordan", "Priya", "Marco", "Coach Dave", "Lena"];
+const ROUND_NOTES = ["good pace", "went light", "stuck in bottom side", "long scramble", "he's a lot bigger", "caught me twice", "felt sharp"];
+// How the rounds' techniques go: mostly hits and attempts, sometimes caught.
+const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "caught"];
 
 // Builds a folder record per path in `paths` ("A/B" nests B under A), and
 // returns them with a path -> id map.
@@ -294,6 +303,21 @@ export function generateDemoData(today = new Date(), months = 9) {
   const routineByName = new Map(ROUTINES.map((r, i) => [r.name, routines[i]]));
   const exerciseById = new Map([...exerciseByName.values()].map((ex) => [ex.id, ex]));
 
+  const { folders: jitsFolders, idByPath: jitsFolderIdByPath } = buildFolders(JITS_FOLDERS, setupStamp);
+  const techniques = TECHNIQUES.map((t) => ({
+    id: demoId(),
+    name: t.name,
+    folderId: jitsFolderIdByPath.get(t.folder) || null,
+    tags: t.tags,
+    text: t.text || "",
+    position: t.position,
+    toPosition: t.toPosition,
+    giOnly: !!t.giOnly,
+    starred: !!t.starred,
+    createdAt: setupStamp,
+    updatedAt: setupStamp,
+  }));
+
   // Sessions: most days following WEEK_PLAN, with rest days, the odd missed
   // week, a sometimes-added extra exercise, and some linked but not logged.
   const sessions = [];
@@ -369,33 +393,34 @@ export function generateDemoData(today = new Date(), months = 9) {
     }
 
     if ((weekday === 2 || weekday === 4 || weekday === 6) && chance(0.55)) {
-      const tags = [pick(ROLL_TAGS), ...(chance(0.3) ? [pick(ROLL_TAGS)] : [])].filter((t, i, all) => all.indexOf(t) === i);
+      const tags = chance(0.6) ? [pick(ROLL_TAGS)] : [];
+      // Now and then just a quick note; otherwise gi or no-gi, a couple of
+      // drills, and some rounds with partners and how techniques went.
+      const quick = chance(0.2);
+      const gi = chance(0.6) ? "gi" : "no-gi";
+      const usable = techniques.filter((t) => gi === "gi" || !t.giOnly);
+      const drilledIds = quick ? [] : [...new Set([pick(usable).id, ...(chance(0.6) ? [pick(usable).id] : [])])];
+      const rounds = quick
+        ? []
+        : Array.from({ length: between(3, 6) }, () => {
+            const partner = chance(0.85) ? pick(PARTNERS) : "";
+            const note = chance(0.2) ? pick(ROUND_NOTES) : "";
+            const ids = [...new Set(Array.from({ length: between(0, 3) }, () => pick(usable).id))];
+            return { id: demoId(), ...(partner ? { partner } : {}), ...(note ? { note } : {}), techniques: ids.map((techniqueId) => ({ techniqueId, result: pick(RESULT_WEIGHTS) })) };
+          });
+      const text = pick(ROLL_TEXTS) || (quick ? "Open mat, rolled a bunch." : "");
       rolls.push({
         id: demoId(),
         date,
         title: chance(0.15) ? "Open mat" : "",
         tags,
-        text: pick(ROLL_TEXTS),
+        text,
+        ...(quick ? {} : { gi, drilledIds, rounds, techniqueIds: matTechniqueIds({ drilledIds, rounds }) }),
         createdAt: stamp(date, 19),
         updatedAt: stamp(date, 19),
       });
     }
   }
-
-  const { folders: jitsFolders, idByPath: jitsFolderIdByPath } = buildFolders(JITS_FOLDERS, setupStamp);
-  const techniques = TECHNIQUES.map((t) => ({
-    id: demoId(),
-    name: t.name,
-    folderId: jitsFolderIdByPath.get(t.folder) || null,
-    tags: t.tags,
-    text: t.text || "",
-    position: t.position,
-    toPosition: t.toPosition,
-    giOnly: !!t.giOnly,
-    starred: !!t.starred,
-    createdAt: setupStamp,
-    updatedAt: setupStamp,
-  }));
 
   return { exercises, folders, routines, sessions, journals, rolls, jitsFolders, techniques };
 }

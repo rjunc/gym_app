@@ -4,6 +4,7 @@ import { uid, todayISO } from "./id.js";
 import { importedTimestamps } from "./records.js";
 import { formatSets, blocksOf, MEASURES } from "./sets.js";
 import { layoutBlocks, GROUP_KINDS } from "./groups.js";
+import { matSummaryText } from "./mat.js";
 
 // The composer always lowercases tags on save, so the tag list (sorted with
 // a plain, case-sensitive .sort()) is naturally alphabetical. Imported data
@@ -123,22 +124,24 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
   // Every row ends with the same columns: the routines a session/journal was
   // built from (names, human-readable only, like "exercises"), the record's
   // createdAt/updatedAt (these round-trip), an exercise's measure (round-trips)
-  // and a session's sets or a routine's plan (human-readable only).
-  const withTail = (records, rows, allBlocks = false) =>
+  // and a session's sets, a routine's plan or a mat session's gi, drills and
+  // rounds (human-readable only; JSON keeps them exactly).
+  const techniqueNameById = new Map(techniques.map((t) => [t.id, t.name]));
+  const withTail = (records, rows, allBlocks = false, describe = (record) => setsText(record, allBlocks)) =>
     rows.map((row, i) => [
       ...row,
       routineNames(records[i].routineIds),
       records[i].createdAt || "",
       records[i].updatedAt || "",
       records[i].measure || "",
-      setsText(records[i], allBlocks),
+      describe(records[i]),
     ]);
   return [
     header,
     ...withTail(sessions, sessionRows),
     ...withTail(journals, journalRows),
     ...withTail(routines, routineRows, true),
-    ...withTail(rolls, rollRows),
+    ...withTail(rolls, rollRows, false, (record) => matSummaryText(record, techniqueNameById)),
     ...withTail(techniques, techniqueRows),
     ...withTail(exercises, exerciseRows),
   ]

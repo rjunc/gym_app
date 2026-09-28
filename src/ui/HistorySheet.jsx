@@ -12,8 +12,8 @@ import { cardStyle, ghostLinkStyle, labelStyle } from "./styles.js";
 
 // entryHistory's kinds, with their settings from ENTRY_TYPES and the log
 // each lives in.
-const KIND_META = { session: ENTRY_TYPES.sessions, journal: ENTRY_TYPES.journals };
-const KIND_SOURCE = { session: "sessions", journal: "journals" };
+const KIND_META = { session: ENTRY_TYPES.sessions, journal: ENTRY_TYPES.journals, roll: ENTRY_TYPES.rolls };
+const KIND_SOURCE = { session: "sessions", journal: "journals", roll: "rolls" };
 
 // Read-only bottom sheet for something that dated entries link to (a Library
 // exercise, a routine): `header` at the top next to the close button,
@@ -25,8 +25,8 @@ const KIND_SOURCE = { session: "sessions", journal: "journals" };
 // Tapping an entry in the timeline opens its full summary on top (see
 // SheetStack), where it can be edited too. `onBack` adds a Back button when
 // this sheet is itself on top of another.
-export default function HistorySheet({ header, sessions, journals, detail, emptyLabel, onEdit, onDelete, onBack, onClose, children }) {
-  const history = entryHistory(sessions, journals);
+export default function HistorySheet({ header, sessions = [], journals = [], rolls = [], detail, emptyLabel, onEdit, onDelete, onBack, onClose, children }) {
+  const history = entryHistory(sessions, journals, rolls);
   const sheets = useSheets();
 
   return (

@@ -8,6 +8,7 @@ import { mergeById } from "./lib/arrays.js";
 import { generateDemoData, isDemoRecord } from "./lib/demoData.js"; // TEMPORARY: pilot test data
 import { exerciseUsageCounts } from "./lib/exercises.js";
 import { routineUsageCounts } from "./lib/routines.js";
+import { linkUsageCounts } from "./lib/links.js";
 import { useSyncedCollection } from "./lib/useSyncedCollection.js";
 import { LogContext } from "./lib/LogContext.js";
 import { SheetStackContext } from "./lib/SheetStack.js";
@@ -30,7 +31,7 @@ const PAGE_TITLES = {
   journals: "Journals",
   routines: "Routines",
   library: "Library",
-  rolls: "Rolls",
+  rolls: "Mat sessions",
   techniques: "Techniques",
   flow: "Flow",
 };
@@ -59,12 +60,17 @@ export default function App({ uid, userEmail, onLogout }) {
   const exerciseUsage = useMemo(() => exerciseUsageCounts(sessions, todayISO()), [sessions]);
   // Same for routines, ranking the Routines picker (Sessions, Journals, Home).
   const routineUsage = useMemo(() => routineUsageCounts(sessions, todayISO()), [sessions]);
+  // Same for techniques, over mat sessions, ranking the Techniques picker.
+  const techniqueUsage = useMemo(() => linkUsageCounts(rolls, "techniqueIds", todayISO()), [rolls]);
   const fileInputRef = useRef(null);
   // The log for components that open a full page from inside a form (see
   // LogContext).
   const log = useMemo(
-    () => ({ sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage }),
-    [sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage]
+    () => ({
+      sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage,
+      techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage,
+    }),
+    [sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage]
   );
   // The summary sheets open on top of the page, drawn by SheetStack (see
   // lib/SheetStack.js).
@@ -137,7 +143,7 @@ export default function App({ uid, userEmail, onLogout }) {
       if (!window.confirm("Remove all test data? Only the generated test records are deleted; anything you added yourself stays.")) return;
       collections.forEach(([, set]) => set((prev) => prev.filter((r) => !isDemoRecord(r))));
     } else {
-      if (!window.confirm("Add test data? This adds about 300 made-up exercises, routines, sessions, journal entries, rolls and techniques to this account. You can remove them all again from here.")) return;
+      if (!window.confirm("Add test data? This adds about 300 made-up exercises, routines, sessions, journal entries, mat sessions and techniques to this account. You can remove them all again from here.")) return;
       const demo = generateDemoData();
       collections.forEach(([, set, key]) => set((prev) => mergeById(prev, demo[key])));
     }
@@ -249,7 +255,7 @@ export default function App({ uid, userEmail, onLogout }) {
             ) : page === "rolls" ? (
               <RollsTab rolls={rolls} setRolls={setRolls} />
             ) : page === "techniques" ? (
-              <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} />
+              <TechniquesTab folders={jitsFolders} setFolders={setJitsFolders} techniques={techniques} setTechniques={setTechniques} rolls={rolls} />
             ) : (
               <FlowTab techniques={techniques} setTechniques={setTechniques} />
             )}

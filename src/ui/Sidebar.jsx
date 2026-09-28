@@ -34,7 +34,7 @@ const GROUPS = [
     Icon: Swords,
     accent: "--accent4",
     items: [
-      { key: "rolls", label: "Rolls", Icon: ClipboardList },
+      { key: "rolls", label: "Mat sessions", Icon: ClipboardList },
       { key: "techniques", label: "Techniques", Icon: BookOpen },
       { key: "flow", label: "Flow", Icon: Route },
     ],

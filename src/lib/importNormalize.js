@@ -3,6 +3,7 @@ import { normalizeTags } from "./combinedCsv.js";
 import { importedTimestamps } from "./records.js";
 import { normalizeBlocks, blockExerciseIds, MEASURES } from "./sets.js";
 import { normalizeGroups, tidyGroups } from "./groups.js";
+import { normalizeMat } from "./mat.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
@@ -10,7 +11,8 @@ import { normalizeGroups, tidyGroups } from "./groups.js";
 // round-trip for any of the three if present, same as everything else here.
 // Sessions also carry what was done in order (blocks: exercise, sets, note)
 // and the supersets/circuits those form (groups), validated by
-// normalizeBlocks / normalizeGroups and made to agree by tidyGroups.
+// normalizeBlocks / normalizeGroups and made to agree by tidyGroups. Mat
+// sessions (rolls) carry gi, drilled techniques and rounds (normalizeMat).
 // Every normalizer below keeps createdAt/updatedAt when the record has them.
 // An imported entry's blocks and groups, checked and consistent with each
 // other; neither field when it has no blocks.
@@ -32,6 +34,7 @@ export function normalizeSimpleEntries(arr) {
         ...(Array.isArray(s.exerciseIds) ? { exerciseIds: s.exerciseIds.filter((id) => typeof id === "string") } : {}),
         ...(Array.isArray(s.routineIds) ? { routineIds: s.routineIds.filter((id) => typeof id === "string") } : {}),
         ...blocksAndGroups(s),
+        ...normalizeMat(s),
         ...importedTimestamps(s),
       }))
     : [];

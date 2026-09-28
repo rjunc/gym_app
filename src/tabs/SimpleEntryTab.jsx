@@ -5,6 +5,7 @@ import { useSheets } from "../lib/SheetStack.js";
 import { newRecord, editById } from "../lib/records.js";
 import { matchesTags } from "../lib/activity.js";
 import { matchesSearch, entrySearchFields, exerciseNameMap, nameMap } from "../lib/search.js";
+import { useLog } from "../lib/LogContext.js";
 import EntrySheet from "../ui/EntrySheet.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import SearchBox from "../ui/SearchBox.jsx";
@@ -50,17 +51,21 @@ export default function SimpleEntryTab({
 
   const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
   const routineNameById = useMemo(() => nameMap(routines), [routines]);
+  // Mat sessions search their techniques by name too.
+  const log = useLog();
+  const techniques = (log && log.techniques) || [];
+  const techniqueNameById = useMemo(() => nameMap(techniques), [techniques]);
 
   const filtered = useMemo(() => {
     return entries
       .filter(
         (s) =>
-          matchesSearch(entrySearchFields(s, exerciseNameById, routineNameById), search, searchMatchMode) &&
+          matchesSearch(entrySearchFields(s, exerciseNameById, routineNameById, techniqueNameById), search, searchMatchMode) &&
           matchesTags(s.tags, activeTags, tagMatchMode)
       )
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [entries, search, searchMatchMode, exerciseNameById, routineNameById, activeTags, tagMatchMode]);
+  }, [entries, search, searchMatchMode, exerciseNameById, routineNameById, techniqueNameById, activeTags, tagMatchMode]);
 
   const saveEntry = (_type, fields) => {
     const editing = composer.entry;

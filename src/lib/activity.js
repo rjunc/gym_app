@@ -45,7 +45,9 @@ export function monthCells(year, month, weekStart = 0) {
 // exerciseIds, routineIds and blocks are only carried over when the source
 // entry actually has them (rolls never do), so redoing a roll doesn't grow
 // any. Blocks are copied too (sets and all), so redoing a workout starts from
-// its numbers.
+// its numbers. A mat session's gi and drilled techniques are copied (same
+// class, same drills), but not its rounds: who you rolled with and what
+// happened is new each time.
 export const redoFields = (entry, today) => ({
   date: today,
   title: entry.title || "",
@@ -55,6 +57,8 @@ export const redoFields = (entry, today) => ({
   ...(Array.isArray(entry.routineIds) ? { routineIds: [...entry.routineIds] } : {}),
   ...(Array.isArray(entry.blocks) ? { blocks: entry.blocks.map((b) => ({ ...b, sets: (b.sets || []).map((s) => ({ ...s })) })) } : {}),
   ...(Array.isArray(entry.groups) ? { groups: entry.groups.map((g) => ({ ...g })) } : {}),
+  ...(entry.gi ? { gi: entry.gi } : {}),
+  ...(Array.isArray(entry.drilledIds) ? { drilledIds: [...entry.drilledIds] } : {}),
 });
 
 // Shifts a { year, month } pair by `delta` months, rolling the year over.

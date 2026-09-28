@@ -10,6 +10,8 @@
 //   showRoutines       Routines picker (copies routines in, records routineIds)
 //   showExercises      Library exercise links (exerciseIds)
 //   showSets           per-set numbers for those exercises (needs showExercises)
+//   showMat            a mat session's gi, drilled techniques and rounds
+//                      (see lib/mat.js)
 //   canRedo            a Redo action that starts a new entry from this one
 //   page               the list page's own wording
 export const ENTRY_TYPES = {
@@ -49,21 +51,25 @@ export const ENTRY_TYPES = {
       emptyLabel: 'No journal entries yet. Tap "New entry" to write your first one.',
     },
   },
+  // Stored in the `rolls` log; shown as mat sessions (a class, open mat or
+  // private), which can be a line of text or the full structure.
   rolls: {
-    label: "Rolls",
-    singular: "Roll",
+    label: "Mat sessions",
+    singular: "Mat session",
     accent: "--accent4",
-    textLabel: "What did you work on?",
-    textPlaceholder: "Gi class, drilled scissor sweep to knee-on-belly, rolled 5 rounds, caught a triangle from closed guard...",
+    // Drills and rounds record what happened, so the text is for the rest.
+    textLabel: "Notes (optional)",
+    textPlaceholder: "What the class covered, how rolling felt, what to work on next time...",
     showRoutines: false,
     showExercises: false,
     showSets: false,
+    showMat: true,
     canRedo: true,
     page: {
       eyebrow: "Training journal",
-      heading: "Rolls & Classes",
-      searchPlaceholder: "Search text, tags…",
-      emptyLabel: 'No rolls logged yet. Tap "New entry" to write your first one.',
+      heading: "Mat Sessions",
+      searchPlaceholder: "Search text, tags, techniques, partners…",
+      emptyLabel: 'No mat sessions logged yet. Tap "New entry" to log your first one.',
     },
   },
 };
