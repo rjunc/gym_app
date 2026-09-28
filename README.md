@@ -9,6 +9,13 @@ vars set both locally (`.env.local`) and on Vercel. The setup steps below are
 for reference (e.g. if you ever need to recreate the project or onboard it
 somewhere else) — you don't need to redo them.
 
+**Stage: pre-production (as of 2026-09-28).** The only users are the owner
+and a few testers, and there is no real data to preserve. Design changes
+don't need migrations, fallbacks or compatibility with older record shapes:
+change the shape, update the test data, and re-add it. Changes are
+committed and pushed straight to `main` (which deploys to production),
+unless the owner asks for a branch or PR.
+
 ## Develop locally
 
 ```bash
@@ -169,6 +176,29 @@ footprint.
   open read ~300 more records (see the reads note below). To take it out:
   delete `src/lib/demoData.js` and the code marked `TEMPORARY` in
   `src/App.jsx` and `src/ui/Sidebar.jsx`.
+  - **How the button decides (2026-09-28).** `toggleDemoData` in
+    `src/App.jsx`. It reads "Remove test data" when any record in any
+    collection (sessions, routines, folders, journals, rolls, techniques,
+    jitsFolders, exercises) has an id starting with `demo-`, and "Add test
+    data" when none do. It's recomputed on every render, so it flips by
+    itself. Add generates ~9 months ending today with fresh `demo-` ids and
+    merges them in (nothing replaced); Remove deletes every `demo-` record
+    and nothing else. Both write to Firestore, so it's account-wide, on
+    every device.
+  - **A real record can't get a `demo-` id by chance.** `uid()`
+    (`src/lib/id.js`) makes up to 8 characters of `0-9a-z`, never a hyphen;
+    only the generator adds the prefix.
+  - **Import/export treat test records like any other.** Exports include
+    them with their ids; import keeps ids and merges by id (same id
+    replaces, new id adds). So an export taken with test data present brings
+    it back on import, still removable. JSON round-trips it exactly. CSV
+    import recreates folders by path with normal ids, so after a CSV
+    import "Remove test data" leaves those folders behind, empty.
+  - **Edge cases.** A test record edited to hold real numbers still has its
+    `demo-` id and is deleted by Remove. A real record built from test data
+    (a session logged from a test routine, a routine saved from a test
+    session) is kept, but its links then point at deleted records. Test data
+    added before a shape change stays in the old shape: Remove, then Add.
 
 - **Sign-up is currently open to anyone.** Any visitor who finds the URL can
   create their own account via the sign-up form. This isn't a data leak —
@@ -223,6 +253,51 @@ footprint.
   good. JSON is the only complete export: it keeps sets, routine plans,
   exercise links and routine links exactly. CSV has a fixed set of columns and loses those links
   and the set numbers on re-import.
+- **CSV vs JSON: why the CSV is lossy, and what each is for (discussed
+  2026-09-28).** JSON is the backup format; CSV is a readable report.
+  - **Why CSV can't hold the data.** CSV is one flat table of text cells.
+    A session (and now a routine) is nested: an ordered list of `blocks`,
+    each with its own list of `sets`, each set with only the fields that
+    apply (`weight`/`reps`, `seconds`, `distance`…, plus `drop`). Blocks can
+    also belong to a superset/circuit: `groups` is a separate list beside
+    the blocks (`[{ id, kind }]`), and a block joins one by carrying its
+    `groupId`. Groups aren't nested around blocks on purpose, so everything
+    that doesn't care about groups (Last lookups, history, search, usage,
+    `exerciseIds`, CSV text) walks one flat list, and linking/ungrouping only
+    sets or clears `groupId`. `tidyGroups` keeps it valid (a group's blocks
+    are consecutive, at least two, unused groups dropped, groups ordered like
+    their blocks); `layoutBlocks` turns it into 1, 2a, 2b, 3 for display.
+    Records also point at each other by id (`exerciseIds`, `routineIds`,
+    `folderId`) and have typed values (numbers, flags, units).
+  - **What the CSV does instead, and loses on re-import.** Sets and
+    routine plans are written as a sentence ("Back squat: 2×5 @ 225 lb;
+    Superset (Dips: … + Tricep pushdown: …)") and not parsed back. Exercise
+    and routine links are written as names and not matched back (renames
+    and duplicate names make that unreliable). Folders are written as paths
+    and recreated by name with new ids. Everything is text, so types are
+    guessed back per column. It's one file with a `type` column for all six
+    record types, so most cells are blank and each new field is a new
+    column for every row. What does round-trip: ids, dates, titles, tags,
+    text, timestamps, technique positions/flags, exercise prescription,
+    measure and active.
+  - **Not inherently worse, just the wrong fit here.** Making CSV lossless
+    would mean JSON inside cells or several linked tables (sessions, blocks,
+    sets), i.e. rebuilding JSON in a harder-to-read form.
+  - **CSV strengths:** opens in any spreadsheet (sort, filter, total
+    volume, chart without code); readable (names, "3×5 @ 225 lb"); easy to
+    type or edit rows by hand and import (journals, techniques, an exercise
+    list); accepted by most tools; smaller.
+  - **JSON weaknesses:** hard to read or hand-edit (ids instead of names,
+    one missing comma breaks the file); needs code or a converter to
+    analyse; bulky (repeated keys, pretty-printed); no format version, only
+    `exportedAt` (see the schema-version note below); import merges and
+    never deletes (an old backup brings back deleted records) and trusts
+    the file's ids (a record with the same id silently replaces yours).
+    The last two apply to CSV import too.
+  - **Suggestions, not done:** label the buttons "Export backup (JSON)" /
+    "Export for spreadsheets (CSV)"; consider making CSV export-only, since
+    its import is where the silent losses happen; add a `version` field to
+    the JSON export.
 - **Editing the *same* record on two devices: the last save wins
   (2026-09-25).** Each record is its own document, so edits to different
   records never collide. Editing one record on two devices keeps whichever
@@ -282,6 +357,69 @@ footprint.
     sessions link exercises. Start recording these early if roll stats will
     ever be wanted, because details only in free text can't become numbers
     later.
+
+- **Tags: exercise-first redesign (discussed 2026-09-28, NOT decided or
+  built).** Supersedes the draft in `TAGS_PLAN.md` where they differ (see
+  the end of this note).
+  - **The problem.** Tags live independently on sessions, routines and
+    Library exercises (plus journals, rolls, techniques). Now that sessions
+    and routines are built from exercises, this is redundant and raises "do
+    I tag this on the exercise or on the session/routine?" A session with
+    squats only shows under `legs` if the session itself was tagged `legs`;
+    routine tags are copied into a session once when the routine is added
+    (`applyRoutine`), so later edits never reach it.
+  - **The owner's idea.** Tags come from exercises: adding exercises gives
+    the session/routine their tags, so the separate tag field can go. The
+    dilemma is redundancy vs flexibility: maybe keep a way to tag a
+    session directly "in case I ever need it".
+  - **Proposed rule (one home per tag).** *Is it true every time I do this
+    exercise?* → tag the exercise (legs, push, core, compound, plyo,
+    cardio). *Is it about this particular day?* → tag the session (deload,
+    hotel gym, sick, test day, PR day). Routine-ish labels ("Core Day") are
+    the routine's name or folder, not a tag. "Explosive today" goes in the
+    block note; a variation that matters (paused bench) becomes its own
+    exercise with its own history.
+  - **Proposed build.**
+    1. Sessions and routines show tags **worked out from their exercises**,
+       looked up live, never copied or stored. Home filters, search and
+       cards all use them; on cards, exercise-derived tags look slightly
+       different from day tags so the source is clear.
+    2. **Routines lose their own tags** entirely (a routine is its plan,
+       name and folder). Removes the routine form's Tags field and the tag
+       copying in `applyRoutine` / `routineFromSession`.
+    3. **Sessions keep a small optional "Day tags" field**, with a hint
+       ("about this day: deload, travel, sick…") and suggestions only from
+       existing day tags. This is the kept flexibility; if it's never used,
+       removing it later is trivial.
+    4. **No per-block tags** (for now): a third place to tag brings the
+       dilemma back.
+    5. Journals, rolls and techniques keep their own tags (no exercises).
+    6. No migration: pre-production, no data to preserve.
+  - **Retroactive by design.** Because exercise tags are looked up, adding
+    `plyo` to Box jump immediately tags every past and future session and
+    routine containing a box jump; removing or renaming a tag changes them
+    all the same way. That's correct because exercise tags describe the
+    movement, not the day. Day tags are stored on the session and stay as
+    written.
+  - **Tag filter size.** Home and the Sessions page use `TagFilter`
+    (`src/ui/TagFilter.jsx`): all tags as chips up to 8, otherwise the 6 most
+    used as chips plus a searchable list. So the chip row doesn't grow; the
+    "most used" six would just become mostly exercise tags (strength, legs,
+    push). The **Routines page is different**: `FolderLibraryTab` shows every
+    tag as a chip (height-capped, scrolls), so it would list every exercise
+    tag used in any routine. If that feels cluttered, switch it to
+    `TagFilter`.
+  - **Open questions for the owner.**
+    1. Keep optional day tags on sessions, or drop session tags entirely?
+    2. Should journals (which link exercises but aren't workouts) pick up
+       exercise tags? Leaning no.
+    3. Switch the Routines page to the top-6 `TagFilter`?
+    4. How should derived vs day tags look on cards?
+  - **Differences from `TAGS_PLAN.md`** (the earlier draft): it adds
+    per-block tags ("how it was done this time") and a reviewed migration
+    step; this proposal drops both. It agrees on live lookup of exercise
+    tags, routines losing their own tags, and journals/rolls/techniques
+    keeping theirs.
 
 ## Feature ideas (not urgent)
 
