@@ -10,7 +10,8 @@ import { labelStyle } from "../ui/styles.js";
 // (positions, gi-only, tags, notes), how it's gone across mat sessions — how
 // many sessions drilled it, and how many times it was hit, attempted or
 // caught you in a round — then every mat session that mentions it, newest
-// first, with what happened with it in each (see HistorySheet). `rolls` are
+// first, with what happened with it in each and those rounds' notes (see
+// HistorySheet). `rolls` are
 // those mat sessions (see rollsByTechnique).
 export default function TechniqueHistorySheet({ technique, pathLabel, accent, rolls, onEdit, onDelete, onBack, onClose }) {
   const stats = techniqueStats(rolls, technique.id);
@@ -27,12 +28,13 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
       onBack={onBack}
       onClose={onClose}
       emptyLabel="Not in any mat sessions yet. Add it to one as a drill or in a round when logging."
-      // Whether it was drilled that day, and how it went in each round.
+      // Whether it was drilled that day, and how it went in each round, with
+      // that round's note under it (once per round, after its last line).
       detail={(entry, entryAccent) => {
         const drilled = (entry.drilledIds || []).includes(technique.id);
         const lines = (entry.rounds || []).flatMap((r, i) => {
           const parts = roundParts(r);
-          return parts.flatMap((part, p) =>
+          const results = parts.flatMap((part, p) =>
             (part.techniques || [])
               .filter((t) => t.techniqueId === technique.id)
               .map((t, k) => (
@@ -47,6 +49,13 @@ export default function TechniqueHistorySheet({ technique, pathLabel, accent, ro
                 </div>
               ))
           );
+          if (results.length === 0 || !r.note) return results;
+          return [
+            ...results,
+            <div key={`${r.id}-note`} style={{ fontSize: 12, color: "var(--text-dim)", fontStyle: "italic", marginBottom: 2 }}>
+              {r.note}
+            </div>,
+          ];
         });
         return (
           <div style={{ marginTop: 4 }}>
