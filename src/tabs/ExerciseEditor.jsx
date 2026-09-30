@@ -4,18 +4,20 @@ import { newRecord, editById } from "../lib/records.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { cleanFields, cleanLine } from "../lib/text.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
+import { folderOptions as folderOptionsOf } from "./FolderBrowser.jsx";
 
 const ACCENT = "--accent2"; // matches the Library page
 
 // The new/edit form for a Library exercise, on its own so it opens the same
 // from the Library page and from anywhere an exercise sheet was reached by a
 // link (see SheetStack). Pass `exercise` to edit it, or leave it out to
-// create one starting from `initialName`. `onSaved(record)` gets the saved
+// create one starting from `initialName` in the folder `initialFolderId`
+// (one of `folders`, the exercise folders; null for the top level). `onSaved(record)` gets the saved
 // record (new or edited) after it's written; `onClose` runs after saving too.
 // Names are compared case-insensitively so "Bench" and "bench" count as the
 // same exercise — otherwise the Library (and the Exercises picker it feeds)
 // quietly grows near-duplicates.
-export default function ExerciseEditor({ exercise, initialName = "", exercises, setExercises, onSaved, onClose }) {
+export default function ExerciseEditor({ exercise, initialName = "", initialFolderId = null, exercises, setExercises, folders = [], onSaved, onClose }) {
   const [form, setForm] = useState(() =>
     exercise
       ? {
@@ -24,11 +26,13 @@ export default function ExerciseEditor({ exercise, initialName = "", exercises, 
           text: exercise.text || "",
           prescription: exercise.prescription || "",
           active: exercise.active !== false,
+          folderId: exercise.folderId || null,
         }
-      : { name: initialName, tags: [], text: "", prescription: "", active: true }
+      : { name: initialName, tags: [], text: "", prescription: "", active: true, folderId: initialFolderId }
   );
   const [tagDraft, setTagDraft] = useState("");
   const tagSuggestions = useMemo(() => tagUsage(exercises, todayISO()), [exercises]);
+  const folderOptions = useMemo(() => folderOptionsOf(folders), [folders]);
 
   const trimmedName = cleanLine(form.name);
   const isDuplicateName =
@@ -69,6 +73,8 @@ export default function ExerciseEditor({ exercise, initialName = "", exercises, 
       nameLabel="Name"
       namePlaceholder="Goblet squat, cat-cow, jump rope…"
       nameError={isDuplicateName ? "An exercise with this name already exists." : undefined}
+      showFolder
+      folderOptions={folderOptions}
       showPrescription
       showActive
       textLabel="Notes (optional)"

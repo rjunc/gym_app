@@ -2,8 +2,8 @@
 // data" button and its handlers in App.jsx once it's no longer needed.
 //
 // Builds a believable, fully linked log for trying the app out as someone who
-// has been training for months: a Library of exercises logged in every way
-// sets can be measured, routines in nested folders with planned sets for
+// has been training for months: a Library of exercises in nested folders
+// (a couple left at the top level), logged in every way sets can be measured, routines in nested folders with planned sets for
 // those exercises, sessions built from those routines' plans (blocks in the order done,
 // with sets that progress over time, notes, the odd extra exercise, some
 // exercises done twice, supersets and circuits, and dropsets), journal
@@ -31,49 +31,51 @@ const chance = (p) => Math.random() < p;
 const roundTo = (n, step) => Math.round(n / step) * step;
 const stamp = (date, hour = 18) => `${date}T${String(hour).padStart(2, "0")}:${String(between(0, 59)).padStart(2, "0")}:00.000Z`;
 
-// The Library: name, tags, how it's logged, and a starting point for its
-// numbers. `level` / `weight` / `reps` / `seconds` / `distance` are where the
+// The Library's folders (a path per folder), then each exercise: name, its
+// folder (none: the top level), tags, how it's logged, and a starting point
+// for its numbers. `level` / `weight` / `reps` / `seconds` / `distance` are where the
 // first session starts; later sessions creep up from there.
+const EXERCISE_FOLDERS = ["Strength", "Strength/Legs", "Strength/Push", "Strength/Pull", "Strength/Arms", "Core", "Conditioning", "Cardio", "Mobility"];
 const EXERCISES = [
-  { name: "Back squat", tags: ["strength", "legs"], measure: "weight_reps", weight: 135, reps: 5, prescription: "5x5", text: "Brace before unracking. Knees out." },
-  { name: "Front squat", tags: ["strength", "legs"], measure: "weight_reps", weight: 95, reps: 5 },
-  { name: "Romanian deadlift", tags: ["strength", "legs", "pull"], measure: "weight_reps", weight: 115, reps: 8, prescription: "3x8" },
-  { name: "Deadlift", tags: ["strength", "pull"], measure: "weight_reps", weight: 185, reps: 5, text: "Slack out of the bar first." },
-  { name: "Bulgarian split squat", tags: ["strength", "legs"], measure: "weight_reps", weight: 25, reps: 10, prescription: "3x10 each side" },
-  { name: "Walking lunge", tags: ["legs", "conditioning"], measure: "weight_reps", weight: 20, reps: 12 },
-  { name: "Leg press", tags: ["strength", "legs"], measure: "weight_reps", weight: 180, reps: 10 },
-  { name: "Bench press", tags: ["strength", "push"], measure: "weight_reps", weight: 115, reps: 5, prescription: "5x5", text: "Shoulder blades pinned, feet planted." },
-  { name: "Incline dumbbell press", tags: ["strength", "push"], measure: "weight_reps", weight: 35, reps: 10 },
-  { name: "Overhead press", tags: ["strength", "push"], measure: "weight_reps", weight: 75, reps: 5 },
-  { name: "Dips", tags: ["push"], measure: "reps", reps: 8 },
-  { name: "Push-ups", tags: ["push", "bodyweight"], measure: "reps", reps: 20 },
-  { name: "Pull-ups", tags: ["pull", "bodyweight"], measure: "reps", reps: 6, prescription: "3 x max" },
-  { name: "Chin-ups", tags: ["pull", "bodyweight"], measure: "reps", reps: 7 },
-  { name: "Barbell row", tags: ["strength", "pull"], measure: "weight_reps", weight: 95, reps: 8 },
-  { name: "Lat pulldown", tags: ["pull"], measure: "weight_reps", weight: 100, reps: 10 },
-  { name: "Face pull", tags: ["pull", "shoulders"], measure: "weight_reps", weight: 30, reps: 15 },
-  { name: "Bicep curl", tags: ["arms"], measure: "weight_reps", weight: 25, reps: 12 },
-  { name: "Tricep pushdown", tags: ["arms"], measure: "weight_reps", weight: 40, reps: 12 },
-  { name: "Plank", tags: ["core"], measure: "time", seconds: 45, prescription: "3 x 45s" },
-  { name: "Side plank", tags: ["core"], measure: "time", seconds: 30 },
-  { name: "Weighted plank", tags: ["core"], measure: "weight_time", weight: 25, seconds: 40 },
-  { name: "Dead hang", tags: ["pull", "grip"], measure: "time", seconds: 40 },
-  { name: "Hanging leg raise", tags: ["core"], measure: "reps", reps: 10 },
-  { name: "Ab wheel", tags: ["core"], measure: "reps", reps: 8 },
-  { name: "Farmer carry", tags: ["grip", "conditioning"], measure: "weight_distance", weight: 60, distance: 40, distanceUnit: "m" },
-  { name: "Sled push", tags: ["conditioning", "legs"], measure: "weight_distance", weight: 90, distance: 20, distanceUnit: "yd" },
-  { name: "Kettlebell swing", tags: ["conditioning", "legs", "pull"], measure: "weight_reps", weight: 35, reps: 15 },
-  { name: "Burpees", tags: ["conditioning", "bodyweight"], measure: "reps_time", reps: 12, seconds: 60 },
-  { name: "Box jump", tags: ["plyometrics", "legs"], measure: "reps", reps: 8 },
-  { name: "Run", tags: ["cardio"], measure: "distance", distance: 2, distanceUnit: "mi", minutesPerUnit: 10 },
-  { name: "Row", tags: ["cardio"], measure: "distance", distance: 2000, distanceUnit: "m", minutesPerUnit: 0.0045 },
-  { name: "Stairmaster", tags: ["cardio"], measure: "time_level", seconds: 900, level: 6 },
-  { name: "Assault bike", tags: ["cardio", "conditioning"], measure: "time_level", seconds: 600, level: 5 },
-  { name: "Jump rope", tags: ["cardio"], measure: "time", seconds: 180, timeUnit: "min" },
-  { name: "Hip flexor stretch", tags: ["mobility"], measure: "time", seconds: 60 },
-  { name: "Cat-cow", tags: ["mobility"], measure: "reps", reps: 10 },
-  { name: "World's greatest stretch", tags: ["mobility"], measure: "reps", reps: 5 },
-  { name: "Couch stretch", tags: ["mobility"], measure: "time", seconds: 90 },
+  { name: "Back squat", folder: "Strength/Legs", tags: ["strength", "legs"], measure: "weight_reps", weight: 135, reps: 5, prescription: "5x5", text: "Brace before unracking. Knees out." },
+  { name: "Front squat", folder: "Strength/Legs", tags: ["strength", "legs"], measure: "weight_reps", weight: 95, reps: 5 },
+  { name: "Romanian deadlift", folder: "Strength/Legs", tags: ["strength", "legs", "pull"], measure: "weight_reps", weight: 115, reps: 8, prescription: "3x8" },
+  { name: "Deadlift", folder: "Strength", tags: ["strength", "pull"], measure: "weight_reps", weight: 185, reps: 5, text: "Slack out of the bar first." },
+  { name: "Bulgarian split squat", folder: "Strength/Legs", tags: ["strength", "legs"], measure: "weight_reps", weight: 25, reps: 10, prescription: "3x10 each side" },
+  { name: "Walking lunge", folder: "Strength/Legs", tags: ["legs", "conditioning"], measure: "weight_reps", weight: 20, reps: 12 },
+  { name: "Leg press", folder: "Strength/Legs", tags: ["strength", "legs"], measure: "weight_reps", weight: 180, reps: 10 },
+  { name: "Bench press", folder: "Strength/Push", tags: ["strength", "push"], measure: "weight_reps", weight: 115, reps: 5, prescription: "5x5", text: "Shoulder blades pinned, feet planted." },
+  { name: "Incline dumbbell press", folder: "Strength/Push", tags: ["strength", "push"], measure: "weight_reps", weight: 35, reps: 10 },
+  { name: "Overhead press", folder: "Strength/Push", tags: ["strength", "push"], measure: "weight_reps", weight: 75, reps: 5 },
+  { name: "Dips", folder: "Strength/Push", tags: ["push"], measure: "reps", reps: 8 },
+  { name: "Push-ups", folder: "Strength/Push", tags: ["push", "bodyweight"], measure: "reps", reps: 20 },
+  { name: "Pull-ups", folder: "Strength/Pull", tags: ["pull", "bodyweight"], measure: "reps", reps: 6, prescription: "3 x max" },
+  { name: "Chin-ups", folder: "Strength/Pull", tags: ["pull", "bodyweight"], measure: "reps", reps: 7 },
+  { name: "Barbell row", folder: "Strength/Pull", tags: ["strength", "pull"], measure: "weight_reps", weight: 95, reps: 8 },
+  { name: "Lat pulldown", folder: "Strength/Pull", tags: ["pull"], measure: "weight_reps", weight: 100, reps: 10 },
+  { name: "Face pull", folder: "Strength/Pull", tags: ["pull", "shoulders"], measure: "weight_reps", weight: 30, reps: 15 },
+  { name: "Bicep curl", folder: "Strength/Arms", tags: ["arms"], measure: "weight_reps", weight: 25, reps: 12 },
+  { name: "Tricep pushdown", folder: "Strength/Arms", tags: ["arms"], measure: "weight_reps", weight: 40, reps: 12 },
+  { name: "Plank", folder: "Core", tags: ["core"], measure: "time", seconds: 45, prescription: "3 x 45s" },
+  { name: "Side plank", folder: "Core", tags: ["core"], measure: "time", seconds: 30 },
+  { name: "Weighted plank", folder: "Core", tags: ["core"], measure: "weight_time", weight: 25, seconds: 40 },
+  { name: "Dead hang", folder: "Strength/Pull", tags: ["pull", "grip"], measure: "time", seconds: 40 },
+  { name: "Hanging leg raise", folder: "Core", tags: ["core"], measure: "reps", reps: 10 },
+  { name: "Ab wheel", folder: "Core", tags: ["core"], measure: "reps", reps: 8 },
+  { name: "Farmer carry", folder: "Conditioning", tags: ["grip", "conditioning"], measure: "weight_distance", weight: 60, distance: 40, distanceUnit: "m" },
+  { name: "Sled push", folder: "Conditioning", tags: ["conditioning", "legs"], measure: "weight_distance", weight: 90, distance: 20, distanceUnit: "yd" },
+  { name: "Kettlebell swing", folder: "Conditioning", tags: ["conditioning", "legs", "pull"], measure: "weight_reps", weight: 35, reps: 15 },
+  { name: "Burpees", folder: "Conditioning", tags: ["conditioning", "bodyweight"], measure: "reps_time", reps: 12, seconds: 60 },
+  { name: "Box jump", folder: "Conditioning", tags: ["plyometrics", "legs"], measure: "reps", reps: 8 },
+  { name: "Run", folder: "Cardio", tags: ["cardio"], measure: "distance", distance: 2, distanceUnit: "mi", minutesPerUnit: 10 },
+  { name: "Row", folder: "Cardio", tags: ["cardio"], measure: "distance", distance: 2000, distanceUnit: "m", minutesPerUnit: 0.0045 },
+  { name: "Stairmaster", folder: "Cardio", tags: ["cardio"], measure: "time_level", seconds: 900, level: 6 },
+  { name: "Assault bike", folder: "Cardio", tags: ["cardio", "conditioning"], measure: "time_level", seconds: 600, level: 5 },
+  { name: "Jump rope", folder: "Cardio", tags: ["cardio"], measure: "time", seconds: 180, timeUnit: "min" },
+  { name: "Hip flexor stretch", folder: "Mobility", tags: ["mobility"], measure: "time", seconds: 60 },
+  { name: "Cat-cow", folder: "Mobility", tags: ["mobility"], measure: "reps", reps: 10 },
+  { name: "World's greatest stretch", folder: "Mobility", tags: ["mobility"], measure: "reps", reps: 5 },
+  { name: "Couch stretch", folder: "Mobility", tags: ["mobility"], measure: "time", seconds: 90 },
   { name: "Turkish get-up", tags: ["strength", "core"], measure: "weight_reps", weight: 25, reps: 3, active: false, text: "Slow. Eyes on the bell." },
   { name: "Good morning", tags: [], measure: "weight_reps", weight: 45, reps: 10 },
 ];
@@ -252,8 +254,8 @@ function plannedCount(ex, rounds) {
 // A back-off round: the same sets, lighter.
 const backOffSets = (sets) => sets.slice(0, 2).map((set) => (set.weight ? { ...set, weight: roundTo(set.weight * 0.8, 5) || 5 } : set));
 
-// Everything, as { exercises, folders, routines, sessions, journals, rolls,
-// jitsFolders, techniques }, with sessions and the rest spread over the
+// Everything, as { exercises, exerciseFolders, folders, routines, sessions,
+// journals, rolls, jitsFolders, techniques }, with sessions and the rest spread over the
 // `months` before `today` (a Date).
 export function generateDemoData(today = new Date(), months = 9) {
   const start = new Date(today);
@@ -261,9 +263,11 @@ export function generateDemoData(today = new Date(), months = 9) {
   const startDate = toISODate(start);
   const setupStamp = stamp(startDate, 8);
 
+  const { folders: exerciseFolders, idByPath: exerciseFolderIdByPath } = buildFolders(EXERCISE_FOLDERS, setupStamp);
   const exercises = EXERCISES.map((ex) => ({
     id: demoId(),
     name: ex.name,
+    folderId: ex.folder ? exerciseFolderIdByPath.get(ex.folder) : null,
     tags: ex.tags,
     text: ex.text || "",
     prescription: ex.prescription || "",
@@ -427,5 +431,5 @@ export function generateDemoData(today = new Date(), months = 9) {
     }
   }
 
-  return { exercises, folders, routines, sessions, journals, rolls, jitsFolders, techniques };
+  return { exercises, exerciseFolders, folders, routines, sessions, journals, rolls, jitsFolders, techniques };
 }

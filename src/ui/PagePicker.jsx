@@ -64,6 +64,8 @@ export default function PagePicker({ kind, addedIds, onAdd, onRemove, onDone, in
         <ExerciseLibraryTab
           exercises={log.exercises}
           setExercises={log.setExercises}
+          folders={log.exerciseFolders}
+          setFolders={log.setExerciseFolders}
           sessions={log.sessions}
           journals={log.journals}
           routines={log.routines}

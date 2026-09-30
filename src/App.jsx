@@ -39,7 +39,8 @@ export default function App({ uid, userEmail, onLogout }) {
   const [techniques, setTechniques, techniquesStatus] = useSyncedCollection(uid, "techniques");
   const [jitsFolders, setJitsFolders, jitsFoldersStatus] = useSyncedCollection(uid, "jitsFolders");
   const [exercises, setExercises, exercisesStatus] = useSyncedCollection(uid, "exercises");
-  const statuses = [sessionsStatus, foldersStatus, routinesStatus, journalsStatus, rollsStatus, techniquesStatus, jitsFoldersStatus, exercisesStatus];
+  const [exerciseFolders, setExerciseFolders, exerciseFoldersStatus] = useSyncedCollection(uid, "exerciseFolders");
+  const statuses = [sessionsStatus, foldersStatus, routinesStatus, journalsStatus, rollsStatus, techniquesStatus, jitsFoldersStatus, exercisesStatus, exerciseFoldersStatus];
   const loaded = statuses.every((s) => s.loaded);
   // A failed first load blocks the whole app (see the error screen below)
   // rather than showing an empty log you could type over.
@@ -58,10 +59,10 @@ export default function App({ uid, userEmail, onLogout }) {
   // LogContext).
   const log = useMemo(
     () => ({
-      sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage,
-      techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage,
+      sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseFolders, setExerciseFolders,
+      exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage,
     }),
-    [sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage]
+    [sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseFolders, setExerciseFolders, exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage]
   );
   // The summary sheets open on top of the page, drawn by SheetStack (see
   // lib/SheetStack.js).
@@ -80,7 +81,7 @@ export default function App({ uid, userEmail, onLogout }) {
     downloadFile(
       `workout-data-${todayISO()}.json`,
       JSON.stringify(
-        { exportedAt: new Date().toISOString(), sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises },
+        { exportedAt: new Date().toISOString(), sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises, exerciseFolders },
         null,
         2
       ),
@@ -90,7 +91,7 @@ export default function App({ uid, userEmail, onLogout }) {
   const exportCSV = () =>
     downloadFile(
       `workout-data-${todayISO()}.csv`,
-      combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders, exercises),
+      combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders, exercises, exerciseFolders),
       "text/csv"
     );
 
@@ -100,7 +101,7 @@ export default function App({ uid, userEmail, onLogout }) {
     setImportError("");
     try {
       const text = await file.text();
-      const incoming = parseImportFile(file.name, text, folders, jitsFolders);
+      const incoming = parseImportFile(file.name, text, folders, jitsFolders, exerciseFolders);
 
       setFolders(incoming.folders);
       setSessions((prev) => mergeById(prev, incoming.sessions));
@@ -109,6 +110,7 @@ export default function App({ uid, userEmail, onLogout }) {
       setJitsFolders(incoming.jitsFolders);
       setRolls((prev) => mergeById(prev, incoming.rolls));
       setTechniques((prev) => mergeById(prev, incoming.techniques));
+      setExerciseFolders(incoming.exerciseFolders);
       setExercises((prev) => mergeById(prev, incoming.exercises));
     } catch (err) {
       setImportError("Couldn't read that file. Make sure it's a CSV or JSON export from this app.");
@@ -128,6 +130,7 @@ export default function App({ uid, userEmail, onLogout }) {
     [techniques, setTechniques, "techniques"],
     [jitsFolders, setJitsFolders, "jitsFolders"],
     [exercises, setExercises, "exercises"],
+    [exerciseFolders, setExerciseFolders, "exerciseFolders"],
   ];
   const hasDemoData = collections.some(([list]) => list.some(isDemoRecord));
   const toggleDemoData = () => {
@@ -243,7 +246,15 @@ export default function App({ uid, userEmail, onLogout }) {
                   journals={journals}
                 />
               ) : page === "library" ? (
-                <ExerciseLibraryTab exercises={exercises} setExercises={setExercises} sessions={sessions} journals={journals} routines={routines} />
+                <ExerciseLibraryTab
+                  exercises={exercises}
+                  setExercises={setExercises}
+                  folders={exerciseFolders}
+                  setFolders={setExerciseFolders}
+                  sessions={sessions}
+                  journals={journals}
+                  routines={routines}
+                />
               ) : page === "rolls" ? (
                 <RollsTab rolls={rolls} setRolls={setRolls} />
               ) : page === "techniques" ? (

@@ -107,10 +107,14 @@ test("folderItemSearchFields covers the whole folder path, positions and linked 
   assert.equal(matchesSearch(tFields, "closed mount"), true);
 });
 
-test("exerciseSearchFields covers name, text, tags and prescription", () => {
-  const exercise = { id: "e1", name: "Plank", text: "Brace hard", tags: ["core"], prescription: "3x60s" };
-  const fields = exerciseSearchFields(exercise);
-  for (const q of ["plank", "brace", "core", "60s"]) assert.equal(matchesSearch(fields, q), true, q);
+test("exerciseSearchFields covers name, text, tags, prescription and every folder above it", () => {
+  const folders = [
+    { id: "f1", name: "Strength", parentId: null },
+    { id: "f2", name: "Trunk", parentId: "f1" },
+  ];
+  const exercise = { id: "e1", name: "Plank", folderId: "f2", text: "Brace hard", tags: ["core"], prescription: "3x60s" };
+  const fields = exerciseSearchFields(exercise, folders);
+  for (const q of ["plank", "brace", "core", "60s", "strength", "trunk"]) assert.equal(matchesSearch(fields, q), true, q);
 });
 
 test("prefixMatchesFirst moves starts-with matches ahead, keeping each group's order", () => {

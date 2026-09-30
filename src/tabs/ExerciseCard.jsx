@@ -1,7 +1,8 @@
+import { Folder } from "lucide-react";
 import { usageSummary } from "../lib/links.js";
 import TagChip from "../ui/TagChip.jsx";
 import { CardActions, UsageLine, ShowMore } from "./LibraryItemCard.jsx";
-import { cardStyle, noteTextStyle, clamp, chipRowStyle } from "../ui/styles.js";
+import { cardStyle, noteTextStyle, clamp, chipRowStyle, ghostLinkStyle } from "../ui/styles.js";
 
 export default function ExerciseCard({
   exercise,
@@ -15,6 +16,9 @@ export default function ExerciseCard({
   // Tapping anywhere on the card that isn't one of its buttons (edit, delete,
   // a tag chip, show more) opens the exercise's history sheet.
   onOpen,
+  // In search results: the exercise's folder path, which onJump goes to.
+  pathLabel,
+  onJump,
   // When the Library is opened for picking (see PagePicker): an Add button,
   // shown as "Added" once `added`, which onRemove takes back out. Leave
   // onDelete out to hide Delete.
@@ -46,6 +50,11 @@ export default function ExerciseCard({
             )}
           </div>
           {e.prescription && <div style={{ fontSize: 13, color: `var(${accent})`, fontWeight: 500 }}>{e.prescription}</div>}
+          {pathLabel && (
+            <button onClick={onJump} title="Go to this folder" style={{ ...ghostLinkStyle, fontSize: 12, fontWeight: 500, color: "var(--text-dim)", alignSelf: "flex-start" }}>
+              <Folder size={12} /> {pathLabel}
+            </button>
+          )}
         </div>
         <CardActions onAdd={onAdd} added={added} onRemove={onRemove} accent={accent} onEdit={onEdit} onDelete={onDelete} />
       </div>

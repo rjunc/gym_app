@@ -5,13 +5,13 @@ import { cleanFields, cleanLine } from "./text.js";
 export { combinedToCSV, combinedFromCSV } from "./combinedCsv.js";
 
 // Parses an imported .json or .csv file's text into normalized
-// { sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises },
+// { sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises, exerciseFolders },
 // merging any folders discovered in the file into `existingFolders`/
-// `existingJitsFolders`. Throws if a JSON file has none of the known record types.
+// `existingJitsFolders`/`existingExerciseFolders`. Throws if a JSON file has none of the known record types.
 // Imported text gets the same cleanup a composer applies on save (see
 // cleanImport below).
-export function parseImportFile(filename, text, existingFolders, existingJitsFolders = []) {
-  return cleanImport(parseRaw(filename, text, existingFolders, existingJitsFolders));
+export function parseImportFile(filename, text, existingFolders, existingJitsFolders = [], existingExerciseFolders = []) {
+  return cleanImport(parseRaw(filename, text, existingFolders, existingJitsFolders, existingExerciseFolders));
 }
 
 // Fallback names for a record whose name is missing, or is only whitespace
@@ -39,7 +39,7 @@ function cleanImport(data) {
 const cleanFolders = (folders) =>
   Array.isArray(folders) ? folders.map((f) => ({ ...f, name: cleanLine(f.name) || "Untitled folder" })) : folders;
 
-function parseRaw(filename, text, existingFolders, existingJitsFolders) {
+function parseRaw(filename, text, existingFolders, existingJitsFolders, existingExerciseFolders) {
   if (filename.toLowerCase().endsWith(".json")) {
     const parsed = JSON.parse(text);
     const hasKnownData = ["sessions", "routines", "journals", "rolls", "techniques", "exercises"].some((k) => Array.isArray(parsed[k]));
@@ -55,7 +55,8 @@ function parseRaw(filename, text, existingFolders, existingJitsFolders) {
       techniques: normalizeFolderItems(parsed.techniques, "Untitled technique", { techniqueExtras: true }),
       jitsFolders: mergeFolders(existingJitsFolders, cleanFolders(parsed.jitsFolders)),
       exercises: normalizeExercises(parsed.exercises),
+      exerciseFolders: mergeFolders(existingExerciseFolders, cleanFolders(parsed.exerciseFolders)),
     };
   }
-  return combinedFromCSV(text, existingFolders, existingJitsFolders);
+  return combinedFromCSV(text, existingFolders, existingJitsFolders, existingExerciseFolders);
 }

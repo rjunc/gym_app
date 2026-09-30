@@ -1,10 +1,8 @@
 import { useState, useMemo } from "react";
-import { Plus, FolderPlus, X, SearchX, BookOpen, AlertTriangle } from "lucide-react";
-import { newRecord, editById } from "../lib/records.js";
+import { Plus, FolderPlus, SearchX, BookOpen } from "lucide-react";
+import { editById } from "../lib/records.js";
 import { folderPath } from "../lib/folders.js";
 import { matchesSearch, folderItemSearchFields, exerciseNameMap } from "../lib/search.js";
-import Breadcrumb from "../ui/Breadcrumb.jsx";
-import IconBtn from "../ui/IconBtn.jsx";
 import FolderItemEditor from "./FolderItemEditor.jsx";
 import GiModeToggle from "../ui/GiModeToggle.jsx";
 import SearchBox, { TagsToggle } from "../ui/SearchBox.jsx";
@@ -14,8 +12,8 @@ import EmptyState from "../ui/EmptyState.jsx";
 import LibraryItemCard from "./LibraryItemCard.jsx";
 import SetsSummary from "../ui/SetsSummary.jsx";
 import PickBar from "../ui/PickBar.jsx";
-import FolderRow from "./FolderRow.jsx";
-import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle, metaStyle } from "../ui/styles.js";
+import FolderBrowser from "./FolderBrowser.jsx";
+import { primaryBtnStyle, secondaryBtnStyle, metaStyle } from "../ui/styles.js";
 
 // Routines and Techniques are both a foldered library of named, tagged text
 // items — no dates. Both tabs are thin wrappers around this.
@@ -72,11 +70,7 @@ export default function FolderLibraryTab({
   // The new/edit form: null when closed, else { item } to edit or
   // { defaults } to create (see FolderItemEditor).
   const [composer, setComposer] = useState(null);
-  const [newFolderName, setNewFolderName] = useState("");
   const [addingFolder, setAddingFolder] = useState(false);
-  const [folderError, setFolderError] = useState("");
-  const [renamingFolderId, setRenamingFolderId] = useState(null);
-  const [renameDraft, setRenameDraft] = useState("");
 
   const isFiltering = search.trim() !== "" || activeTags.length > 0;
 
@@ -92,10 +86,7 @@ export default function FolderLibraryTab({
   // order below them.
   const byStarThenName = (a, b) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0) || a.name.localeCompare(b.name);
 
-  const subfolders = useMemo(
-    () => folders.filter((f) => (f.parentId || null) === currentFolderId).sort((a, b) => a.name.localeCompare(b.name)),
-    [folders, currentFolderId]
-  );
+  const hasSubfolders = folders.some((f) => (f.parentId || null) === currentFolderId);
 
   const itemsInFolder = useMemo(
     () => visibleItems.filter((r) => (r.folderId || null) === currentFolderId).sort(byStarThenName),
@@ -118,47 +109,9 @@ export default function FolderLibraryTab({
       .sort(byStarThenName);
   }, [visibleItems, search, searchMatchMode, folders, exerciseNameById, activeTags, tagMatchMode]);
 
-  const breadcrumb = folderPath(folders, currentFolderId);
-
-  const folderCounts = (folderId) => {
-    const subCount = folders.filter((f) => (f.parentId || null) === folderId).length;
-    const itemCount = visibleItems.filter((r) => (r.folderId || null) === folderId).length;
-    return { subCount, itemCount };
-  };
+  const countItems = (folderId) => visibleItems.filter((r) => (r.folderId || null) === folderId).length;
 
   const toggleTagFilter = (t) => setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
-
-  const createFolder = () => {
-    const name = newFolderName.trim();
-    if (!name) return;
-    setFolders((prev) => [...prev, newRecord({ name, parentId: currentFolderId })]);
-    setNewFolderName("");
-    setAddingFolder(false);
-  };
-
-  const startRename = (folder) => {
-    setRenamingFolderId(folder.id);
-    setRenameDraft(folder.name);
-  };
-
-  const commitRename = () => {
-    const name = renameDraft.trim();
-    if (name) {
-      setFolders((prev) => editById(prev, renamingFolderId, { name }));
-    }
-    setRenamingFolderId(null);
-  };
-
-  const deleteFolder = (folder) => {
-    const { subCount, itemCount } = folderCounts(folder.id);
-    if (subCount > 0 || itemCount > 0) {
-      setFolderError(`"${folder.name}" isn't empty. Move or delete what's inside it first.`);
-      setTimeout(() => setFolderError(""), 3500);
-      return;
-    }
-    if (!window.confirm(`Delete the folder "${folder.name}"? This can't be undone.`)) return;
-    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
-  };
 
   const openNewComposer = () =>
     // Picking and couldn't find it: start the new item from the search.
@@ -231,13 +184,6 @@ export default function FolderLibraryTab({
       </PageHeader>
 
       <PageBody>
-        {folderError && (
-          <div role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", color: "var(--danger)", background: "var(--danger-dim)", borderRadius: 10, padding: "10px 12px", fontSize: 13 }}>
-            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-            {folderError}
-          </div>
-        )}
-
         {isFiltering ? (
           <>
             <div style={{ ...metaStyle, padding: "0 2px" }}>
@@ -301,62 +247,24 @@ export default function FolderLibraryTab({
           </EmptyState>
         ) : (
           <>
-            <Breadcrumb path={breadcrumb} onNavigate={setCurrentFolderId} rootLabel={`All ${itemNoun}s`} />
-
-            {(subfolders.length > 0 || addingFolder) && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {subfolders.map((f) => {
-                  const { subCount, itemCount } = folderCounts(f.id);
-                  const isRenaming = renamingFolderId === f.id;
-                  return (
-                    <FolderRow
-                      key={f.id}
-                      folder={f}
-                      subCount={subCount}
-                      itemCount={itemCount}
-                      itemNoun={itemNoun}
-                      accent={accent}
-                      isRenaming={isRenaming}
-                      renameDraft={renameDraft}
-                      setRenameDraft={setRenameDraft}
-                      onOpen={() => setCurrentFolderId(f.id)}
-                      onStartRename={() => startRename(f)}
-                      onCommitRename={commitRename}
-                      onDelete={pick ? undefined : () => deleteFolder(f)}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            {addingFolder ? (
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  autoFocus
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createFolder()}
-                  placeholder="Folder name"
-                  aria-label="New folder name"
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-                <button onClick={createFolder} style={{ ...primaryBtnStyle, background: `var(${accent})`, minHeight: 44 }}>
-                  Add
-                </button>
-                <IconBtn onClick={() => setAddingFolder(false)} label="Cancel">
-                  <X size={16} />
-                </IconBtn>
-              </div>
-            ) : (
-              <button onClick={() => setAddingFolder(true)} style={{ ...ghostLinkStyle, color: "var(--text-dim)", alignSelf: "flex-start", padding: "2px 2px" }}>
-                <FolderPlus size={15} /> New folder here
-              </button>
-            )}
+            <FolderBrowser
+              folders={folders}
+              setFolders={setFolders}
+              currentFolderId={currentFolderId}
+              onNavigate={setCurrentFolderId}
+              items={items}
+              countItems={countItems}
+              itemNoun={itemNoun}
+              accent={accent}
+              addingFolder={addingFolder}
+              setAddingFolder={setAddingFolder}
+              canDelete={!pick}
+            />
 
             {itemsInFolder.length === 0 ? (
               // At the top level, folders are the point; only say so when
               // there's nothing else here.
-              (currentFolderId !== null || subfolders.length === 0) && <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
+              (currentFolderId !== null || !hasSubfolders) && <div style={{ textAlign: "center", color: "var(--text-dim)", padding: "24px 10px", fontSize: 13 }}>
                 No {itemNoun}s directly in this folder.
                 {giMode === "no-gi" && hiddenGiOnlyCount > 0 && (
                   <div style={{ marginTop: 6 }}>

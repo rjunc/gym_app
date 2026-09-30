@@ -17,9 +17,10 @@ export function normalizeTags(raw) {
 
 // Unified CSV: one file, one 'type' column distinguishing session/journal/routine/
 // roll/technique/exercise rows. Routine folder paths resolve against `folders`
-// (lifting); technique folder paths resolve against `jitsFolders`.
+// (lifting), technique folder paths against `jitsFolders` and exercise folder
+// paths against `exerciseFolders`.
 
-export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = [], exercises = []) {
+export function combinedToCSV(sessions, routines, journals, folders, rolls = [], techniques = [], jitsFolders = [], exercises = [], exerciseFolders = []) {
   // Resolves a session/journal/routine's exerciseIds to a readable ";"-joined name
   // list for the CSV. This column is for humans reading the export — import
   // doesn't reconstruct exerciseIds from it (that would mean matching names
@@ -110,7 +111,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     e.id,
     "",
     e.name,
-    "",
+    folderPath(exerciseFolders, e.folderId).map((f) => f.name).join("/"),
     (e.tags || []).join(";"),
     e.text || "",
     "",
@@ -149,7 +150,7 @@ export function combinedToCSV(sessions, routines, journals, folders, rolls = [],
     .join("\r\n");
 }
 
-export function combinedFromCSV(text, existingFolders, existingJitsFolders = []) {
+export function combinedFromCSV(text, existingFolders, existingJitsFolders = [], existingExerciseFolders = []) {
   const rows = parseCSV(text);
   if (rows.length === 0) {
     return {
@@ -161,6 +162,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
       techniques: [],
       jitsFolders: existingJitsFolders,
       exercises: [],
+      exerciseFolders: existingExerciseFolders,
     };
   }
   const header = rows[0].map((h) => h.trim().toLowerCase());
@@ -183,6 +185,7 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
 
   let foldersAcc = existingFolders;
   let jitsFoldersAcc = existingJitsFolders;
+  let exerciseFoldersAcc = existingExerciseFolders;
   const sessions = [];
   const routines = [];
   const journals = [];
@@ -201,10 +204,13 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
       updatedAt: updatedIdx >= 0 ? r[updatedIdx] : "",
     });
     if (type === "exercise") {
+      const { id: folderId, folders: nextFolders } = resolveFolderPath(exerciseFoldersAcc, pathIdx >= 0 ? r[pathIdx] : "");
+      exerciseFoldersAcc = nextFolders;
       exercises.push({
         ...stamps,
         id,
         name: nameIdx >= 0 && r[nameIdx] ? r[nameIdx] : "Untitled exercise",
+        folderId,
         tags,
         text,
         prescription: prescriptionIdx >= 0 ? r[prescriptionIdx] || "" : "",
@@ -239,5 +245,5 @@ export function combinedFromCSV(text, existingFolders, existingJitsFolders = [])
     }
   });
 
-  return { sessions, routines, journals, folders: foldersAcc, rolls, techniques, jitsFolders: jitsFoldersAcc, exercises };
+  return { sessions, routines, journals, folders: foldersAcc, rolls, techniques, jitsFolders: jitsFoldersAcc, exercises, exerciseFolders: exerciseFoldersAcc };
 }

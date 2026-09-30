@@ -92,7 +92,8 @@ export function folderItemSearchFields(item, folders, exerciseNameById) {
   ];
 }
 
-// Library exercises.
-export function exerciseSearchFields(exercise) {
-  return [exercise.name, exercise.text, exercise.tags || [], exercise.prescription];
+// Library exercises: like a routine, the exercise's folder and every folder
+// above it (in `folders`, the exercise folders) are searchable.
+export function exerciseSearchFields(exercise, folders = []) {
+  return [exercise.name, exercise.text, exercise.tags || [], exercise.prescription, folderPath(folders, exercise.folderId).map((f) => f.name)];
 }

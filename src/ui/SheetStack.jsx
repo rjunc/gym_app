@@ -43,7 +43,7 @@ const ENTRY_TYPE_GROUPS = {
 // the form's place.
 export default function SheetStack({ stack, setStack }) {
   const log = useLog();
-  const { sessions, journals, rolls, routines, setRoutines, folders, exercises, setExercises, exerciseUsage, routineUsage, techniques = [], setTechniques, jitsFolders = [] } = log;
+  const { sessions, journals, rolls, routines, setRoutines, folders, exercises, setExercises, exerciseFolders = [], exerciseUsage, routineUsage, techniques = [], setTechniques, jitsFolders = [] } = log;
   const entryLogs = { sessions, journals, rolls };
   const entrySetters = { sessions: log.setSessions, journals: log.setJournals, rolls: log.setRolls };
 
@@ -137,6 +137,7 @@ export default function SheetStack({ stack, setStack }) {
         return (
           <ExerciseHistorySheet
             exercise={record}
+            pathLabel={folderPath(exerciseFolders, record.folderId).map((f) => f.name).join(" / ")}
             accent={LIBRARY_ACCENT}
             sessions={entriesByExercise(sessions).get(record.id) || []}
             journals={entriesByExercise(journals).get(record.id) || []}
@@ -217,7 +218,7 @@ export default function SheetStack({ stack, setStack }) {
         );
       }
       case "editExercise":
-        return <ExerciseEditor exercise={record} exercises={exercises} setExercises={setExercises} onClose={back} />;
+        return <ExerciseEditor exercise={record} exercises={exercises} setExercises={setExercises} folders={exerciseFolders} onClose={back} />;
       case "editEntry":
       case "redoEntry": {
         const group = ENTRY_TYPE_GROUPS[level.source];

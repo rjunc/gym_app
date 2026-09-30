@@ -9,9 +9,9 @@ import { labelStyle, chipRowStyle } from "../ui/styles.js";
 // routines that include it, then every session and journal entry that links
 // it as one newest-first timeline, with the sets logged for this exercise
 // each time. `routines` arrive as { id, label } with the folder path already
-// in the label (see routineOptions).
+// in the label (see routineOptions). `pathLabel` is the exercise's folder path.
 // Its routines are links to their own sheets (see SheetStack).
-export default function ExerciseHistorySheet({ exercise, accent, sessions, journals, routines, onEdit, onDelete, onBack, onClose }) {
+export default function ExerciseHistorySheet({ exercise, pathLabel, accent, sessions, journals, routines, onEdit, onDelete, onBack, onClose }) {
   return (
     <HistorySheet
       sessions={sessions}
@@ -41,7 +41,7 @@ export default function ExerciseHistorySheet({ exercise, accent, sessions, journ
       eyebrow="Exercise"
       accent={accent}
       title={exercise.name}
-      meta={exercise.prescription}
+      meta={[pathLabel, exercise.prescription].filter(Boolean).join(" · ")}
       header={
         exercise.tags &&
         exercise.tags.length > 0 && (

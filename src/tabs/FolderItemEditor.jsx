@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
 import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
-import { folderPath } from "../lib/folders.js";
 import { cleanFields } from "../lib/text.js";
 import { collectPositions } from "../lib/positions.js";
 import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
 import { toDraftBlocks, fromDraftBlocks, blockExerciseIds } from "../lib/sets.js";
 import { tidyGroups } from "../lib/groups.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
+import { folderOptions as folderOptionsOf } from "./FolderBrowser.jsx";
 
 // The new/edit form for a routine or technique, on its own so it opens the
 // same from its library page and from anywhere a routine sheet was reached by
@@ -50,17 +50,7 @@ export default function FolderItemEditor({ item, defaults = {}, items, setItems,
   const tagSuggestions = useMemo(() => tagUsage(items, todayISO()), [items]);
   const positionOptions = useMemo(() => (showPositions ? collectPositions(items) : []), [items, showPositions]);
 
-  const folderOptions = useMemo(() => {
-    const opts = [{ id: null, label: "No folder (top level)" }];
-    folders
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .forEach((f) => {
-        const path = folderPath(folders, f.id).map((p) => p.name).join(" / ");
-        opts.push({ id: f.id, label: path });
-      });
-    return opts;
-  }, [folders]);
+  const folderOptions = useMemo(() => folderOptionsOf(folders), [folders]);
 
   const save = () => {
     const { blocks: draftBlocks, groups: draftGroups, ...rest } = form;

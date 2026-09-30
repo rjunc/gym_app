@@ -64,7 +64,8 @@ from `BottomSheet` + `SheetHeader`, and empty lists from `EmptyState`.
 Every record is its own Firestore document, grouped by kind:
 `users/{uid}/sessions/{id}`, `.../journals/{id}`, `.../rolls/{id}`,
 `.../routines/{id}`, `.../folders/{id}`, `.../techniques/{id}`,
-`.../jitsFolders/{id}` and `.../exercises/{id}`. The document id is the
+`.../jitsFolders/{id}`, `.../exercises/{id}` and `.../exerciseFolders/{id}`
+(routines, techniques and exercises each have their own folder tree). The document id is the
 record's id and the document is the whole record, so what's stored is
 exactly what the app works with (see `src/lib/firestoreLog.js`).
 
@@ -197,7 +198,7 @@ footprint.
   - **How the button decides (2026-09-28).** `toggleDemoData` in
     `src/App.jsx`. It reads "Remove test data" when any record in any
     collection (sessions, routines, folders, journals, rolls, techniques,
-    jitsFolders, exercises) has an id starting with `demo-`, and "Add test
+    jitsFolders, exercises, exerciseFolders) has an id starting with `demo-`, and "Add test
     data" when none do. It's recomputed on every render, so it flips by
     itself. Add generates ~9 months ending today with fresh `demo-` ids and
     merges them in (nothing replaced); Remove deletes every `demo-` record

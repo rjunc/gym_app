@@ -8,6 +8,10 @@ import { parseCSV } from "../../src/lib/csv.js";
 
 const folders = [{ id: "f1", name: "Push day", parentId: null }];
 const jitsFolders = [{ id: "jf1", name: "Closed guard", parentId: null }];
+const exerciseFolders = [
+  { id: "ef1", name: "Strength", parentId: null },
+  { id: "ef2", name: "Legs", parentId: "ef1" },
+];
 
 // Some records carry createdAt/updatedAt and some don't (a hand-made or
 // trimmed import file may leave them out), so the round trips below cover both.
@@ -16,8 +20,8 @@ const journals = [{ id: "j1", date: "2026-09-02", title: "", tags: [], text: "Fe
 const rolls = [{ id: "ro1", date: "2026-09-03", title: "Gi class", tags: ["gi"], text: "Rolled 5 rounds" }];
 const routines = [{ id: "r1", name: "Push A", folderId: "f1", tags: ["push"], text: "Bench, OHP", createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" }];
 const exercises = [
-  { id: "e1", name: "Goblet squat", tags: ["strength", "legs"], text: "Hold at chest, sit between heels", prescription: "3x10", measure: "weight_reps", active: true, createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" },
-  { id: "e2", name: "Retired stretch", tags: ["mobility"], text: "", prescription: "", measure: "time", active: false },
+  { id: "e1", name: "Goblet squat", folderId: "ef2", tags: ["strength", "legs"], text: "Hold at chest, sit between heels", prescription: "3x10", measure: "weight_reps", active: true, createdAt: "2026-09-01T18:30:00.000Z", updatedAt: "2026-09-02T07:15:00.000Z" },
+  { id: "e2", name: "Retired stretch", folderId: null, tags: ["mobility"], text: "", prescription: "", measure: "time", active: false },
 ];
 const techniques = [
   {
@@ -48,8 +52,8 @@ const techniques = [
 /* ============================== CSV round trip ============================== */
 
 test("combinedToCSV -> combinedFromCSV round trip preserves every field, every type", () => {
-  const csv = combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders, exercises);
-  const result = combinedFromCSV(csv, folders, jitsFolders);
+  const csv = combinedToCSV(sessions, routines, journals, folders, rolls, techniques, jitsFolders, exercises, exerciseFolders);
+  const result = combinedFromCSV(csv, folders, jitsFolders, exerciseFolders);
 
   assert.deepEqual(result.sessions, sessions);
   assert.deepEqual(result.journals, journals);
@@ -59,6 +63,18 @@ test("combinedToCSV -> combinedFromCSV round trip preserves every field, every t
   assert.deepEqual(result.folders, folders);
   assert.deepEqual(result.jitsFolders, jitsFolders);
   assert.deepEqual(result.exercises, exercises);
+  assert.deepEqual(result.exerciseFolders, exerciseFolders);
+});
+
+test("CSV import files exercises by folder path, creating missing exercise folders", () => {
+  const csv = combinedToCSV([], [], [], [], [], [], [], exercises, exerciseFolders);
+  const result = combinedFromCSV(csv, [], [], []);
+  const strength = result.exerciseFolders.find((f) => f.name === "Strength" && f.parentId === null);
+  const legs = result.exerciseFolders.find((f) => f.name === "Legs" && f.parentId === strength.id);
+  assert.equal(result.exercises.find((e) => e.id === "e1").folderId, legs.id);
+  assert.equal(result.exercises.find((e) => e.id === "e2").folderId, null);
+  // Exercise folders stay their own tree, apart from routine folders.
+  assert.deepEqual(result.folders, []);
 });
 
 test("CSV export includes exercise names as a readable column, but import doesn't reconstruct exerciseIds", () => {
@@ -250,7 +266,7 @@ test("rows missing an id get a freshly generated, unique one", () => {
 });
 
 test("an empty CSV file returns empty collections and leaves existing folders untouched", () => {
-  const result = combinedFromCSV("", folders, jitsFolders);
+  const result = combinedFromCSV("", folders, jitsFolders, exerciseFolders);
   assert.deepEqual(result, {
     sessions: [],
     routines: [],
@@ -260,14 +276,15 @@ test("an empty CSV file returns empty collections and leaves existing folders un
     techniques: [],
     jitsFolders,
     exercises: [],
+    exerciseFolders,
   });
 });
 
 /* ============================== JSON round trip (parseImportFile) ============================== */
 
 test("parseImportFile: JSON round trip preserves every field, every type", () => {
-  const json = JSON.stringify({ sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises });
-  const result = parseImportFile("export.json", json, folders, jitsFolders);
+  const json = JSON.stringify({ sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises, exerciseFolders });
+  const result = parseImportFile("export.json", json, folders, jitsFolders, []);
 
   assert.deepEqual(result.sessions, sessions);
   assert.deepEqual(result.journals, journals);
@@ -275,12 +292,13 @@ test("parseImportFile: JSON round trip preserves every field, every type", () =>
   assert.deepEqual(result.routines, routines);
   assert.deepEqual(result.techniques, techniques);
   assert.deepEqual(result.exercises, exercises);
+  assert.deepEqual(result.exerciseFolders, exerciseFolders);
 });
 
 test("parseImportFile: exercise defaults are applied (untitled name, active true, blank prescription)", () => {
   const json = JSON.stringify({ exercises: [{ id: "e1", tags: [] }] });
   const result = parseImportFile("export.json", json, [], []);
-  assert.deepEqual(result.exercises[0], { id: "e1", name: "Untitled exercise", tags: [], text: "", prescription: "", active: true });
+  assert.deepEqual(result.exercises[0], { id: "e1", name: "Untitled exercise", folderId: null, tags: [], text: "", prescription: "", active: true });
 });
 
 test("parseImportFile: exercise active:false survives, and an exercise-only JSON is recognized", () => {

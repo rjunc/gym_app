@@ -73,7 +73,7 @@ export function normalizeFolderItems(arr, defaultName, { techniqueExtras = false
     : [];
 }
 
-// Library exercises: id/name/tags/text like a routine, plus an optional
+// Library exercises: id/name/folderId/tags/text like a routine, plus an optional
 // prescription string, the measure older exercises carry (kept only if it's
 // one of the known kinds; see measureOf) and an active flag (defaulting true, since most
 // imported/older data predates the flag and should count as usable).
@@ -82,6 +82,7 @@ export function normalizeExercises(arr) {
     ? arr.map((e) => ({
         id: e.id || uid(),
         name: e.name || "Untitled exercise",
+        folderId: e.folderId || null,
         tags: normalizeTags(e.tags),
         text: e.text || "",
         prescription: e.prescription || "",
