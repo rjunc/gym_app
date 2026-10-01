@@ -25,11 +25,13 @@ const windowDays = (goal) => (GOAL_PERIODS[goal.period] || GOAL_PERIODS.week).da
 const RISK_DAYS = { week: 1, month: 4 };
 
 // What each status is called, its colour, and how urgent it is (for sorting
-// the worst first).
+// the worst first). `solid` statuses get a filled pill, so Behind stands out
+// from Overdue.
 export const GOAL_STATUSES = {
-  off: { label: "Off track", accent: "--danger", rank: 0 },
-  risk: { label: "At risk", accent: "--accent", rank: 1 },
-  on: { label: "On track", accent: "--accent2", rank: 2 },
+  behind: { label: "Behind", accent: "--danger", rank: 0, solid: true },
+  overdue: { label: "Overdue", accent: "--danger", rank: 1 },
+  risk: { label: "At risk", accent: "--accent", rank: 2 },
+  on: { label: "On track", accent: "--accent2", rank: 3 },
 };
 
 const dateOf = (iso) => new Date(`${iso}T00:00:00`);
@@ -149,25 +151,59 @@ export function goalMatches(goal, sessions = [], exerciseById = new Map()) {
 // on the same day.
 export const matchesIn = (matches, { start, end }) => matches.filter((m) => m.entry.date >= start && m.entry.date <= end);
 
-// Where a goal stands today: { status, count, target, needed, due, window }.
-// `count` is the sessions in the window ending today. When that meets the
-// target, `due` is the last day the next session can come before the window
-// falls short (the day the session that's keeping it met slides out).
-//   on    met, and not due soon
-//   risk  met, but due within RISK_DAYS (tomorrow, for a weekly goal)
-//   off   not met: fewer sessions in the window than the target (`needed`
-//         more to get back on track)
+// Whether the window ending on `day` holds the target. `dates` are the
+// matches' dates, sorted.
+function metOn(goal, dates, day, target) {
+  const { start } = windowEnding(goal, day);
+  let n = 0;
+  for (const d of dates) if (d >= start && d <= day) n += 1;
+  return n >= target;
+}
+
+// Where a goal stands today: { status, count, target, needed, due,
+// overdueDays, lastMet, window }. `count` is the sessions in the window
+// ending today and `needed` how many more it takes to meet the target. A
+// session on the `due` day still counts, so the goal only slips the day
+// after.
+//   on       met, and the next session isn't due soon (`due` is the last day
+//            it can come)
+//   risk     met, but due within RISK_DAYS (tomorrow, for a weekly goal), or
+//            due today: it was met yesterday, and a session today keeps it
+//   overdue  short, for up to one window (7 or 30 days) since it was due;
+//            `overdueDays` says how long. A goal that has never been met is
+//            overdue for its first window after it was created
+//   behind   short for a whole window or longer, or never met in all that
+//            time. `lastMet` is the last day it was met (null if never)
 export function goalStatus(goal, matches, today) {
   const target = Math.max(1, goal.target || 1);
+  const days = windowDays(goal);
   const window = windowEnding(goal, today);
-  const dates = matchesIn(matches, window)
-    .map((m) => m.entry.date)
-    .sort();
-  const count = dates.length;
-  if (count < target) return { status: "off", count, target, needed: target - count, due: null, window };
-  const due = shiftISODate(dates[count - target], windowDays(goal));
-  const status = daysBetween(today, due) <= (RISK_DAYS[goal.period] ?? 1) ? "risk" : "on";
-  return { status, count, target, needed: 0, due, window };
+  const dates = matches.map((m) => m.entry.date).filter((d) => d <= today).sort();
+  const inWindow = dates.filter((d) => d >= window.start);
+  const count = inWindow.length;
+  const base = { count, target, needed: Math.max(0, target - count), window, due: null, overdueDays: 0, lastMet: null };
+
+  if (count >= target) {
+    const due = shiftISODate(inWindow[count - target], days);
+    return { ...base, status: daysBetween(today, due) <= (RISK_DAYS[goal.period] ?? 1) ? "risk" : "on", due };
+  }
+
+  // Short today: step back to the last day the window was met. Nothing before
+  // the first matching session can have been.
+  let lastMet = null;
+  for (let day = shiftISODate(today, -1); dates.length > 0 && day >= dates[0]; day = shiftISODate(day, -1)) {
+    if (metOn(goal, dates, day, target)) {
+      lastMet = day;
+      break;
+    }
+  }
+  if (lastMet === shiftISODate(today, -1)) return { ...base, status: "risk", due: today, lastMet };
+  if (lastMet) {
+    const overdueDays = daysBetween(shiftISODate(lastMet, 1), today); // since the day it was due
+    return { ...base, status: overdueDays >= days ? "behind" : "overdue", overdueDays, lastMet };
+  }
+  const created = (goal.createdAt || "").slice(0, 10) || today;
+  return { ...base, status: daysBetween(created, today) >= days ? "behind" : "overdue" };
 }
 
 // The last `n` windows back to back, ending today, oldest first, each as
@@ -182,13 +218,26 @@ export function recentWindows(goal, matches, today, n = 8) {
   });
 }
 
-// "3 in the last 7 days · next by Sat, Oct 3", "1 of 2 in the last 7 days ·
-// 1 more needed".
-export function progressText(goal, { status, count, target, needed, due }, today) {
+// "3 days", "2 weeks", "3 months": how long a goal has been short.
+function howLong(days) {
+  if (days < 14) return `${days} ${days === 1 ? "day" : "days"}`;
+  if (days < 60) return `${Math.floor(days / 7)} weeks`;
+  return `${Math.floor(days / 30)} months`;
+}
+
+// One line on where a goal stands:
+//   on/risk   "3 in the last 7 days · next by Sat, Oct 3" (or "tomorrow")
+//   risk      "1 of 2 in the last 7 days · 1 more due today"
+//   overdue   "Overdue 2 days · 1 more needed"
+//   behind    "Behind 3 weeks · last met Sep 3", "Never met · 2 more needed"
+export function progressText(goal, { status, count, target, needed, due, overdueDays, lastMet }, today) {
   const span = `in the last ${windowDays(goal)} days`;
-  if (status === "off") return `${count} of ${target} ${span} · ${needed} more needed`;
-  const days = daysBetween(today, due);
-  const when = days === 1 ? "tomorrow" : dateOf(due).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const longDate = (iso) => dateOf(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const more = `${needed} more needed`;
+  if (status === "behind") return lastMet ? `Behind ${howLong(overdueDays)} · last met ${shortDate(lastMet)}` : `Never met · ${more}`;
+  if (status === "overdue") return lastMet ? `Overdue ${howLong(overdueDays)} · ${more}` : `${count} of ${target} ${span} · ${more}`;
+  if (due === today) return `${count} of ${target} ${span} · ${needed} more due today`;
+  const when = daysBetween(today, due) === 1 ? "tomorrow" : longDate(due);
   return `${count} ${span} · next by ${when}`;
 }
 

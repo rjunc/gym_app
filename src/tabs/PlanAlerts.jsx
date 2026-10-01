@@ -7,8 +7,8 @@ import { goalSummaries, goalLabel, progressText, isActive, GOAL_STATUSES } from 
 import { StatusPill } from "./GoalParts.jsx";
 import { cardStyle, ghostLinkStyle, eyebrowStyle, metaStyle } from "../ui/styles.js";
 
-// Home's word on the Plan: the goals that are off track or at risk (worst
-// first), each opening its summary, or a single line saying everything's on
+// Home's word on the Plan: the goals that are behind, overdue or at risk
+// (worst first), each opening its summary, or a single line saying everything's on
 // track. Only active goals count; nothing at all until there's one. `onOpenPlan` goes to the page.
 export default function PlanAlerts({ goals, sessions, exercises, onOpenPlan }) {
   const sheets = useSheets();
@@ -19,7 +19,7 @@ export default function PlanAlerts({ goals, sessions, exercises, onOpenPlan }) {
   if (summaries.length === 0) return null;
 
   const slipping = summaries
-    .filter(({ state }) => state.status === "off" || state.status === "risk")
+    .filter(({ state }) => state.status !== "on")
     .sort((a, b) => GOAL_STATUSES[a.state.status].rank - GOAL_STATUSES[b.state.status].rank);
   const worst = slipping[0]?.state.status;
   const accent = worst ? GOAL_STATUSES[worst].accent : "--accent2";

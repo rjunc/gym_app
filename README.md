@@ -144,11 +144,13 @@ listed last on the Plan page, greyed out, and Home never warns about it.
 Progress is the number of sessions (two on one day
 count twice) in a rolling window ending today: the last 7 days for a week,
 the last 30 for a month, so last Friday's session still counts on Thursday.
-Status: **Off track** (fewer sessions in the window than the target), **At
-risk** (met, but the next session is due tomorrow for a weekly goal, within
-4 days for a monthly one, before the session keeping it met slides out of the
-window), otherwise **On track**. Home shows a card listing the goals that are
-off track or at risk. See `src/lib/goals.js`.
+Status: **On track** (met, next session not due soon), **At risk** (met
+but due tomorrow for a weekly goal or within 4 days for a monthly one, or
+due today: a session today still keeps it), **Overdue** (short, for up to
+one window since it was due, e.g. "Overdue 3 days"), **Behind** (short for a
+whole window or longer, e.g. "Behind 3 weeks · last met Sep 7"; a goal never
+met counts as Overdue in its first window, then Behind). Home shows a card
+listing every goal that isn't on track, worst first. See `src/lib/goals.js`.
 
 CSV/JSON export and import live in the sidebar. JSON keeps blocks exactly.
 CSV lists them in order in a `sets` column for reading only, like exercise

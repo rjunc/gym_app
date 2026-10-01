@@ -28,7 +28,7 @@ export default function PlanTab({ goals, sessions, exercises }) {
   const inactive = summaries.filter(({ goal }) => !isActive(goal));
   const counts = {};
   active.forEach(({ state }) => (counts[state.status] = (counts[state.status] || 0) + 1));
-  const overview = ["off", "risk", "on"]
+  const overview = ["behind", "overdue", "risk", "on"]
     .filter((s) => counts[s])
     .map((s) => `${counts[s]} ${GOAL_STATUSES[s].label.toLowerCase()}`)
     .join(" · ");

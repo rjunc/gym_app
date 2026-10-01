@@ -92,7 +92,10 @@ test("goalStatus: the window rolls — last Friday still counts on Thursday", ()
   assert.equal(s.count, 1);
   assert.equal(s.due, "2026-10-02"); // it slides out on Friday
   assert.equal(s.status, "risk"); // due tomorrow
-  assert.equal(goalStatus(onceAWeek, at("2026-09-24"), "2026-10-01").status, "off"); // slid out today
+  // It slid out today, but a session today still keeps it: due today.
+  const dueToday = goalStatus(onceAWeek, at("2026-09-24"), "2026-10-01");
+  assert.equal(dueToday.status, "risk");
+  assert.equal(dueToday.due, "2026-10-01");
 });
 
 test("goalStatus: on track when met and not due soon", () => {
@@ -107,17 +110,40 @@ test("goalStatus: extra sessions push the due date back", () => {
   assert.equal(s.due, "2026-10-04");
 });
 
-test("goalStatus: off track, with how many more are needed", () => {
-  const s = goalStatus(twiceAWeek, at("2026-09-30"), "2026-10-01");
-  assert.equal(s.status, "off");
+test("goalStatus: overdue for up to one window since it was due", () => {
+  // Met through Sep 26 by the Sep 20 session, due Sep 27, so 4 days overdue.
+  const s = goalStatus(onceAWeek, at("2026-09-20"), "2026-10-01");
+  assert.equal(s.status, "overdue");
+  assert.equal(s.overdueDays, 4);
+  assert.equal(s.lastMet, "2026-09-26");
   assert.equal(s.needed, 1);
+});
+
+test("goalStatus: behind once it's been short a whole window or more", () => {
+  // Due Sep 24: exactly a week overdue.
+  assert.equal(goalStatus(onceAWeek, at("2026-09-17"), "2026-10-01").status, "behind");
+  assert.equal(goalStatus(onceAWeek, at("2026-09-18"), "2026-10-01").status, "overdue");
+  const s = goalStatus(onceAWeek, at("2026-09-01"), "2026-10-01");
+  assert.equal(s.status, "behind");
+  assert.equal(s.overdueDays, 23);
+  assert.equal(s.lastMet, "2026-09-07");
+});
+
+test("goalStatus: never met is overdue in its first window, then behind", () => {
+  const fresh = { ...twiceAWeek, createdAt: "2026-09-28T10:00:00.000Z" };
+  const old = { ...twiceAWeek, createdAt: "2026-09-01T10:00:00.000Z" };
+  assert.equal(goalStatus(fresh, at("2026-09-30"), "2026-10-01").status, "overdue");
+  assert.equal(goalStatus(old, at("2026-09-30"), "2026-10-01").status, "behind");
+  assert.equal(goalStatus(old, at("2026-09-30"), "2026-10-01").lastMet, null);
 });
 
 test("goalStatus: a monthly goal turns at risk 4 days before it's due", () => {
   const monthly = { target: 1, period: "month" };
   assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-01").status, "on"); // due Oct 10
   assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-06").status, "risk");
-  assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-10").status, "off");
+  assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-10").status, "risk"); // due today
+  assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-11").status, "overdue");
+  assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-11-09").status, "behind"); // 30 days
 });
 
 test("recentWindows: back-to-back windows ending today, oldest first", () => {
@@ -129,9 +155,15 @@ test("recentWindows: back-to-back windows ending today, oldest first", () => {
   ]);
 });
 
-test("progressText says what's next", () => {
-  assert.equal(progressText(onceAWeek, goalStatus(onceAWeek, at("2026-09-25"), "2026-10-01"), "2026-10-01"), "1 in the last 7 days · next by tomorrow");
-  assert.equal(progressText(twiceAWeek, goalStatus(twiceAWeek, at("2026-09-30"), "2026-10-01"), "2026-10-01"), "1 of 2 in the last 7 days · 1 more needed");
+test("progressText says what's next, or how far behind", () => {
+  const text = (goal, dates, today = "2026-10-01") => progressText(goal, goalStatus(goal, at(...dates), today), today);
+  assert.equal(text(onceAWeek, ["2026-09-25"]), "1 in the last 7 days · next by tomorrow");
+  assert.equal(text(onceAWeek, ["2026-09-24"]), "0 of 1 in the last 7 days · 1 more due today");
+  assert.equal(text(onceAWeek, ["2026-09-20"]), "Overdue 4 days · 1 more needed");
+  assert.equal(text(onceAWeek, ["2026-09-01"]), "Behind 3 weeks · last met Sep 7");
+  assert.equal(text(onceAWeek, ["2026-06-01"]), "Behind 3 months · last met Jun 7");
+  assert.equal(text({ ...twiceAWeek, createdAt: "2026-09-28" }, ["2026-09-30"]), "1 of 2 in the last 7 days · 1 more needed");
+  assert.equal(text({ ...twiceAWeek, createdAt: "2026-09-01" }, ["2026-09-30"]), "Never met · 1 more needed");
 });
 
 test("goalLabel and frequencyLabel spell out the goal", () => {
