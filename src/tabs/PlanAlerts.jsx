@@ -10,12 +10,12 @@ import { cardStyle, ghostLinkStyle, eyebrowStyle, metaStyle } from "../ui/styles
 // Home's word on the Plan: the goals that are off track or at risk (worst
 // first), each opening its summary, or a single line saying everything's on
 // track. Nothing at all until there's a goal. `onOpenPlan` goes to the page.
-export default function PlanAlerts({ goals, sessions, rolls, exercises, onOpenPlan }) {
+export default function PlanAlerts({ goals, sessions, exercises, onOpenPlan }) {
   const sheets = useSheets();
   const today = todayISO();
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
-  const summaries = useMemo(() => goalSummaries(goals, { sessions, rolls }, exerciseById, today), [goals, sessions, rolls, exerciseById, today]);
+  const summaries = useMemo(() => goalSummaries(goals, sessions, exerciseById, today), [goals, sessions, exerciseById, today]);
   if (summaries.length === 0) return null;
 
   const slipping = summaries
@@ -54,7 +54,7 @@ export default function PlanAlerts({ goals, sessions, rolls, exercises, onOpenPl
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goalLabel(goal, exerciseNameById)}</div>
-                <div style={metaStyle}>{progressText(goal, state)}</div>
+                <div style={metaStyle}>{progressText(goal, state, today)}</div>
               </div>
               <StatusPill status={state.status} />
             </button>

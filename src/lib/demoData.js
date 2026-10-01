@@ -178,7 +178,7 @@ const ROUND_NOTES = ["good pace", "went light", "stuck in bottom side", "long sc
 const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "caught"];
 
 // Plan goals: tags (all or any of them) and/or exercises by name, how many
-// days, and per week or month (see lib/goals.js). Plyometrics only comes up
+// sessions, and per rolling week or month (see lib/goals.js). Plyometrics only comes up
 // when Box jump is the odd extra exercise, so it's usually off track.
 const GOALS = [
   { tags: ["plyometrics"], target: 2, period: "week" },
@@ -187,7 +187,7 @@ const GOALS = [
   { tags: ["mobility"], target: 1, period: "week" },
   { name: "Grip work", exercises: ["Farmer carry", "Dead hang"], target: 1, period: "week" },
   { tags: ["push", "pull"], tagMatch: "any", exercises: ["Deadlift"], target: 3, period: "week" },
-  { tags: ["fundamentals"], target: 2, period: "month" },
+  { tags: ["strength", "push"], target: 4, period: "month" },
   { exercises: ["Sled push"], target: 3, period: "month" },
 ];
 

@@ -15,12 +15,12 @@ import { labelStyle, metaStyle, primaryBtnStyle, secondaryBtnStyle } from "../ui
 export const GOAL_ACCENT = "--accent2";
 
 // The new/edit form for a Plan goal: what counts (tags, all or any of them,
-// and/or Library exercises) and how often (a number of days a week or a
-// month). Pass `goal` to edit it, or leave it out to add one. Under the
+// and/or Library exercises) and how often (a number of sessions in a rolling
+// week or month). Pass `goal` to edit it, or leave it out to add one. Under the
 // fields, a live count of how much of your log it matches, so you can tell
 // the criteria are right before saving.
 export default function GoalEditor({ goal, onClose }) {
-  const { goals, setGoals, sessions, rolls, exercises, exerciseUsage } = useLog();
+  const { setGoals, sessions, exercises, exerciseUsage } = useLog();
   const [form, setForm] = useState(() => ({
     name: goal?.name || "",
     tags: [...(goal?.tags || [])],
@@ -30,11 +30,10 @@ export default function GoalEditor({ goal, onClose }) {
     period: goal?.period || "week",
   }));
   const [tagDraft, setTagDraft] = useState("");
-  // Tags from everything a goal can match on: sessions, their exercises and
-  // mat sessions.
-  const tagSuggestions = useMemo(() => tagUsage([...sessions, ...rolls, ...exercises], todayISO()), [sessions, rolls, exercises]);
+  // Tags from everything a goal can match on: sessions and their exercises.
+  const tagSuggestions = useMemo(() => tagUsage([...sessions, ...exercises], todayISO()), [sessions, exercises]);
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
-  const matches = useMemo(() => goalMatches(form, { sessions, rolls }, exerciseById), [form, sessions, rolls, exerciseById]);
+  const matches = useMemo(() => goalMatches(form, sessions, exerciseById), [form, sessions, exerciseById]);
   const canSave = hasCriteria(form) && form.target >= 1;
 
   const setTarget = (n) => setForm((f) => ({ ...f, target: Math.max(1, Math.min(31, n || 1)) }));
@@ -90,7 +89,7 @@ export default function GoalEditor({ goal, onClose }) {
           </div>
         )}
         <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>
-          A tag counts when it's on the session or mat session, or on an exercise done in it.
+          A tag counts when it's on the session, or on an exercise done in it.
         </div>
       </div>
 
@@ -113,14 +112,14 @@ export default function GoalEditor({ goal, onClose }) {
               max={31}
               value={form.target}
               onChange={(e) => setTarget(Number(e.target.value))}
-              aria-label="Days"
+              aria-label="Sessions"
               style={{ width: 56, textAlign: "center", background: "var(--surface-2)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: "8px 4px", color: "var(--text)", fontSize: 16, fontWeight: 700 }}
             />
             <button onClick={() => setTarget(form.target + 1)} aria-label="More" style={{ ...secondaryBtnStyle, padding: 0, width: 40, minHeight: 40 }}>
               <Plus size={16} />
             </button>
           </div>
-          <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.target === 1 ? "day" : "days"}</span>
+          <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.target === 1 ? "session" : "sessions"}</span>
           <SegmentedToggle
             options={Object.entries(GOAL_PERIODS).map(([key, p]) => ({ key, label: `a ${p.label}` }))}
             value={form.period}
@@ -128,7 +127,7 @@ export default function GoalEditor({ goal, onClose }) {
             accent={GOAL_ACCENT}
           />
         </div>
-        <div style={{ ...metaStyle, marginTop: 8 }}>Weeks run Monday to Sunday. Two sessions on the same day count once.</div>
+        <div style={{ ...metaStyle, marginTop: 8 }}>Counted over the last 7 days (or 30 for a month), rolling: every session counts, even two on one day.</div>
       </div>
 
       <NameField form={form} setForm={setForm} nameField="name" nameLabel="Name (optional)" namePlaceholder="Leave blank to name it after what it counts" />
@@ -136,8 +135,8 @@ export default function GoalEditor({ goal, onClose }) {
       {hasCriteria(form) && (
         <div style={{ ...metaStyle, background: "var(--surface-2)", borderRadius: 10, padding: "10px 12px" }}>
           {matches.length === 0
-            ? "Nothing in your log matches this yet."
-            : `Matches ${matches.length} ${matches.length === 1 ? "entry" : "entries"} in your log, most recently ${formatDate(matches[0].entry.date)}.`}
+            ? "No sessions match this yet."
+            : `Matches ${matches.length} ${matches.length === 1 ? "session" : "sessions"} in your log, most recently ${formatDate(matches[0].entry.date)}.`}
         </div>
       )}
     </BottomSheet>

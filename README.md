@@ -127,17 +127,19 @@ which. See `src/lib/sets.js`.
 
 **Plan goals.** The Plan page holds goals for how often to train
 something: `{ id, name, tags, tagMatch: "all" | "any", exerciseIds, target,
-period: "week" | "month" }` (`name` optional; blank shows the criteria). A
-session counts toward a goal when its own tags match, or when it has one of
-the goal's exercises, or an exercise carrying one of the goal's tags whose
-tags together with the session's match (so "strength + chest" counts a chest
-exercise in a strength-tagged session). Mat sessions count by their tags.
-Progress is in days, not entries (two sessions on one day count once), over
-Monday–Sunday weeks or calendar months. Status: **Done** (target met this
-period), **Off track** (can't be met any more, or last period was missed and
-this one is behind pace), **At risk** (behind an even spread, or needs every
-day left), otherwise **On track**. Home shows a card listing the goals that
-are off track or at risk. See `src/lib/goals.js`.
+period: "week" | "month" }` (`name` optional; blank shows the criteria). Only
+lifting sessions count (not mat sessions). A session counts toward a goal
+when its own tags match, or when it has one of the goal's exercises, or an
+exercise carrying one of the goal's tags whose tags together with the
+session's match (so "strength + chest" counts a chest exercise in a
+strength-tagged session). Progress is the number of sessions (two on one day
+count twice) in a rolling window ending today: the last 7 days for a week,
+the last 30 for a month, so last Friday's session still counts on Thursday.
+Status: **Off track** (fewer sessions in the window than the target), **At
+risk** (met, but the next session is due tomorrow for a weekly goal, within
+4 days for a monthly one, before the session keeping it met slides out of the
+window), otherwise **On track**. Home shows a card listing the goals that are
+off track or at risk. See `src/lib/goals.js`.
 
 CSV/JSON export and import live in the sidebar. JSON keeps blocks exactly.
 CSV lists them in order in a `sets` column for reading only, like exercise

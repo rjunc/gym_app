@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { periodOf, shiftPeriod, matchEntry, goalMatches, daysIn, goalStatus, recentPeriods, goalLabel, frequencyLabel } from "../../src/lib/goals.js";
+import { windowEnding, matchEntry, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel } from "../../src/lib/goals.js";
 
 const exercises = new Map([
   ["bench", { id: "bench", tags: ["strength", "chest"] }],
@@ -8,17 +8,9 @@ const exercises = new Map([
   ["jump", { id: "jump", tags: ["plyometrics"] }],
 ]);
 
-test("periodOf: weeks run Monday to Sunday, months are calendar months", () => {
-  // Oct 1 2026 is a Thursday.
-  assert.deepEqual(periodOf("2026-10-01", "week"), { start: "2026-09-28", end: "2026-10-04" });
-  assert.deepEqual(periodOf("2026-10-04", "week"), { start: "2026-09-28", end: "2026-10-04" });
-  assert.deepEqual(periodOf("2026-10-05", "week"), { start: "2026-10-05", end: "2026-10-11" });
-  assert.deepEqual(periodOf("2026-02-14", "month"), { start: "2026-02-01", end: "2026-02-28" });
-});
-
-test("shiftPeriod steps whole weeks and months, across years", () => {
-  assert.deepEqual(shiftPeriod(periodOf("2026-10-01", "week"), "week", -1), { start: "2026-09-21", end: "2026-09-27" });
-  assert.deepEqual(shiftPeriod(periodOf("2026-01-15", "month"), "month", -1), { start: "2025-12-01", end: "2025-12-31" });
+test("windowEnding: the last 7 or 30 days, today included", () => {
+  assert.deepEqual(windowEnding({ period: "week" }, "2026-10-01"), { start: "2026-09-25", end: "2026-10-01" });
+  assert.deepEqual(windowEnding({ period: "month" }, "2026-10-01"), { start: "2026-09-02", end: "2026-10-01" });
 });
 
 test("matchEntry: all tags across the session's and the exercise's tags", () => {
@@ -38,66 +30,71 @@ test("matchEntry: any tag, or a chosen exercise", () => {
   assert.equal(matchEntry({ tags: [], exerciseIds: ["bench"] }, { tags: ["strength"] }, exercises), null);
 });
 
-test("goalMatches: sessions and mat sessions, newest first; none without criteria", () => {
-  const goal = { tags: ["bjj"], tagMatch: "all" };
-  const sessions = [{ id: "s", date: "2026-09-01", tags: ["bjj"] }];
-  const rolls = [{ id: "r", date: "2026-09-03", tags: ["bjj"] }, { id: "x", date: "2026-09-04", tags: [] }];
-  assert.deepEqual(goalMatches(goal, { sessions, rolls }).map((m) => `${m.source}:${m.entry.id}`), ["rolls:r", "sessions:s"]);
-  assert.deepEqual(goalMatches({ tags: [], exerciseIds: [] }, { sessions, rolls }), []);
-});
-
-test("daysIn counts days, not entries", () => {
-  const matches = ["2026-09-28", "2026-09-28", "2026-09-30", "2026-10-06"].map((date) => ({ entry: { date } }));
-  assert.equal(daysIn(matches, periodOf("2026-10-01", "week")), 2);
+test("goalMatches: lifting sessions only, newest first; none without criteria", () => {
+  const goal = { tags: ["strength"], tagMatch: "all" };
+  const sessions = [
+    { id: "a", date: "2026-09-01", tags: ["strength"] },
+    { id: "b", date: "2026-09-03", tags: ["strength"] },
+    { id: "c", date: "2026-09-04", tags: [] },
+  ];
+  assert.deepEqual(goalMatches(goal, sessions).map((m) => m.entry.id), ["b", "a"]);
+  assert.deepEqual(goalMatches({ tags: [], exerciseIds: [] }, sessions), []);
 });
 
 const at = (...dates) => dates.map((date) => ({ entry: { date } }));
+const onceAWeek = { target: 1, period: "week" };
 const twiceAWeek = { target: 2, period: "week" };
 
-test("goalStatus: done once the target is met", () => {
-  const s = goalStatus(twiceAWeek, at("2026-09-28", "2026-09-29"), "2026-09-30");
-  assert.equal(s.status, "done");
-  assert.equal(s.count, 2);
+test("matchesIn counts every session, even two on one day", () => {
+  assert.equal(matchesIn(at("2026-09-28", "2026-09-28", "2026-09-30", "2026-10-06"), windowEnding(twiceAWeek, "2026-10-01")).length, 3);
 });
 
-test("goalStatus: on track early in the week, at risk once behind pace", () => {
-  // Monday, nothing yet, met last week.
-  const lastWeek = at("2026-09-22", "2026-09-24");
-  assert.equal(goalStatus(twiceAWeek, lastWeek, "2026-09-28").status, "on");
-  // Thursday, nothing yet: an even spread would have one by now.
-  assert.equal(goalStatus(twiceAWeek, lastWeek, "2026-10-01").status, "risk");
-  // Thursday with one done is on pace.
-  assert.equal(goalStatus(twiceAWeek, [...lastWeek, ...at("2026-09-29")], "2026-10-01").status, "on");
+test("goalStatus: the window rolls — last Friday still counts on Thursday", () => {
+  // Thu Oct 1; the session was Fri Sep 25, last calendar week.
+  const s = goalStatus(onceAWeek, at("2026-09-25"), "2026-10-01");
+  assert.equal(s.count, 1);
+  assert.equal(s.due, "2026-10-02"); // it slides out on Friday
+  assert.equal(s.status, "risk"); // due tomorrow
+  assert.equal(goalStatus(onceAWeek, at("2026-09-24"), "2026-10-01").status, "off"); // slid out today
 });
 
-test("goalStatus: at risk when it needs every day left, off when it can't be met", () => {
-  const lastWeek = at("2026-09-22", "2026-09-24");
-  const oneDone = [...lastWeek, ...at("2026-09-29")];
-  assert.equal(goalStatus(twiceAWeek, oneDone, "2026-10-04").status, "risk"); // Sunday, one to go
-  assert.equal(goalStatus(twiceAWeek, lastWeek, "2026-10-04").status, "off"); // Sunday, two to go
+test("goalStatus: on track when met and not due soon", () => {
+  const s = goalStatus(twiceAWeek, at("2026-09-27", "2026-09-30"), "2026-10-01");
+  assert.equal(s.status, "on");
+  assert.equal(s.due, "2026-10-04"); // when the Sep 27 one slides out
 });
 
-test("goalStatus: off track when last period was missed and this one is behind too", () => {
-  assert.equal(goalStatus(twiceAWeek, at("2026-09-22"), "2026-10-01").status, "off");
-  // Missed last week, but it's early enough to still be on pace.
-  assert.equal(goalStatus(twiceAWeek, at("2026-09-22"), "2026-09-28").status, "on");
+test("goalStatus: extra sessions push the due date back", () => {
+  // Three in the window, target two: the oldest can slide out without missing.
+  const s = goalStatus(twiceAWeek, at("2026-09-25", "2026-09-27", "2026-09-30"), "2026-10-01");
+  assert.equal(s.due, "2026-10-04");
 });
 
-test("goalStatus: once a month stays on track for the first half", () => {
+test("goalStatus: off track, with how many more are needed", () => {
+  const s = goalStatus(twiceAWeek, at("2026-09-30"), "2026-10-01");
+  assert.equal(s.status, "off");
+  assert.equal(s.needed, 1);
+});
+
+test("goalStatus: a monthly goal turns at risk 4 days before it's due", () => {
   const monthly = { target: 1, period: "month" };
-  const lastMonth = at("2026-08-10");
-  assert.equal(goalStatus(monthly, lastMonth, "2026-09-10").status, "on");
-  assert.equal(goalStatus(monthly, lastMonth, "2026-09-20").status, "risk");
-  assert.equal(goalStatus(monthly, lastMonth, "2026-09-30").status, "risk"); // last day
+  assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-01").status, "on"); // due Oct 10
+  assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-06").status, "risk");
+  assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-10").status, "off");
 });
 
-test("recentPeriods: oldest first, ending with the current one", () => {
-  const rows = recentPeriods(twiceAWeek, at("2026-09-22", "2026-09-24", "2026-09-29"), "2026-10-01", 3);
-  assert.deepEqual(rows.map((r) => [r.period.start, r.count, r.met]), [
-    ["2026-09-14", 0, false],
-    ["2026-09-21", 2, true],
-    ["2026-09-28", 1, false],
+test("recentWindows: back-to-back windows ending today, oldest first", () => {
+  const rows = recentWindows(twiceAWeek, at("2026-09-20", "2026-09-22", "2026-09-30"), "2026-10-01", 3);
+  assert.deepEqual(rows.map((r) => [r.window.start, r.window.end, r.count, r.met]), [
+    ["2026-09-11", "2026-09-17", 0, false],
+    ["2026-09-18", "2026-09-24", 2, true],
+    ["2026-09-25", "2026-10-01", 1, false],
   ]);
+});
+
+test("progressText says what's next", () => {
+  assert.equal(progressText(onceAWeek, goalStatus(onceAWeek, at("2026-09-25"), "2026-10-01"), "2026-10-01"), "1 in the last 7 days · next by tomorrow");
+  assert.equal(progressText(twiceAWeek, goalStatus(twiceAWeek, at("2026-09-30"), "2026-10-01"), "2026-10-01"), "1 of 2 in the last 7 days · 1 more needed");
 });
 
 test("goalLabel and frequencyLabel spell out the goal", () => {

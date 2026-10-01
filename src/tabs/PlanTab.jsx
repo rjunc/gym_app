@@ -3,7 +3,7 @@ import { Plus, Target } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { nameMap } from "../lib/search.js";
 import { useSheets } from "../lib/SheetStack.js";
-import { goalSummaries, goalLabel, frequencyLabel, recentPeriods, progressText, GOAL_STATUSES } from "../lib/goals.js";
+import { goalSummaries, goalLabel, frequencyLabel, recentWindows, progressText, GOAL_STATUSES } from "../lib/goals.js";
 import { PageHeader, PageBody } from "../ui/Page.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import GoalEditor, { GOAL_ACCENT } from "./GoalEditor.jsx";
@@ -11,21 +11,21 @@ import { StatusPill, PeriodStrip } from "./GoalParts.jsx";
 import { cardStyle, primaryBtnStyle, metaStyle } from "../ui/styles.js";
 
 // The Plan: goals for how often to train something ("plyometrics twice a
-// week", "strength + chest once a month"), each checked against your
-// sessions and mat sessions. A card per goal with where it stands this
-// week or month and the last eight at a glance; tapping one opens its
+// week", "strength + chest once a month"), each checked against your lifting
+// sessions over a rolling window (the last 7 or 30 days). A card per goal
+// with where it stands and the last eight windows at a glance; tapping one opens its
 // summary and history (see GoalSheet). Home warns about the ones slipping.
-export default function PlanTab({ goals, sessions, rolls, exercises }) {
+export default function PlanTab({ goals, sessions, exercises }) {
   const sheets = useSheets();
   const [adding, setAdding] = useState(false);
   const today = todayISO();
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
-  const summaries = useMemo(() => goalSummaries(goals, { sessions, rolls }, exerciseById, today), [goals, sessions, rolls, exerciseById, today]);
+  const summaries = useMemo(() => goalSummaries(goals, sessions, exerciseById, today), [goals, sessions, exerciseById, today]);
 
   const counts = {};
   summaries.forEach(({ state }) => (counts[state.status] = (counts[state.status] || 0) + 1));
-  const overview = ["off", "risk", "on", "done"]
+  const overview = ["off", "risk", "on"]
     .filter((s) => counts[s])
     .map((s) => `${counts[s]} ${GOAL_STATUSES[s].label.toLowerCase()}`)
     .join(" · ");
@@ -59,12 +59,12 @@ export default function PlanTab({ goals, sessions, rolls, exercises }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{goalLabel(goal, exerciseNameById)}</div>
                   <div style={{ ...metaStyle, marginTop: 2 }}>
-                    {frequencyLabel(goal)} · {progressText(goal, state)}
+                    {frequencyLabel(goal)} · {progressText(goal, state, today)}
                   </div>
                 </div>
                 <StatusPill status={state.status} />
               </div>
-              <PeriodStrip rows={recentPeriods(goal, matches, today, 8)} period={goal.period} target={state.target} />
+              <PeriodStrip rows={recentWindows(goal, matches, today, 8)} target={state.target} />
             </div>
           ))
         )}

@@ -153,7 +153,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
       </PageHeader>
 
       <PageBody wide>
-        <PlanAlerts goals={goals} sessions={sessions} rolls={rolls} exercises={exercises} onOpenPlan={onOpenPlan} />
+        <PlanAlerts goals={goals} sessions={sessions} exercises={exercises} onOpenPlan={onOpenPlan} />
         <div className="home-grid">
           <div style={cardStyle}>
             <ActivityCalendar

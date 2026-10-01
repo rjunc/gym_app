@@ -176,7 +176,7 @@ export default function SheetStack({ stack, setStack }) {
         return (
           <GoalSheet
             goal={record}
-            matches={goalMatches(record, { sessions, rolls }, exerciseById)}
+            matches={goalMatches(record, sessions, exerciseById)}
             exercises={exercises}
             onEdit={() => push({ kind: "editGoal", id: record.id })}
             onDelete={canDelete ? () => deleteGoal(record) : undefined}

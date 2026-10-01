@@ -221,7 +221,7 @@ export default function App({ uid, userEmail, onLogout }) {
                   onOpenPlan={() => navigate("plan")}
                 />
               ) : page === "plan" ? (
-                <PlanTab goals={goals} sessions={sessions} rolls={rolls} exercises={exercises} />
+                <PlanTab goals={goals} sessions={sessions} exercises={exercises} />
               ) : page === "sessions" ? (
                 <SessionsTab
                   sessions={sessions}
