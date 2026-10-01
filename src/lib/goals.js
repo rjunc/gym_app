@@ -4,25 +4,31 @@
 // Kept free of React so they're testable.
 //
 // A goal record: { id, name, active, rules: [{ kind: "any" | "none", scope:
-// "exercise" | "session", tags, exerciseIds }], target, period: "week" |
-// "month", createdAt, updatedAt } (see matchEntry for what the rules mean). `name` is
-// optional (goalLabel spells out the criteria when it's blank). The period
-// is a rolling window ending today — the last 7 or 30 days — not a calendar
-// week or month, so last Friday's session still counts on Thursday.
+// "exercise" | "session", tags, exerciseIds }], target, days, createdAt,
+// updatedAt } (see matchEntry for what the rules mean): `target` sessions
+// every `days` days. `name` is optional (goalLabel spells out the criteria
+// when it's blank). The window is rolling, ending today — the last 7 days
+// for a week, 14 for every two weeks — not a calendar week or month, so last
+// Friday's session still counts on Thursday.
 
 import { blocksOf } from "./sets.js";
 import { shiftISODate } from "./id.js";
 
-export const GOAL_PERIODS = {
-  week: { label: "week", per: "a week", days: 7 },
-  month: { label: "month", per: "a month", days: 30 },
-};
+// The longest window a goal can have, in days.
+export const MAX_GOAL_DAYS = 365;
 
-const windowDays = (goal) => (GOAL_PERIODS[goal.period] || GOAL_PERIODS.week).days;
+// Quick picks for the window, with what they read as ("a week").
+export const GOAL_PERIODS = [
+  { days: 7, label: "Week", per: "a week" },
+  { days: 14, label: "2 weeks", per: "every 2 weeks" },
+  { days: 30, label: "Month", per: "a month" },
+];
 
-// How close to due a met goal turns At risk: due tomorrow for a weekly goal,
-// within 4 days for a monthly one.
-const RISK_DAYS = { week: 1, month: 4 };
+export const windowDays = (goal) => Math.max(1, Math.min(MAX_GOAL_DAYS, Math.round(goal.days) || 7));
+
+// How close to due a met goal turns At risk: a day per week of window, so
+// due tomorrow for a weekly goal, within 4 days for a monthly one.
+const riskDays = (goal) => Math.max(1, Math.round(windowDays(goal) / 7));
 
 // What each status is called, its colour, and how urgent it is (for sorting
 // the worst first). `solid` statuses get a filled pill, so Behind stands out
@@ -38,7 +44,7 @@ const dateOf = (iso) => new Date(`${iso}T00:00:00`);
 const daysBetween = (a, b) => Math.round((dateOf(b) - dateOf(a)) / 86400000);
 const shortDate = (iso) => dateOf(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
-// The goal's window ending on `end` (today by default): the last 7 or 30
+// The goal's window ending on `end` (today by default): the last `days`
 // days, as { start, end } ISO dates, both inclusive.
 export function windowEnding(goal, end) {
   return { start: shiftISODate(end, -(windowDays(goal) - 1)), end };
@@ -87,9 +93,17 @@ export function goalLabel(goal, exerciseNameById = new Map()) {
   return onSession ? `${onExercise}, in a session with ${onSession}` : onExercise;
 }
 
-// "2× a week", "once a month".
+// "a week", "every 2 weeks", "every 10 days", "every day".
+export function perLabel(goal) {
+  const days = windowDays(goal);
+  const preset = GOAL_PERIODS.find((p) => p.days === days);
+  if (preset) return preset.per;
+  return days === 1 ? "every day" : `every ${days} days`;
+}
+
+// "Twice a week", "Once every 2 weeks", "2× every 10 days".
 export function frequencyLabel(goal) {
-  const per = GOAL_PERIODS[goal.period]?.per || "";
+  const per = perLabel(goal);
   const times = goal.target === 1 ? "Once" : goal.target === 2 ? "Twice" : `${goal.target}×`;
   return `${times} ${per}`;
 }
@@ -167,9 +181,9 @@ function metOn(goal, dates, day, target) {
 // after.
 //   on       met, and the next session isn't due soon (`due` is the last day
 //            it can come)
-//   risk     met, but due within RISK_DAYS (tomorrow, for a weekly goal), or
+//   risk     met, but due within riskDays (tomorrow, for a weekly goal), or
 //            due today: it was met yesterday, and a session today keeps it
-//   overdue  short, for up to one window (7 or 30 days) since it was due;
+//   overdue  short, for up to one window (`days` days) since it was due;
 //            `overdueDays` says how long. A goal that has never been met is
 //            overdue for its first window after it was created
 //   behind   short for a whole window or longer, or never met in all that
@@ -185,7 +199,7 @@ export function goalStatus(goal, matches, today) {
 
   if (count >= target) {
     const due = shiftISODate(inWindow[count - target], days);
-    return { ...base, status: daysBetween(today, due) <= (RISK_DAYS[goal.period] ?? 1) ? "risk" : "on", due };
+    return { ...base, status: daysBetween(today, due) <= riskDays(goal) ? "risk" : "on", due };
   }
 
   // Short today: step back to the last day the window was met. Nothing before

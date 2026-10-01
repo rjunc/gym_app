@@ -127,8 +127,9 @@ which. See `src/lib/sets.js`.
 
 **Plan goals.** The Plan page holds goals for how often to train
 something: `{ id, name, active, rules: [{ kind: "any" | "none", scope:
-"exercise" | "session", tags, exerciseIds }], target, period: "week" |
-"month" }` (`name` optional; blank spells out the rules, e.g. "push +
+"exercise" | "session", tags, exerciseIds }], target, days }` — `target`
+sessions every `days` days (1–365; the form offers a week, 2 weeks and a
+month, 30 days, as quick picks) (`name` optional; blank spells out the rules, e.g. "push +
 plyometrics, in a session with legs"). Every rule must hold: an "any" rule
 needs one of its chips (tags or Library exercises), a "none" rule none of
 them. Each rule says where: **on one exercise** (by that exercise's own
@@ -142,10 +143,12 @@ previews the latest sessions a goal matches as you edit it. An
 inactive goal (`active: false`) keeps its history but isn't tracked: it's
 listed last on the Plan page, greyed out, and Home never warns about it.
 Progress is the number of sessions (two on one day
-count twice) in a rolling window ending today: the last 7 days for a week,
-the last 30 for a month, so last Friday's session still counts on Thursday.
+count twice) in a rolling window of `days` days ending today: the last 7 for
+a week, 14 for every two weeks, so last Friday's session still counts on
+Thursday.
 Status: **On track** (met, next session not due soon), **At risk** (met
-but due tomorrow for a weekly goal or within 4 days for a monthly one, or
+but due within a day per week of window — tomorrow for a weekly goal, within
+4 days for a 30-day one — or
 due today: a session today still keeps it), **Overdue** (short, for up to
 one window since it was due, e.g. "Overdue 3 days"), **Behind** (short for a
 whole window or longer, e.g. "Behind 3 weeks · last met Sep 7"; a goal never

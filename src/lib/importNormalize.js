@@ -4,6 +4,7 @@ import { importedTimestamps } from "./records.js";
 import { normalizeBlocks, blockExerciseIds, MEASURES } from "./sets.js";
 import { normalizeGroups, tidyGroups } from "./groups.js";
 import { normalizeMat } from "./mat.js";
+import { MAX_GOAL_DAYS } from "./goals.js";
 
 // Sessions/journals/rolls all share the same shape (id/date/tags/text, no
 // folder), so one helper normalizes any of them out of an imported JSON payload.
@@ -95,9 +96,9 @@ export function normalizeExercises(arr) {
 
 // Plan goals: the rules ("any" or "none" of some tags and Library exercises,
 // each on one exercise or anywhere in the session)
-// and how often (`target` sessions a week or month; see lib/goals.js).
+// and how often (`target` sessions every `days` days; see lib/goals.js).
 // Anything unknown falls back to the default: active, "any", on one exercise,
-// a week, and a target of at least 1.
+// every 7 days, and a target of at least 1.
 export function normalizeGoals(arr) {
   return Array.isArray(arr)
     ? arr.map((g) => ({
@@ -113,7 +114,7 @@ export function normalizeGoals(arr) {
             exerciseIds: Array.isArray(r.exerciseIds) ? r.exerciseIds.filter((id) => typeof id === "string") : [],
           })),
         target: Math.max(1, Math.round(Number(g.target)) || 1),
-        period: g.period === "month" ? "month" : "week",
+        days: Math.max(1, Math.min(MAX_GOAL_DAYS, Math.round(Number(g.days)) || 7)),
         ...importedTimestamps(g),
       }))
     : [];

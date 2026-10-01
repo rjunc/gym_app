@@ -6,7 +6,7 @@ import { tagUsage } from "../lib/tags.js";
 import { cleanFields } from "../lib/text.js";
 import { nameMap } from "../lib/search.js";
 import { useLog } from "../lib/LogContext.js";
-import { GOAL_PERIODS, hasCriteria, goalMatches } from "../lib/goals.js";
+import { GOAL_PERIODS, MAX_GOAL_DAYS, hasCriteria, goalMatches, perLabel } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { NameField, ActiveField } from "../ui/ComposerFields.jsx";
@@ -22,7 +22,8 @@ const blankRule = (kind = "any") => ({ key: uid(), kind, scope: "exercise", tags
 // The new/edit form for a Plan goal: its rules (each "Any of" or "None of"
 // some tags and Library exercises, on one exercise or anywhere in the
 // session, all of which must hold), and how often (a
-// number of sessions in a rolling week or month). Pass `goal` to edit it, or
+// number of sessions in a rolling window of any number of days, with a week,
+// two weeks and a month as quick picks). Pass `goal` to edit it, or
 // leave it out to add one. Under the fields, a live preview of the latest
 // sessions it matches, so you can tell the rules are right before saving.
 export default function GoalEditor({ goal, onClose }) {
@@ -33,20 +34,21 @@ export default function GoalEditor({ goal, onClose }) {
     // Each rule gets a key while it's being edited, for React; it isn't saved.
     rules: goal?.rules?.length ? goal.rules.map((r) => ({ ...r, key: uid(), tags: [...r.tags], exerciseIds: [...r.exerciseIds] })) : [blankRule()],
     target: goal?.target || 1,
-    period: goal?.period || "week",
+    days: goal?.days || 7,
   }));
   // Tags from everything a goal can match on: sessions and their exercises.
   const tagSuggestions = useMemo(() => tagUsage([...sessions, ...exercises], todayISO()), [sessions, exercises]);
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
   const matches = useMemo(() => goalMatches(form, sessions, exerciseById), [form, sessions, exerciseById]);
-  const canSave = hasCriteria(form) && form.target >= 1;
+  const canSave = hasCriteria(form) && form.target >= 1 && form.days >= 1;
 
   const updateRule = (key) => (fn) => setForm((f) => ({ ...f, rules: f.rules.map((r) => (r.key === key ? fn(r) : r)) }));
   const removeRule = (key) => setForm((f) => ({ ...f, rules: f.rules.filter((r) => r.key !== key) }));
   const addRule = (kind) => setForm((f) => ({ ...f, rules: [...f.rules, blankRule(kind)] }));
 
-  const setTarget = (n) => setForm((f) => ({ ...f, target: Math.max(1, Math.min(31, n || 1)) }));
+  const setTarget = (n) => setForm((f) => ({ ...f, target: Math.max(1, Math.min(MAX_GOAL_DAYS, n || 1)) }));
+  const setDays = (n) => setForm((f) => ({ ...f, days: Math.max(1, Math.min(MAX_GOAL_DAYS, n || 1)) }));
 
   const save = () => {
     if (!canSave) return;
@@ -107,33 +109,22 @@ export default function GoalEditor({ goal, onClose }) {
       <div>
         <label style={labelStyle}>How often</label>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button onClick={() => setTarget(form.target - 1)} aria-label="Fewer" disabled={form.target <= 1} style={{ ...secondaryBtnStyle, padding: 0, width: 40, minHeight: 40, opacity: form.target <= 1 ? 0.4 : 1 }}>
-              <Minus size={16} />
-            </button>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={31}
-              value={form.target}
-              onChange={(e) => setTarget(Number(e.target.value))}
-              aria-label="Sessions"
-              style={{ width: 56, textAlign: "center", background: "var(--surface-2)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: "8px 4px", color: "var(--text)", fontSize: 16, fontWeight: 700 }}
-            />
-            <button onClick={() => setTarget(form.target + 1)} aria-label="More" style={{ ...secondaryBtnStyle, padding: 0, width: 40, minHeight: 40 }}>
-              <Plus size={16} />
-            </button>
-          </div>
-          <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.target === 1 ? "session" : "sessions"}</span>
+          <Stepper value={form.target} setValue={setTarget} label="Sessions" />
+          <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.target === 1 ? "session" : "sessions"} every</span>
+          <Stepper value={form.days} setValue={setDays} label="Days" />
+          <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.days === 1 ? "day" : "days"}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
           <SegmentedToggle
-            options={Object.entries(GOAL_PERIODS).map(([key, p]) => ({ key, label: `a ${p.label}` }))}
-            value={form.period}
-            setValue={(period) => setForm((f) => ({ ...f, period }))}
+            options={GOAL_PERIODS.map((p) => ({ key: p.days, label: p.label }))}
+            value={form.days}
+            setValue={setDays}
             accent={GOAL_ACCENT}
           />
         </div>
-        <div style={{ ...metaStyle, marginTop: 8 }}>Counted over the last 7 days (or 30 for a month), rolling: every session counts, even two on one day.</div>
+        <div style={{ ...metaStyle, marginTop: 8 }}>
+          {form.target === 1 ? "Once" : `${form.target} sessions`} {perLabel(form)}, counted over the last {form.days === 1 ? "day" : `${form.days} days`}, rolling: every session counts, even two on one day.
+        </div>
       </div>
 
       <NameField form={form} setForm={setForm} nameField="name" nameLabel="Name (optional)" namePlaceholder="Leave blank to name it after what it counts" />
@@ -158,5 +149,29 @@ export default function GoalEditor({ goal, onClose }) {
         </div>
       )}
     </BottomSheet>
+  );
+}
+
+// A number with − and + buttons either side, from 1 to MAX_GOAL_DAYS.
+function Stepper({ value, setValue, label }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <button onClick={() => setValue(value - 1)} aria-label={`Fewer ${label.toLowerCase()}`} disabled={value <= 1} style={{ ...secondaryBtnStyle, padding: 0, width: 40, minHeight: 40, opacity: value <= 1 ? 0.4 : 1 }}>
+        <Minus size={16} />
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={MAX_GOAL_DAYS}
+        value={value}
+        onChange={(e) => setValue(Number(e.target.value))}
+        aria-label={label}
+        style={{ width: 56, textAlign: "center", background: "var(--surface-2)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: "8px 4px", color: "var(--text)", fontSize: 16, fontWeight: 700 }}
+      />
+      <button onClick={() => setValue(value + 1)} aria-label={`More ${label.toLowerCase()}`} disabled={value >= MAX_GOAL_DAYS} style={{ ...secondaryBtnStyle, padding: 0, width: 40, minHeight: 40, opacity: value >= MAX_GOAL_DAYS ? 0.4 : 1 }}>
+        <Plus size={16} />
+      </button>
+    </div>
   );
 }

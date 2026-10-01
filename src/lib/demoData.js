@@ -9,8 +9,8 @@
 // exercises done twice, supersets and circuits, and dropsets), journal
 // entries, BJJ mat sessions (gi or no-gi, drills, rounds with partners and
 // how techniques went), techniques whose positions chain into a flow, and
-// Plan goals of every kind (tags matched all or any, exercises, both; weekly
-// and monthly; some easily met, some slipping).
+// Plan goals of every kind (tags matched all or any, exercises, both;
+// every 3, 7, 10, 14 or 30 days; some easily met, some slipping).
 //
 // Every record's id starts with DEMO_PREFIX, which is the only way test data
 // is told apart from real data: isDemoRecord finds it again so it can be
@@ -180,23 +180,26 @@ const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "ca
 
 // Plan goals: the rules — "any" or "none" of some chips, each a tag or an
 // exercise by name, on one exercise unless `session` (anywhere in the
-// session) — how many sessions, per rolling week or month (see
+// session) — how many sessions, every so many days in a rolling window (see
 // lib/goals.js), and whether it's active (one is not). Plain plyometrics
 // only comes up with Clap push-ups (push day, full body) or the odd Box jump,
 // so it's usually off track.
 const GOALS = [
-  { rules: [{ any: ["plyometrics"] }], target: 2, period: "week" },
-  { rules: [{ any: ["push", "pull"] }, { any: ["plyometrics"] }], target: 1, period: "week" },
-  { name: "Push + plyo day", rules: [{ any: ["push"], session: true }, { any: ["plyometrics", "Box jump"], session: true }], target: 1, period: "week" },
-  { rules: [{ any: ["push"] }, { any: ["plyometrics"] }, { any: ["legs"], session: true }], target: 1, period: "month" },
-  { rules: [{ any: ["push"], session: true }, { any: ["plyometrics"], session: true }, { any: ["legs"], session: true }], target: 2, period: "month" },
-  { rules: [{ any: ["strength"] }, { any: ["legs"] }], target: 2, period: "week" },
-  { rules: [{ any: ["cardio"], session: true }], target: 2, period: "week" },
-  { rules: [{ any: ["mobility"], session: true }], target: 1, period: "week" },
-  { name: "Grip work", rules: [{ any: ["Farmer carry", "Dead hang"] }], target: 1, period: "week" },
-  { rules: [{ any: ["push", "pull"] }, { none: ["bodyweight"] }], target: 3, period: "week" },
-  { rules: [{ any: ["strength"], session: true }, { none: ["deload"], session: true }], target: 8, period: "month" },
-  { rules: [{ any: ["Sled push"] }], target: 3, period: "month", active: false },
+  { rules: [{ any: ["plyometrics"] }], target: 2, days: 7 },
+  { rules: [{ any: ["push", "pull"] }, { any: ["plyometrics"] }], target: 1, days: 7 },
+  { name: "Push + plyo day", rules: [{ any: ["push"], session: true }, { any: ["plyometrics", "Box jump"], session: true }], target: 1, days: 7 },
+  { rules: [{ any: ["push"] }, { any: ["plyometrics"] }, { any: ["legs"], session: true }], target: 1, days: 30 },
+  { rules: [{ any: ["push"], session: true }, { any: ["plyometrics"], session: true }, { any: ["legs"], session: true }], target: 2, days: 30 },
+  { rules: [{ any: ["strength"] }, { any: ["legs"] }], target: 2, days: 7 },
+  { rules: [{ any: ["cardio"], session: true }], target: 2, days: 7 },
+  { rules: [{ any: ["mobility"], session: true }], target: 1, days: 7 },
+  { name: "Grip work", rules: [{ any: ["Farmer carry", "Dead hang"] }], target: 1, days: 7 },
+  { rules: [{ any: ["push", "pull"] }, { none: ["bodyweight"] }], target: 3, days: 7 },
+  { rules: [{ any: ["strength"], session: true }, { none: ["deload"], session: true }], target: 8, days: 30 },
+  { rules: [{ any: ["Sled push"] }], target: 3, days: 30, active: false },
+  { name: "Heavy legs", rules: [{ any: ["strength"] }, { any: ["legs"] }], target: 1, days: 14 },
+  { rules: [{ any: ["cardio"], session: true }], target: 2, days: 10 },
+  { rules: [{ any: ["mobility"], session: true }], target: 1, days: 3 },
 ];
 
 // Builds a folder record per path in `paths` ("A/B" nests B under A), and
@@ -469,7 +472,7 @@ export function generateDemoData(today = new Date(), months = 9) {
     active: g.active !== false,
     rules: g.rules.map((r) => (r.none ? toRule("none", r.none, r.session) : toRule("any", r.any, r.session))),
     target: g.target,
-    period: g.period,
+    days: g.days,
     // A second apart, so they keep this order on the Plan page.
     createdAt: setupStamp.replace(/:00\.000Z$/, `:${String(i).padStart(2, "0")}.000Z`),
     updatedAt: setupStamp,

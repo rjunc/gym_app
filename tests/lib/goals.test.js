@@ -16,9 +16,11 @@ const allOnSession = (rules) => ({ rules: rules.map(onSession) });
 const session = (exerciseIds, tags = []) => ({ tags, blocks: exerciseIds.map((exerciseId, i) => ({ id: `b${i}`, exerciseId })) });
 const ids = (blocks) => (blocks ? blocks.map((b) => b.exerciseId) : null);
 
-test("windowEnding: the last 7 or 30 days, today included", () => {
-  assert.deepEqual(windowEnding({ period: "week" }, "2026-10-01"), { start: "2026-09-25", end: "2026-10-01" });
-  assert.deepEqual(windowEnding({ period: "month" }, "2026-10-01"), { start: "2026-09-02", end: "2026-10-01" });
+test("windowEnding: the last `days` days, today included", () => {
+  assert.deepEqual(windowEnding({ days: 7 }, "2026-10-01"), { start: "2026-09-25", end: "2026-10-01" });
+  assert.deepEqual(windowEnding({ days: 30 }, "2026-10-01"), { start: "2026-09-02", end: "2026-10-01" });
+  assert.deepEqual(windowEnding({ days: 10 }, "2026-10-01"), { start: "2026-09-22", end: "2026-10-01" });
+  assert.deepEqual(windowEnding({}, "2026-10-01"), { start: "2026-09-25", end: "2026-10-01" });
 });
 
 test("matchEntry, one exercise: one exercise has to meet every exercise rule", () => {
@@ -79,8 +81,8 @@ test("goalMatches: sessions newest first; none without an Any of rule", () => {
 });
 
 const at = (...dates) => dates.map((date) => ({ entry: { date } }));
-const onceAWeek = { target: 1, period: "week" };
-const twiceAWeek = { target: 2, period: "week" };
+const onceAWeek = { target: 1, days: 7 };
+const twiceAWeek = { target: 2, days: 7 };
 
 test("matchesIn counts every session, even two on one day", () => {
   assert.equal(matchesIn(at("2026-09-28", "2026-09-28", "2026-09-30", "2026-10-06"), windowEnding(twiceAWeek, "2026-10-01")).length, 3);
@@ -138,12 +140,21 @@ test("goalStatus: never met is overdue in its first window, then behind", () => 
 });
 
 test("goalStatus: a monthly goal turns at risk 4 days before it's due", () => {
-  const monthly = { target: 1, period: "month" };
+  const monthly = { target: 1, days: 30 };
   assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-01").status, "on"); // due Oct 10
   assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-06").status, "risk");
   assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-10").status, "risk"); // due today
   assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-10-11").status, "overdue");
   assert.equal(goalStatus(monthly, at("2026-09-10"), "2026-11-09").status, "behind"); // 30 days
+});
+
+test("goalStatus: twice every 10 days", () => {
+  const goal = { target: 2, days: 10 };
+  assert.equal(goalStatus(goal, at("2026-09-22", "2026-09-28"), "2026-10-01").status, "risk"); // due Oct 2
+  assert.equal(goalStatus(goal, at("2026-09-22", "2026-09-28"), "2026-10-01").due, "2026-10-02");
+  assert.equal(goalStatus(goal, at("2026-09-25", "2026-09-28"), "2026-10-01").status, "on"); // due Oct 5
+  assert.equal(goalStatus(goal, at("2026-09-21", "2026-09-28"), "2026-10-01").status, "risk"); // met yesterday, due today
+  assert.equal(goalStatus(goal, at("2026-09-20", "2026-09-28"), "2026-10-01").status, "overdue"); // last met Sep 29
 });
 
 test("recentWindows: back-to-back windows ending today, oldest first", () => {
@@ -174,8 +185,11 @@ test("goalLabel and frequencyLabel spell out the goal", () => {
   assert.equal(goalLabel({ rules: [any("push"), any("plyometrics"), onSession(any("legs")), onSession(none("deload"))] }), "push + plyometrics, in a session with legs, not deload");
   assert.equal(goalLabel(allOnSession([any("strength"), none("deload")])), "strength, not deload");
   assert.equal(goalLabel({ name: "Chest day", rules: [any("chest")] }), "Chest day");
-  assert.equal(frequencyLabel({ target: 2, period: "week" }), "Twice a week");
-  assert.equal(frequencyLabel({ target: 3, period: "month" }), "3× a month");
+  assert.equal(frequencyLabel({ target: 2, days: 7 }), "Twice a week");
+  assert.equal(frequencyLabel({ target: 3, days: 30 }), "3× a month");
+  assert.equal(frequencyLabel({ target: 1, days: 14 }), "Once every 2 weeks");
+  assert.equal(frequencyLabel({ target: 2, days: 10 }), "Twice every 10 days");
+  assert.equal(frequencyLabel({ target: 1, days: 1 }), "Once every day");
 });
 
 test("isActive: goals are active unless switched off", () => {
