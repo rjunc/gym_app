@@ -93,10 +93,10 @@ export function normalizeExercises(arr) {
     : [];
 }
 
-// Plan goals: where the rules have to hold (one exercise or the whole
-// session), the rules ("any" or "none" of some tags and Library exercises)
+// Plan goals: the rules ("any" or "none" of some tags and Library exercises,
+// each on one exercise or anywhere in the session)
 // and how often (`target` sessions a week or month; see lib/goals.js).
-// Anything unknown falls back to the default: active, same exercise, "any",
+// Anything unknown falls back to the default: active, "any", on one exercise,
 // a week, and a target of at least 1.
 export function normalizeGoals(arr) {
   return Array.isArray(arr)
@@ -104,11 +104,11 @@ export function normalizeGoals(arr) {
         id: g.id || uid(),
         name: typeof g.name === "string" ? g.name : "",
         active: g.active !== false,
-        scope: g.scope === "session" ? "session" : "exercise",
         rules: (Array.isArray(g.rules) ? g.rules : [])
           .filter((r) => r && typeof r === "object")
           .map((r) => ({
             kind: r.kind === "none" ? "none" : "any",
+            scope: r.scope === "session" ? "session" : "exercise",
             tags: normalizeTags(r.tags),
             exerciseIds: Array.isArray(r.exerciseIds) ? r.exerciseIds.filter((id) => typeof id === "string") : [],
           })),

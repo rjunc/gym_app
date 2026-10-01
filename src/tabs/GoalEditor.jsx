@@ -6,7 +6,7 @@ import { tagUsage } from "../lib/tags.js";
 import { cleanFields } from "../lib/text.js";
 import { nameMap } from "../lib/search.js";
 import { useLog } from "../lib/LogContext.js";
-import { GOAL_PERIODS, GOAL_SCOPES, hasCriteria, goalMatches } from "../lib/goals.js";
+import { GOAL_PERIODS, hasCriteria, goalMatches } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { NameField, ActiveField } from "../ui/ComposerFields.jsx";
@@ -17,11 +17,11 @@ import { labelStyle, metaStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkSty
 // How many matching sessions the preview lists.
 const PREVIEW = 3;
 
-const blankRule = (kind = "any") => ({ key: uid(), kind, tags: [], exerciseIds: [] });
+const blankRule = (kind = "any") => ({ key: uid(), kind, scope: "exercise", tags: [], exerciseIds: [] });
 
 // The new/edit form for a Plan goal: its rules (each "Any of" or "None of"
-// some tags and Library exercises, all of which must hold), whether they
-// have to hold on one exercise or across the session, and how often (a
+// some tags and Library exercises, on one exercise or anywhere in the
+// session, all of which must hold), and how often (a
 // number of sessions in a rolling week or month). Pass `goal` to edit it, or
 // leave it out to add one. Under the fields, a live preview of the latest
 // sessions it matches, so you can tell the rules are right before saving.
@@ -30,7 +30,6 @@ export default function GoalEditor({ goal, onClose }) {
   const [form, setForm] = useState(() => ({
     name: goal?.name || "",
     active: goal ? goal.active !== false : true,
-    scope: goal?.scope || "exercise",
     // Each rule gets a key while it's being edited, for React; it isn't saved.
     rules: goal?.rules?.length ? goal.rules.map((r) => ({ ...r, key: uid(), tags: [...r.tags], exerciseIds: [...r.exerciseIds] })) : [blankRule()],
     target: goal?.target || 1,
@@ -54,7 +53,7 @@ export default function GoalEditor({ goal, onClose }) {
     // Empty rules are dropped, and the editing keys with them.
     const fields = cleanFields({
       ...form,
-      rules: form.rules.filter((r) => r.tags.length + r.exerciseIds.length > 0).map(({ kind, tags, exerciseIds }) => ({ kind, tags, exerciseIds })),
+      rules: form.rules.filter((r) => r.tags.length + r.exerciseIds.length > 0).map(({ kind, scope, tags, exerciseIds }) => ({ kind, scope, tags, exerciseIds })),
     });
     if (goal) setGoals((prev) => editById(prev, goal.id, fields));
     else setGoals((prev) => [...prev, newRecord(fields)]);
@@ -92,6 +91,9 @@ export default function GoalEditor({ goal, onClose }) {
             />
           ))}
         </div>
+        <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>
+          Every rule has to hold. Rules on <b>one exercise</b> must all be met by the same exercise, by its own tags; rules <b>anywhere in the session</b> can each be met by the session's tags or any exercise in it.
+        </div>
         <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
           <button onClick={() => addRule("any")} style={{ ...ghostLinkStyle, color: `var(${GOAL_ACCENT})` }}>
             <Plus size={14} /> And any of…
@@ -100,17 +102,6 @@ export default function GoalEditor({ goal, onClose }) {
             <Plus size={14} /> And none of…
           </button>
         </div>
-      </div>
-
-      <div>
-        <label style={labelStyle}>Where the rules have to hold</label>
-        <SegmentedToggle
-          options={Object.entries(GOAL_SCOPES).map(([key, s]) => ({ key, label: s.label }))}
-          value={form.scope}
-          setValue={(scope) => setForm((f) => ({ ...f, scope }))}
-          accent={GOAL_ACCENT}
-        />
-        <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>{GOAL_SCOPES[form.scope].hint}</div>
       </div>
 
       <div>

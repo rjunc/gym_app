@@ -8,8 +8,11 @@ const exercises = new Map([
   ["jump", { id: "jump", tags: ["plyometrics", "legs"] }],
   ["row", { id: "row", tags: ["strength", "pull"] }],
 ]);
-const any = (...tags) => ({ kind: "any", tags, exerciseIds: [] });
-const none = (...tags) => ({ kind: "none", tags, exerciseIds: [] });
+const any = (...tags) => ({ kind: "any", scope: "exercise", tags, exerciseIds: [] });
+const none = (...tags) => ({ kind: "none", scope: "exercise", tags, exerciseIds: [] });
+// The same rules, anywhere in the session.
+const onSession = (rule) => ({ ...rule, scope: "session" });
+const allOnSession = (rules) => ({ rules: rules.map(onSession) });
 const session = (exerciseIds, tags = []) => ({ tags, blocks: exerciseIds.map((exerciseId, i) => ({ id: `b${i}`, exerciseId })) });
 const ids = (blocks) => (blocks ? blocks.map((b) => b.exerciseId) : null);
 
@@ -18,8 +21,8 @@ test("windowEnding: the last 7 or 30 days, today included", () => {
   assert.deepEqual(windowEnding({ period: "month" }, "2026-10-01"), { start: "2026-09-02", end: "2026-10-01" });
 });
 
-test("matchEntry, same exercise: one exercise has to meet every rule", () => {
-  const goal = { scope: "exercise", rules: [any("push", "pull"), any("plyometrics")] };
+test("matchEntry, one exercise: one exercise has to meet every exercise rule", () => {
+  const goal = { rules: [any("push", "pull"), any("plyometrics")] };
   assert.deepEqual(ids(matchEntry(goal, session(["clap", "bench"]), exercises)), ["clap"]);
   // Push and plyo on separate exercises don't count…
   assert.equal(matchEntry(goal, session(["bench", "jump"]), exercises), null);
@@ -28,8 +31,8 @@ test("matchEntry, same exercise: one exercise has to meet every rule", () => {
   assert.equal(matchEntry(goal, { tags: ["push", "plyometrics"] }, exercises), null);
 });
 
-test("matchEntry, same session: rules can be met by different exercises or the session's tags", () => {
-  const goal = { scope: "session", rules: [any("push"), any("plyometrics")] };
+test("matchEntry, anywhere in the session: each rule met on its own, by exercises or the session's tags", () => {
+  const goal = allOnSession([any("push"), any("plyometrics")]);
   assert.deepEqual(ids(matchEntry(goal, session(["bench", "jump", "row"]), exercises)), ["bench", "jump"]);
   assert.deepEqual(ids(matchEntry(goal, session(["clap"]), exercises)), ["clap"]);
   assert.deepEqual(ids(matchEntry(goal, session(["jump"], ["push"]), exercises)), ["jump"]);
@@ -37,31 +40,42 @@ test("matchEntry, same session: rules can be met by different exercises or the s
   assert.equal(matchEntry(goal, session(["bench", "row"]), exercises), null);
 });
 
-test("matchEntry: None of excludes, per exercise or per session", () => {
-  const rules = [any("push"), none("bodyweight")];
-  assert.deepEqual(ids(matchEntry({ scope: "exercise", rules }, session(["bench", "clap"]), exercises)), ["bench"]);
-  assert.equal(matchEntry({ scope: "session", rules }, session(["bench", "clap"]), exercises), null);
-  assert.equal(matchEntry({ scope: "session", rules: [any("strength"), none("deload")] }, session(["bench"], ["deload"]), exercises), null);
+test("matchEntry: mixing one-exercise rules with session rules", () => {
+  // A plyometric push exercise, in a session with legs.
+  const goal = { rules: [any("push"), any("plyometrics"), onSession(any("legs"))] };
+  assert.deepEqual(ids(matchEntry(goal, session(["clap"], ["legs"]), exercises)), ["clap"]);
+  assert.deepEqual(ids(matchEntry(goal, session(["clap", "jump"]), exercises)), ["clap", "jump"]); // legs from Box jump
+  assert.equal(matchEntry(goal, session(["clap", "row"]), exercises), null); // no legs anywhere
+  assert.equal(matchEntry(goal, session(["bench", "jump"], ["legs"]), exercises), null); // no plyo push exercise
+});
+
+test("matchEntry: None of excludes from the exercise or from the session", () => {
+  assert.deepEqual(ids(matchEntry({ rules: [any("push"), none("bodyweight")] }, session(["bench", "clap"]), exercises)), ["bench"]);
+  assert.equal(matchEntry(allOnSession([any("push"), none("bodyweight")]), session(["bench", "clap"]), exercises), null);
+  // An exercise rule with a session exclusion: skip deload sessions entirely.
+  const notDeload = { rules: [any("strength"), onSession(none("deload"))] };
+  assert.equal(matchEntry(notDeload, session(["bench"], ["deload"]), exercises), null);
+  assert.deepEqual(ids(matchEntry(notDeload, session(["bench"]), exercises)), ["bench"]);
 });
 
 test("matchEntry: a chip can be an exercise, mixed with tags in a rule", () => {
-  const goal = { scope: "exercise", rules: [{ kind: "any", tags: ["pull"], exerciseIds: ["jump"] }] };
+  const goal = { rules: [{ kind: "any", scope: "exercise", tags: ["pull"], exerciseIds: ["jump"] }] };
   assert.deepEqual(ids(matchEntry(goal, session(["jump", "row", "bench"]), exercises)), ["jump", "row"]);
   // Excluding an exercise from a session.
-  const notJump = { scope: "session", rules: [any("strength"), { kind: "none", tags: [], exerciseIds: ["jump"] }] };
+  const notJump = allOnSession([any("strength"), { kind: "none", tags: [], exerciseIds: ["jump"] }]);
   assert.equal(matchEntry(notJump, session(["bench", "jump"]), exercises), null);
   assert.deepEqual(ids(matchEntry(notJump, session(["bench"]), exercises)), ["bench"]);
 });
 
 test("goalMatches: sessions newest first; none without an Any of rule", () => {
-  const goal = { scope: "session", rules: [any("strength")] };
+  const goal = allOnSession([any("strength")]);
   const sessions = [
     { id: "a", date: "2026-09-01", tags: ["strength"] },
     { id: "b", date: "2026-09-03", tags: ["strength"] },
     { id: "c", date: "2026-09-04", tags: [] },
   ];
   assert.deepEqual(goalMatches(goal, sessions).map((m) => m.entry.id), ["b", "a"]);
-  assert.deepEqual(goalMatches({ scope: "session", rules: [none("legs"), any()] }, sessions), []);
+  assert.deepEqual(goalMatches(allOnSession([none("legs"), any()]), sessions), []);
 });
 
 const at = (...dates) => dates.map((date) => ({ entry: { date } }));
@@ -125,6 +139,8 @@ test("goalLabel and frequencyLabel spell out the goal", () => {
   assert.equal(goalLabel({ rules: [any("strength"), any("legs")] }), "strength + legs");
   assert.equal(goalLabel({ rules: [any("push", "pull"), { kind: "any", tags: ["plyometrics"], exerciseIds: ["jump"] }, none("legs")] }, names), "(push or pull) + (plyometrics or Box jump), not legs");
   assert.equal(goalLabel({ rules: [any("push", "pull")] }), "push or pull");
+  assert.equal(goalLabel({ rules: [any("push"), any("plyometrics"), onSession(any("legs")), onSession(none("deload"))] }), "push + plyometrics, in a session with legs, not deload");
+  assert.equal(goalLabel(allOnSession([any("strength"), none("deload")])), "strength, not deload");
   assert.equal(goalLabel({ name: "Chest day", rules: [any("chest")] }), "Chest day");
   assert.equal(frequencyLabel({ target: 2, period: "week" }), "Twice a week");
   assert.equal(frequencyLabel({ target: 3, period: "month" }), "3× a month");

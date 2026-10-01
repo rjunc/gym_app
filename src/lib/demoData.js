@@ -94,7 +94,7 @@ const ROUTINES = [
   { name: "Lower B", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: ["Deadlift", "Front squat", "Walking lunge", "Hanging leg raise"] },
   { name: "Upper push", folder: "Strength/Upper", tags: ["strength", "push"], exercises: [{ name: "Bench press", note: "pause on the chest" }, "Overhead press", "Incline dumbbell press", "Dips", "Tricep pushdown", "Clap push-up"], groups: [{ kind: "superset", exercises: ["Dips", "Tricep pushdown"] }], text: "Rest 2–3 min on the big lifts." },
   { name: "Upper pull", folder: "Strength/Upper", tags: ["strength", "pull"], exercises: ["Pull-ups", "Barbell row", "Lat pulldown", "Face pull", "Bicep curl"], groups: [{ kind: "superset", exercises: ["Face pull", "Bicep curl"] }] },
-  { name: "Full body", folder: "Strength", tags: ["strength"], exercises: ["Back squat", "Bench press", "Barbell row", "Farmer carry", { name: "Back squat", note: "back-off sets", backOff: true }] },
+  { name: "Full body", folder: "Strength", tags: ["strength"], exercises: ["Back squat", "Bench press", "Barbell row", "Farmer carry", "Clap push-up", { name: "Back squat", note: "back-off sets", backOff: true }] },
   { name: "Conditioning circuit", folder: "Conditioning", tags: ["conditioning"], exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"], groups: [{ kind: "circuit", exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"] }], text: "4 rounds, 90s rest between rounds." },
   { name: "Easy cardio", folder: "Conditioning", tags: ["cardio"], exercises: ["Stairmaster", "Row"] },
   { name: "Long run", folder: "Conditioning", tags: ["cardio"], exercises: ["Run"] },
@@ -178,21 +178,24 @@ const ROUND_NOTES = ["good pace", "went light", "stuck in bottom side", "long sc
 // How the rounds' techniques go: mostly hits and attempts, sometimes caught.
 const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "caught"];
 
-// Plan goals: where the rules have to hold (one exercise, or anywhere in the
-// session), the rules — "any" or "none" of some chips, each a tag or an
-// exercise by name — how many sessions, and per rolling week or month (see
-// lib/goals.js), and whether it's active (one is not). Plain plyometrics only comes up with Clap push-ups on push
-// day or the odd Box jump, so it's usually off track.
+// Plan goals: the rules — "any" or "none" of some chips, each a tag or an
+// exercise by name, on one exercise unless `session` (anywhere in the
+// session) — how many sessions, per rolling week or month (see
+// lib/goals.js), and whether it's active (one is not). Plain plyometrics
+// only comes up with Clap push-ups (push day, full body) or the odd Box jump,
+// so it's usually off track.
 const GOALS = [
   { rules: [{ any: ["plyometrics"] }], target: 2, period: "week" },
   { rules: [{ any: ["push", "pull"] }, { any: ["plyometrics"] }], target: 1, period: "week" },
-  { name: "Push + plyo day", scope: "session", rules: [{ any: ["push"] }, { any: ["plyometrics", "Box jump"] }], target: 1, period: "week" },
+  { name: "Push + plyo day", rules: [{ any: ["push"], session: true }, { any: ["plyometrics", "Box jump"], session: true }], target: 1, period: "week" },
+  { rules: [{ any: ["push"] }, { any: ["plyometrics"] }, { any: ["legs"], session: true }], target: 1, period: "month" },
+  { rules: [{ any: ["push"], session: true }, { any: ["plyometrics"], session: true }, { any: ["legs"], session: true }], target: 2, period: "month" },
   { rules: [{ any: ["strength"] }, { any: ["legs"] }], target: 2, period: "week" },
-  { scope: "session", rules: [{ any: ["cardio"] }], target: 2, period: "week" },
-  { scope: "session", rules: [{ any: ["mobility"] }], target: 1, period: "week" },
+  { rules: [{ any: ["cardio"], session: true }], target: 2, period: "week" },
+  { rules: [{ any: ["mobility"], session: true }], target: 1, period: "week" },
   { name: "Grip work", rules: [{ any: ["Farmer carry", "Dead hang"] }], target: 1, period: "week" },
   { rules: [{ any: ["push", "pull"] }, { none: ["bodyweight"] }], target: 3, period: "week" },
-  { scope: "session", rules: [{ any: ["strength"] }, { none: ["deload"] }], target: 8, period: "month" },
+  { rules: [{ any: ["strength"], session: true }, { none: ["deload"], session: true }], target: 8, period: "month" },
   { rules: [{ any: ["Sled push"] }], target: 3, period: "month", active: false },
 ];
 
@@ -454,8 +457,9 @@ export function generateDemoData(today = new Date(), months = 9) {
 
   // A chip that names a Library exercise is that exercise; anything else is
   // a tag.
-  const toRule = (kind, chips) => ({
+  const toRule = (kind, chips, session) => ({
     kind,
+    scope: session ? "session" : "exercise",
     tags: chips.filter((c) => !exerciseByName.has(c)),
     exerciseIds: chips.filter((c) => exerciseByName.has(c)).map((name) => exerciseByName.get(name).id),
   });
@@ -463,8 +467,7 @@ export function generateDemoData(today = new Date(), months = 9) {
     id: demoId(),
     name: g.name || "",
     active: g.active !== false,
-    scope: g.scope || "exercise",
-    rules: g.rules.map((r) => (r.none ? toRule("none", r.none) : toRule("any", r.any))),
+    rules: g.rules.map((r) => (r.none ? toRule("none", r.none, r.session) : toRule("any", r.any, r.session))),
     target: g.target,
     period: g.period,
     // A second apart, so they keep this order on the Plan page.

@@ -6,14 +6,16 @@ import { prefixMatchesFirst } from "../lib/search.js";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import PagePicker from "../ui/PagePicker.jsx";
+import { GOAL_SCOPES } from "../lib/goals.js";
 import { RuleChip, GOAL_ACCENT } from "./GoalParts.jsx";
-import { inputStyle, labelStyle, secondaryBtnStyle, ghostLinkStyle, pillRemoveStyle, chipRowStyle, insetStyle } from "../ui/styles.js";
+import { inputStyle, labelStyle, metaStyle, secondaryBtnStyle, ghostLinkStyle, pillRemoveStyle, chipRowStyle, insetStyle } from "../ui/styles.js";
 
-// One rule of a goal in the editor: Any of / None of, its chips (tags and
+// One rule of a goal in the editor: Any of / None of, where it has to hold
+// (on one exercise, or anywhere in the session), its chips (tags and
 // Library exercises, each with an X), and one box to add more. Typing
 // suggests matching tags and exercises; Enter adds what's typed as a tag
 // (commas add several). Browse opens the Library to pick exercises from.
-//   rule       { kind, tags, exerciseIds }
+//   rule       { kind, scope, tags, exerciseIds }
 //   onUpdate   (rule => rule) => void, applied to the latest rule
 //   onRemove   removes the rule (left out when it's the only one)
 //   first      the first rule (the others read "and …")
@@ -68,6 +70,16 @@ export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSugg
             <X size={16} />
           </button>
         )}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={metaStyle}>Where</span>
+        <SegmentedToggle
+          options={Object.entries(GOAL_SCOPES).map(([key, sc]) => ({ key, label: sc.label.toLowerCase() }))}
+          value={rule.scope === "session" ? "session" : "exercise"}
+          setValue={(scope) => onUpdate((r) => ({ ...r, scope }))}
+          accent={GOAL_ACCENT}
+        />
       </div>
 
       {!empty && (

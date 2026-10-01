@@ -102,31 +102,31 @@ export function MatchCard({ match, current, exerciseNameById, onOpen }) {
   );
 }
 
-// A goal's rules, read-only: a line per rule ("Any of" / "None of" and its
-// chips — exercises link to their sheets), then where they have to hold.
+// A goal's rules, read-only: a line per rule ("Any of" / "None of", its
+// chips — exercises link to their sheets — and where it has to hold).
 export function RulesSummary({ goal, exerciseNameById }) {
   const rules = (goal.rules || []).filter((r) => (r.tags || []).length + (r.exerciseIds || []).length > 0);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {rules.map((r, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ ...metaStyle, minWidth: 76, whiteSpace: "nowrap", color: r.kind === "none" ? "var(--danger)" : "var(--text-dim)", fontWeight: 600 }}>
-            {i === 0 ? "Any of" : r.kind === "none" ? "And none of" : "And any of"}
-          </span>
-          <div style={chipRowStyle}>
-            {r.tags.map((t) => (
-              <RuleChip key={t} label={t} kind={r.kind} />
-            ))}
-            {r.exerciseIds.map((id) => (
-              <RuleChip key={id} kind={r.kind} exercise label={<SheetLink sheet={exerciseNameById.has(id) ? { kind: "exercise", id } : null}>{exerciseNameById.get(id) || "Deleted exercise"}</SheetLink>} />
-            ))}
+        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ ...metaStyle, minWidth: 76, whiteSpace: "nowrap", color: r.kind === "none" ? "var(--danger)" : "var(--text-dim)", fontWeight: 600 }}>
+              {i === 0 ? (r.kind === "none" ? "None of" : "Any of") : r.kind === "none" ? "And none of" : "And any of"}
+            </span>
+            <div style={chipRowStyle}>
+              {r.tags.map((t) => (
+                <RuleChip key={t} label={t} kind={r.kind} />
+              ))}
+              {r.exerciseIds.map((id) => (
+                <RuleChip key={id} kind={r.kind} exercise label={<SheetLink sheet={exerciseNameById.has(id) ? { kind: "exercise", id } : null}>{exerciseNameById.get(id) || "Deleted exercise"}</SheetLink>} />
+              ))}
+            </div>
           </div>
+          <span style={{ ...metaStyle, paddingLeft: 84, fontSize: 11 }}>{r.scope === "session" ? "anywhere in the session" : "on one exercise"}</span>
         </div>
       ))}
-      <div style={metaStyle}>
-        <span style={{ fontWeight: 600, color: "var(--text)" }}>{GOAL_SCOPES[goal.scope === "session" ? "session" : "exercise"].label}.</span>{" "}
-        {GOAL_SCOPES[goal.scope === "session" ? "session" : "exercise"].hint}
-      </div>
+      {rules.filter((r) => r.scope !== "session").length > 1 && <div style={metaStyle}>The rules on one exercise have to be met by the same exercise.</div>}
     </div>
   );
 }

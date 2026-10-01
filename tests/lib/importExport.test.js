@@ -651,12 +651,11 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         id: "g1",
         name: "  Plyo  push ",
         active: false,
-        scope: "session",
-        rules: [{ kind: "any", tags: ["Push", "pull"], exerciseIds: ["e1", 5] }, { kind: "none", tags: ["legs"] }, null],
+        rules: [{ kind: "any", scope: "session", tags: ["Push", "pull"], exerciseIds: ["e1", 5] }, { kind: "none", tags: ["legs"] }, null],
         target: "2",
         period: "month",
       },
-      { rules: [{ kind: "most", tags: ["plyometrics"] }], scope: "gym", target: 0, period: "fortnight" },
+      { rules: [{ kind: "most", scope: "gym", tags: ["plyometrics"] }], target: 0, period: "fortnight" },
     ],
   });
   const { goals } = parseImportFile("export.json", json, []);
@@ -667,15 +666,14 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         id: "g1",
         name: "Plyo push",
         active: false,
-        scope: "session",
         rules: [
-          { kind: "any", tags: ["push", "pull"], exerciseIds: ["e1"] },
-          { kind: "none", tags: ["legs"], exerciseIds: [] },
+          { kind: "any", scope: "session", tags: ["push", "pull"], exerciseIds: ["e1"] },
+          { kind: "none", scope: "exercise", tags: ["legs"], exerciseIds: [] },
         ],
         target: 2,
         period: "month",
       },
-      { id: goals[1].id, name: "", active: true, scope: "exercise", rules: [{ kind: "any", tags: ["plyometrics"], exerciseIds: [] }], target: 1, period: "week" },
+      { id: goals[1].id, name: "", active: true, rules: [{ kind: "any", scope: "exercise", tags: ["plyometrics"], exerciseIds: [] }], target: 1, period: "week" },
     ]
   );
   assert.deepEqual(parseImportFile("export.csv", "type,id\n", []).goals, []);
