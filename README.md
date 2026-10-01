@@ -126,13 +126,18 @@ same way (cardio starts in min, holds in sec); `timeUnit` on the set records
 which. See `src/lib/sets.js`.
 
 **Plan goals.** The Plan page holds goals for how often to train
-something: `{ id, name, tags, tagMatch: "all" | "any", exerciseIds, target,
-period: "week" | "month" }` (`name` optional; blank shows the criteria). Only
-lifting sessions count (not mat sessions). A session counts toward a goal
-when its own tags match, or when it has one of the goal's exercises, or an
-exercise carrying one of the goal's tags whose tags together with the
-session's match (so "strength + chest" counts a chest exercise in a
-strength-tagged session). Progress is the number of sessions (two on one day
+something: `{ id, name, scope: "exercise" | "session", rules: [{ kind:
+"any" | "none", tags, exerciseIds }], target, period: "week" | "month" }`
+(`name` optional; blank spells out the rules, e.g. "(push or pull) +
+plyometrics, not legs"). Every rule must hold: an "any" rule needs one of its
+chips (tags or Library exercises), a "none" rule none of them. The scope says
+where: **Same exercise** means one exercise meets every rule by its own Library
+tags (the session's tags don't count), so "push + plyometrics" needs a clap
+push-up, not bench press plus box jumps; **Same session** lets each rule be met
+by anything in the session (its tags or any of its exercises), so bench press
+plus box jumps counts. Only lifting sessions count (not mat sessions). The goal
+form previews the latest sessions a goal matches as you edit it.
+Progress is the number of sessions (two on one day
 count twice) in a rolling window ending today: the last 7 days for a week,
 the last 30 for a month, so last Friday's session still counts on Thursday.
 Status: **Off track** (fewer sessions in the window than the target), **At

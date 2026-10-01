@@ -2,23 +2,16 @@ import { useState, useMemo } from "react";
 import { History, Check } from "lucide-react";
 import { todayISO, formatDate } from "../lib/id.js";
 import { nameMap } from "../lib/search.js";
-import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import { useSheets } from "../lib/SheetStack.js";
 import { goalLabel, frequencyLabel, goalStatus, recentWindows, windowEnding, windowLabel, windowName, matchesIn, progressText } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SheetActions from "../ui/SheetActions.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
-import TagChip from "../ui/TagChip.jsx";
-import SetsSummary from "../ui/SetsSummary.jsx";
-import { SheetLink } from "../ui/SheetNav.jsx";
-import { StatusPill, PeriodStrip } from "./GoalParts.jsx";
-import { GOAL_ACCENT } from "./GoalEditor.jsx";
-import { cardStyle, labelStyle, metaStyle, eyebrowStyle, chipRowStyle, ghostLinkStyle } from "../ui/styles.js";
+import { StatusPill, PeriodStrip, MatchCard, RulesSummary, GOAL_ACCENT } from "./GoalParts.jsx";
+import { cardStyle, labelStyle, metaStyle, eyebrowStyle, ghostLinkStyle } from "../ui/styles.js";
 
 // How many earlier months of history show before "Show earlier".
 const EARLIER_PAGE = 6;
-
-const SESSION = ENTRY_TYPES.sessions;
 
 // Read-only summary of a Plan goal, opened on the sheet stack: where it
 // stands over its rolling window (the last 7 or 30 days), the windows before
@@ -77,29 +70,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onDelete, 
 
       <div>
         <span style={labelStyle}>Counts</span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {(goal.tags || []).length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={metaStyle}>{goal.tags.length > 1 ? (goal.tagMatch === "any" ? "Any of" : "All of") : "Tagged"}</span>
-              <div style={chipRowStyle}>
-                {goal.tags.map((t) => (
-                  <TagChip key={t} label={t} small active accent={GOAL_ACCENT} />
-                ))}
-              </div>
-            </div>
-          )}
-          {(goal.exerciseIds || []).length > 0 && (
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", fontSize: 14 }}>
-              <span style={metaStyle}>{(goal.tags || []).length > 0 ? "Or any of" : "Any of"}</span>
-              {goal.exerciseIds.map((id, i) => (
-                <span key={id} style={{ fontWeight: 600, color: `var(${GOAL_ACCENT})` }}>
-                  <SheetLink sheet={exerciseNameById.has(id) ? { kind: "exercise", id } : null}>{exerciseNameById.get(id) || "Deleted exercise"}</SheetLink>
-                  {i < goal.exerciseIds.length - 1 ? "," : ""}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        <RulesSummary goal={goal} exerciseNameById={exerciseNameById} />
       </div>
 
       <div>
@@ -178,27 +149,6 @@ function MatchGroup({ title, sub, count, target, current = false, matches, empty
         matches.map((m) => (
           <MatchCard key={m.entry.id} match={m} current={current} exerciseNameById={exerciseNameById} onOpen={sheets ? () => sheets.open({ kind: "entry", source: "sessions", id: m.entry.id }) : undefined} />
         ))
-      )}
-    </div>
-  );
-}
-
-// One matching session: its date and title, then only the exercises that
-// made it count (or a note that its tags did).
-function MatchCard({ match, current, exerciseNameById, onOpen }) {
-  const { entry, blocks } = match;
-  return (
-    <div
-      onClick={onOpen}
-      className={onOpen ? "card-click" : undefined}
-      style={{ ...cardStyle, padding: 12, ...(current ? { borderColor: `color-mix(in srgb, var(${GOAL_ACCENT}) 45%, var(--border))` } : { background: "var(--surface-2)" }) }}
-    >
-      <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{formatDate(entry.date)}</div>
-      {entry.title && <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{entry.title}</div>}
-      {blocks.length > 0 ? (
-        <SetsSummary entry={{ blocks, groups: [] }} exerciseNameById={exerciseNameById} accent={SESSION.accent} includeEmpty style={{ marginTop: 6 }} />
-      ) : (
-        <div style={{ ...metaStyle, marginTop: 6 }}>Counted by its tags: {(entry.tags || []).join(", ")}</div>
       )}
     </div>
   );

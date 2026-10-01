@@ -3,13 +3,13 @@
 // sessions against a goal, its rolling window, and whether it's on track.
 // Kept free of React so they're testable.
 //
-// A goal record: { id, name, tags, tagMatch: "all" | "any", exerciseIds,
-// target, period: "week" | "month", createdAt, updatedAt }. `name` is
+// A goal record: { id, name, scope: "exercise" | "session", rules: [{ kind:
+// "any" | "none", tags, exerciseIds }], target, period: "week" | "month",
+// createdAt, updatedAt } (see matchEntry for what the rules mean). `name` is
 // optional (goalLabel spells out the criteria when it's blank). The period
 // is a rolling window ending today — the last 7 or 30 days — not a calendar
 // week or month, so last Friday's session still counts on Thursday.
 
-import { matchesTags } from "./activity.js";
 import { blocksOf } from "./sets.js";
 import { shiftISODate } from "./id.js";
 
@@ -48,16 +48,28 @@ export const windowLabel = ({ start, end }) => `${shortDate(start)} – ${shortD
 // "Last 7 days", "Last 30 days".
 export const windowName = (goal) => `Last ${windowDays(goal)} days`;
 
-export const hasCriteria = (goal) => (goal.tags || []).length > 0 || (goal.exerciseIds || []).length > 0;
+export const GOAL_SCOPES = {
+  exercise: { label: "Same exercise", hint: "One exercise has to meet every rule, by its own tags." },
+  session: { label: "Same session", hint: "Each rule can be met by anything in the session: its tags or any exercise in it." },
+};
 
-// The goal's name, or its criteria spelled out: "strength + chest",
-// "push or pull", "Deadlift", "plyometrics, or Box jump".
+const ruleChips = (rule) => (rule.tags || []).length + (rule.exerciseIds || []).length;
+
+// A goal needs at least one "Any of" rule with something in it; exclusions
+// alone would count every session.
+export const hasCriteria = (goal) => (goal.rules || []).some((r) => r.kind !== "none" && ruleChips(r) > 0);
+
+// The goal's name, or its rules spelled out: "(push or pull) + plyometrics,
+// not legs", "Farmer carry or Dead hang".
 export function goalLabel(goal, exerciseNameById = new Map()) {
   if (goal.name) return goal.name;
-  const tags = goal.tags || [];
-  const tagText = tags.join(goal.tagMatch === "any" ? " or " : " + ");
-  const exerciseText = (goal.exerciseIds || []).map((id) => exerciseNameById.get(id) || "Deleted exercise").join(" or ");
-  return [tagText, exerciseText].filter(Boolean).join(", or ") || "Untitled goal";
+  const rules = (goal.rules || []).filter((r) => ruleChips(r) > 0);
+  const chips = (r) => [...(r.tags || []), ...(r.exerciseIds || []).map((id) => exerciseNameById.get(id) || "Deleted exercise")];
+  const any = rules.filter((r) => r.kind !== "none");
+  const none = rules.filter((r) => r.kind === "none");
+  const text = any.map((r) => (chips(r).length > 1 && any.length > 1 ? `(${chips(r).join(" or ")})` : chips(r).join(" or "))).join(" + ");
+  const not = none.map((r) => `not ${chips(r).join(" or ")}`).join(", ");
+  return [text, not].filter(Boolean).join(", ") || "Untitled goal";
 }
 
 // "2× a week", "once a month".
@@ -67,26 +79,39 @@ export function frequencyLabel(goal) {
   return `${times} ${per}`;
 }
 
+// Whether one rule's chips hit something with these `tags` and exercise ids.
+const hits = (rule, tags, exerciseIds) => (rule.tags || []).some((t) => tags.includes(t)) || (rule.exerciseIds || []).some((id) => exerciseIds.includes(id));
+
+// Whether `tags` + `exerciseIds` meet every rule: each "Any of" rule hits,
+// no "None of" rule does. Rules with nothing in them are ignored.
+function meetsRules(rules, tags, exerciseIds) {
+  return rules.every((r) => ruleChips(r) === 0 || (r.kind === "none" ? !hits(r, tags, exerciseIds) : hits(r, tags, exerciseIds)));
+}
+
 // Whether a session counts toward `goal`, and which of its exercises did it.
-// It counts when its own tags match the goal's, or when any exercise in it
-// does: one of the goal's exercises, or an exercise with at least one of the
-// goal's tags whose tags — together with the session's — match them. So
-// "strength + chest" counts a chest exercise done in a session tagged
-// strength, but a session tagged strength + legs doesn't make its planks
-// count toward "strength + legs" (the session still counts, by its tags).
-// Returns the matching blocks (empty when only the session's tags matched),
-// or null when it doesn't count.
+// A goal is a list of rules, every one of which must hold: "Any of" a set
+// of chips (tags or Library exercises), or "None of" them. Its scope says
+// where they have to hold:
+//   exercise  one exercise meets every rule on its own: its Library tags and
+//             itself. The session's tags don't come into it. The blocks
+//             returned are the exercises that did.
+//   session   the session as a whole meets every rule: its own tags plus
+//             every exercise's tags, and every exercise in it. So push work
+//             and plyo work on separate exercises count for "push +
+//             plyometrics". The blocks returned are the exercises that hit an
+//             "Any of" rule (empty when only the session's tags did).
+// Returns the blocks, or null when it doesn't count.
 export function matchEntry(goal, entry, exerciseById = new Map()) {
-  const tags = goal.tags || [];
-  const exerciseIds = goal.exerciseIds || [];
-  const tagsMatch = (list) => tags.length > 0 && matchesTags(list, tags, goal.tagMatch === "any" ? "any" : "all");
-  const entryTags = entry.tags || [];
-  const blocks = blocksOf(entry).filter((b) => {
-    if (exerciseIds.includes(b.exerciseId)) return true;
-    const exerciseTags = exerciseById.get(b.exerciseId)?.tags || [];
-    return exerciseTags.some((t) => tags.includes(t)) && tagsMatch([...entryTags, ...exerciseTags]);
-  });
-  return blocks.length > 0 || tagsMatch(entryTags) ? blocks : null;
+  const rules = goal.rules || [];
+  const blocks = blocksOf(entry);
+  const tagsOf = (b) => exerciseById.get(b.exerciseId)?.tags || [];
+  if (goal.scope === "session") {
+    const tags = [...(entry.tags || []), ...blocks.flatMap(tagsOf)];
+    if (!meetsRules(rules, tags, blocks.map((b) => b.exerciseId))) return null;
+    return blocks.filter((b) => rules.some((r) => r.kind !== "none" && hits(r, tagsOf(b), [b.exerciseId])));
+  }
+  const matched = blocks.filter((b) => meetsRules(rules, tagsOf(b), [b.exerciseId]));
+  return matched.length > 0 ? matched : null;
 }
 
 // Every lifting session that counts toward `goal`, newest first, as

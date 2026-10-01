@@ -1,5 +1,12 @@
-import { GOAL_STATUSES } from "../lib/goals.js";
-import { eyebrowStyle } from "../ui/styles.js";
+import { Dumbbell } from "lucide-react";
+import { formatDate } from "../lib/id.js";
+import { ENTRY_TYPES } from "../lib/entryTypes.js";
+import { GOAL_STATUSES, GOAL_SCOPES } from "../lib/goals.js";
+import SetsSummary from "../ui/SetsSummary.jsx";
+import { SheetLink } from "../ui/SheetNav.jsx";
+import { eyebrowStyle, cardStyle, metaStyle, chipRowStyle } from "../ui/styles.js";
+
+export const GOAL_ACCENT = "--accent2";
 
 // "Oct 1": the last day of a window, naming its bar.
 const endLabel = ({ end }) => new Date(`${end}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -70,5 +77,80 @@ export function PeriodStrip({ rows, target, labels = false }) {
         );
       })}
     </div>
+  );
+}
+
+// One matching session: its date and title, then only the exercises that
+// made it count (or a note that its tags did).
+export function MatchCard({ match, current, exerciseNameById, onOpen }) {
+  const { entry, blocks } = match;
+  return (
+    <div
+      onClick={onOpen}
+      className={onOpen ? "card-click" : undefined}
+      style={{ ...cardStyle, padding: 12, ...(current ? { borderColor: `color-mix(in srgb, var(${GOAL_ACCENT}) 45%, var(--border))` } : { background: "var(--surface-2)" }) }}
+    >
+      <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{formatDate(entry.date)}</div>
+      {entry.title && <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{entry.title}</div>}
+      {blocks.length > 0 ? (
+        <SetsSummary entry={{ blocks, groups: [] }} exerciseNameById={exerciseNameById} accent={ENTRY_TYPES.sessions.accent} includeEmpty style={{ marginTop: 6 }} />
+      ) : (
+        <div style={{ ...metaStyle, marginTop: 6 }}>Counted by its tags: {(entry.tags || []).join(", ")}</div>
+      )}
+    </div>
+  );
+}
+
+// A goal's rules, read-only: a line per rule ("Any of" / "None of" and its
+// chips — exercises link to their sheets), then where they have to hold.
+export function RulesSummary({ goal, exerciseNameById }) {
+  const rules = (goal.rules || []).filter((r) => (r.tags || []).length + (r.exerciseIds || []).length > 0);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {rules.map((r, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ ...metaStyle, minWidth: 76, whiteSpace: "nowrap", color: r.kind === "none" ? "var(--danger)" : "var(--text-dim)", fontWeight: 600 }}>
+            {i === 0 ? "Any of" : r.kind === "none" ? "And none of" : "And any of"}
+          </span>
+          <div style={chipRowStyle}>
+            {r.tags.map((t) => (
+              <RuleChip key={t} label={t} kind={r.kind} />
+            ))}
+            {r.exerciseIds.map((id) => (
+              <RuleChip key={id} kind={r.kind} exercise label={<SheetLink sheet={exerciseNameById.has(id) ? { kind: "exercise", id } : null}>{exerciseNameById.get(id) || "Deleted exercise"}</SheetLink>} />
+            ))}
+          </div>
+        </div>
+      ))}
+      <div style={metaStyle}>
+        <span style={{ fontWeight: 600, color: "var(--text)" }}>{GOAL_SCOPES[goal.scope === "session" ? "session" : "exercise"].label}.</span>{" "}
+        {GOAL_SCOPES[goal.scope === "session" ? "session" : "exercise"].hint}
+      </div>
+    </div>
+  );
+}
+
+// One chip in a rule: a tag, or a Library exercise (with a dumbbell), tinted
+// red in a "None of" rule. `children` is its remove button, in the editor.
+export function RuleChip({ label, kind, exercise = false, children }) {
+  const accent = kind === "none" ? "--danger" : GOAL_ACCENT;
+  return (
+    <span
+      style={{
+        borderRadius: 999,
+        padding: children ? "3px 7px 3px 10px" : "3px 10px",
+        fontSize: 12,
+        fontWeight: 600,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        background: `var(${accent}-dim)`,
+        color: `var(${accent})`,
+      }}
+    >
+      {exercise && <Dumbbell size={12} />}
+      {label}
+      {children}
+    </span>
   );
 }

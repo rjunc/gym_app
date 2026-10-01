@@ -6,8 +6,8 @@ import { useSheets } from "../lib/SheetStack.js";
 import { goalSummaries, goalLabel, frequencyLabel, recentWindows, progressText, GOAL_STATUSES } from "../lib/goals.js";
 import { PageHeader, PageBody } from "../ui/Page.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
-import GoalEditor, { GOAL_ACCENT } from "./GoalEditor.jsx";
-import { StatusPill, PeriodStrip } from "./GoalParts.jsx";
+import GoalEditor from "./GoalEditor.jsx";
+import { StatusPill, PeriodStrip, GOAL_ACCENT } from "./GoalParts.jsx";
 import { cardStyle, primaryBtnStyle, metaStyle } from "../ui/styles.js";
 
 // The Plan: goals for how often to train something ("plyometrics twice a

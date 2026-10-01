@@ -69,6 +69,7 @@ const EXERCISES = [
   { name: "Kettlebell swing", folder: "Conditioning", tags: ["conditioning", "legs", "pull"], measure: "weight_reps", weight: 35, reps: 15 },
   { name: "Burpees", folder: "Conditioning", tags: ["conditioning", "bodyweight"], measure: "reps_time", reps: 12, seconds: 60 },
   { name: "Box jump", folder: "Conditioning", tags: ["plyometrics", "legs"], measure: "reps", reps: 8 },
+  { name: "Clap push-up", folder: "Strength/Push", tags: ["push", "plyometrics", "bodyweight"], measure: "reps", reps: 6 },
   { name: "Run", folder: "Cardio", tags: ["cardio"], measure: "distance", distance: 2, distanceUnit: "mi", minutesPerUnit: 10 },
   { name: "Row", folder: "Cardio", tags: ["cardio"], measure: "distance", distance: 2000, distanceUnit: "m", minutesPerUnit: 0.0045 },
   { name: "Stairmaster", folder: "Cardio", tags: ["cardio"], measure: "time_level", seconds: 900, level: 6 },
@@ -91,7 +92,7 @@ const ROUTINE_FOLDERS = ["Strength", "Strength/Upper", "Strength/Lower", "Condit
 const ROUTINES = [
   { name: "Lower A", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: [{ name: "Back squat", note: "last set AMRAP" }, "Romanian deadlift", "Bulgarian split squat", "Plank"], text: "Squat heavy, RDL moderate. Finish with core." },
   { name: "Lower B", folder: "Strength/Lower", tags: ["strength", "legs"], exercises: ["Deadlift", "Front squat", "Walking lunge", "Hanging leg raise"] },
-  { name: "Upper push", folder: "Strength/Upper", tags: ["strength", "push"], exercises: [{ name: "Bench press", note: "pause on the chest" }, "Overhead press", "Incline dumbbell press", "Dips", "Tricep pushdown"], groups: [{ kind: "superset", exercises: ["Dips", "Tricep pushdown"] }], text: "Rest 2–3 min on the big lifts." },
+  { name: "Upper push", folder: "Strength/Upper", tags: ["strength", "push"], exercises: [{ name: "Bench press", note: "pause on the chest" }, "Overhead press", "Incline dumbbell press", "Dips", "Tricep pushdown", "Clap push-up"], groups: [{ kind: "superset", exercises: ["Dips", "Tricep pushdown"] }], text: "Rest 2–3 min on the big lifts." },
   { name: "Upper pull", folder: "Strength/Upper", tags: ["strength", "pull"], exercises: ["Pull-ups", "Barbell row", "Lat pulldown", "Face pull", "Bicep curl"], groups: [{ kind: "superset", exercises: ["Face pull", "Bicep curl"] }] },
   { name: "Full body", folder: "Strength", tags: ["strength"], exercises: ["Back squat", "Bench press", "Barbell row", "Farmer carry", { name: "Back squat", note: "back-off sets", backOff: true }] },
   { name: "Conditioning circuit", folder: "Conditioning", tags: ["conditioning"], exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"], groups: [{ kind: "circuit", exercises: ["Kettlebell swing", "Burpees", "Sled push", "Farmer carry"] }], text: "4 rounds, 90s rest between rounds." },
@@ -177,18 +178,22 @@ const ROUND_NOTES = ["good pace", "went light", "stuck in bottom side", "long sc
 // How the rounds' techniques go: mostly hits and attempts, sometimes caught.
 const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "caught"];
 
-// Plan goals: tags (all or any of them) and/or exercises by name, how many
-// sessions, and per rolling week or month (see lib/goals.js). Plyometrics only comes up
-// when Box jump is the odd extra exercise, so it's usually off track.
+// Plan goals: where the rules have to hold (one exercise, or anywhere in the
+// session), the rules — "any" or "none" of some chips, each a tag or an
+// exercise by name — how many sessions, and per rolling week or month (see
+// lib/goals.js). Plain plyometrics only comes up with Clap push-ups on push
+// day or the odd Box jump, so it's usually off track.
 const GOALS = [
-  { tags: ["plyometrics"], target: 2, period: "week" },
-  { tags: ["strength", "legs"], target: 2, period: "week" },
-  { tags: ["cardio"], target: 2, period: "week" },
-  { tags: ["mobility"], target: 1, period: "week" },
-  { name: "Grip work", exercises: ["Farmer carry", "Dead hang"], target: 1, period: "week" },
-  { tags: ["push", "pull"], tagMatch: "any", exercises: ["Deadlift"], target: 3, period: "week" },
-  { tags: ["strength", "push"], target: 4, period: "month" },
-  { exercises: ["Sled push"], target: 3, period: "month" },
+  { rules: [{ any: ["plyometrics"] }], target: 2, period: "week" },
+  { rules: [{ any: ["push", "pull"] }, { any: ["plyometrics"] }], target: 1, period: "week" },
+  { name: "Push + plyo day", scope: "session", rules: [{ any: ["push"] }, { any: ["plyometrics", "Box jump"] }], target: 1, period: "week" },
+  { rules: [{ any: ["strength"] }, { any: ["legs"] }], target: 2, period: "week" },
+  { scope: "session", rules: [{ any: ["cardio"] }], target: 2, period: "week" },
+  { scope: "session", rules: [{ any: ["mobility"] }], target: 1, period: "week" },
+  { name: "Grip work", rules: [{ any: ["Farmer carry", "Dead hang"] }], target: 1, period: "week" },
+  { rules: [{ any: ["push", "pull"] }, { none: ["bodyweight"] }], target: 3, period: "week" },
+  { scope: "session", rules: [{ any: ["strength"] }, { none: ["deload"] }], target: 8, period: "month" },
+  { rules: [{ any: ["Sled push"] }], target: 3, period: "month" },
 ];
 
 // Builds a folder record per path in `paths` ("A/B" nests B under A), and
@@ -447,12 +452,18 @@ export function generateDemoData(today = new Date(), months = 9) {
     }
   }
 
+  // A chip that names a Library exercise is that exercise; anything else is
+  // a tag.
+  const toRule = (kind, chips) => ({
+    kind,
+    tags: chips.filter((c) => !exerciseByName.has(c)),
+    exerciseIds: chips.filter((c) => exerciseByName.has(c)).map((name) => exerciseByName.get(name).id),
+  });
   const goals = GOALS.map((g, i) => ({
     id: demoId(),
     name: g.name || "",
-    tags: g.tags || [],
-    tagMatch: g.tagMatch || "all",
-    exerciseIds: (g.exercises || []).map((name) => exerciseByName.get(name).id),
+    scope: g.scope || "exercise",
+    rules: g.rules.map((r) => (r.none ? toRule("none", r.none) : toRule("any", r.any))),
     target: g.target,
     period: g.period,
     // A second apart, so they keep this order on the Plan page.
