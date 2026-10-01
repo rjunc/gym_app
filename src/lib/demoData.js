@@ -181,7 +181,7 @@ const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "ca
 // Plan goals: where the rules have to hold (one exercise, or anywhere in the
 // session), the rules — "any" or "none" of some chips, each a tag or an
 // exercise by name — how many sessions, and per rolling week or month (see
-// lib/goals.js). Plain plyometrics only comes up with Clap push-ups on push
+// lib/goals.js), and whether it's active (one is not). Plain plyometrics only comes up with Clap push-ups on push
 // day or the odd Box jump, so it's usually off track.
 const GOALS = [
   { rules: [{ any: ["plyometrics"] }], target: 2, period: "week" },
@@ -193,7 +193,7 @@ const GOALS = [
   { name: "Grip work", rules: [{ any: ["Farmer carry", "Dead hang"] }], target: 1, period: "week" },
   { rules: [{ any: ["push", "pull"] }, { none: ["bodyweight"] }], target: 3, period: "week" },
   { scope: "session", rules: [{ any: ["strength"] }, { none: ["deload"] }], target: 8, period: "month" },
-  { rules: [{ any: ["Sled push"] }], target: 3, period: "month" },
+  { rules: [{ any: ["Sled push"] }], target: 3, period: "month", active: false },
 ];
 
 // Builds a folder record per path in `paths` ("A/B" nests B under A), and
@@ -462,6 +462,7 @@ export function generateDemoData(today = new Date(), months = 9) {
   const goals = GOALS.map((g, i) => ({
     id: demoId(),
     name: g.name || "",
+    active: g.active !== false,
     scope: g.scope || "exercise",
     rules: g.rules.map((r) => (r.none ? toRule("none", r.none) : toRule("any", r.any))),
     target: g.target,

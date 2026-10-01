@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { windowEnding, matchEntry, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel } from "../../src/lib/goals.js";
+import { isActive, windowEnding, matchEntry, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel } from "../../src/lib/goals.js";
 
 const exercises = new Map([
   ["bench", { id: "bench", tags: ["strength", "push"] }],
@@ -128,4 +128,10 @@ test("goalLabel and frequencyLabel spell out the goal", () => {
   assert.equal(goalLabel({ name: "Chest day", rules: [any("chest")] }), "Chest day");
   assert.equal(frequencyLabel({ target: 2, period: "week" }), "Twice a week");
   assert.equal(frequencyLabel({ target: 3, period: "month" }), "3× a month");
+});
+
+test("isActive: goals are active unless switched off", () => {
+  assert.equal(isActive({ active: true }), true);
+  assert.equal(isActive({}), true);
+  assert.equal(isActive({ active: false }), false);
 });

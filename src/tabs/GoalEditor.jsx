@@ -9,7 +9,7 @@ import { useLog } from "../lib/LogContext.js";
 import { GOAL_PERIODS, GOAL_SCOPES, hasCriteria, goalMatches } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
-import { NameField } from "../ui/ComposerFields.jsx";
+import { NameField, ActiveField } from "../ui/ComposerFields.jsx";
 import GoalRuleField from "./GoalRuleField.jsx";
 import { MatchCard, GOAL_ACCENT } from "./GoalParts.jsx";
 import { labelStyle, metaStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
@@ -29,6 +29,7 @@ export default function GoalEditor({ goal, onClose }) {
   const { setGoals, sessions, exercises, exerciseUsage } = useLog();
   const [form, setForm] = useState(() => ({
     name: goal?.name || "",
+    active: goal ? goal.active !== false : true,
     scope: goal?.scope || "exercise",
     // Each rule gets a key while it's being edited, for React; it isn't saved.
     rules: goal?.rules?.length ? goal.rules.map((r) => ({ ...r, key: uid(), tags: [...r.tags], exerciseIds: [...r.exerciseIds] })) : [blankRule()],
@@ -145,6 +146,8 @@ export default function GoalEditor({ goal, onClose }) {
       </div>
 
       <NameField form={form} setForm={setForm} nameField="name" nameLabel="Name (optional)" namePlaceholder="Leave blank to name it after what it counts" />
+
+      <ActiveField form={form} setForm={setForm} accentVar={GOAL_ACCENT} activeLabel="Active — track it, and warn on Home when it slips" />
 
       {hasCriteria(form) && (
         <div>

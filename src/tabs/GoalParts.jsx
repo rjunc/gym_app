@@ -11,16 +11,17 @@ export const GOAL_ACCENT = "--accent2";
 // "Oct 1": the last day of a window, naming its bar.
 const endLabel = ({ end }) => new Date(`${end}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
-// A goal's status as a small coloured pill: On track, At risk or Off track.
+// A goal's status as a small coloured pill: On track, At risk or Off track,
+// or a grey Inactive for a goal that isn't being tracked.
 export function StatusPill({ status }) {
-  const meta = GOAL_STATUSES[status];
+  const meta = status === "inactive" ? { label: "Inactive" } : GOAL_STATUSES[status];
   return (
     <span
       style={{
         ...eyebrowStyle,
         fontSize: 10,
-        color: `var(${meta.accent})`,
-        background: `var(${meta.accent}-dim)`,
+        color: meta.accent ? `var(${meta.accent})` : "var(--text-dim)",
+        background: meta.accent ? `var(${meta.accent}-dim)` : "var(--surface-3)",
         borderRadius: 999,
         padding: "3px 8px",
         whiteSpace: "nowrap",

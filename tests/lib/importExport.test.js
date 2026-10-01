@@ -650,6 +650,7 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
       {
         id: "g1",
         name: "  Plyo  push ",
+        active: false,
         scope: "session",
         rules: [{ kind: "any", tags: ["Push", "pull"], exerciseIds: ["e1", 5] }, { kind: "none", tags: ["legs"] }, null],
         target: "2",
@@ -665,6 +666,7 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
       {
         id: "g1",
         name: "Plyo push",
+        active: false,
         scope: "session",
         rules: [
           { kind: "any", tags: ["push", "pull"], exerciseIds: ["e1"] },
@@ -673,7 +675,7 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         target: 2,
         period: "month",
       },
-      { id: goals[1].id, name: "", scope: "exercise", rules: [{ kind: "any", tags: ["plyometrics"], exerciseIds: [] }], target: 1, period: "week" },
+      { id: goals[1].id, name: "", active: true, scope: "exercise", rules: [{ kind: "any", tags: ["plyometrics"], exerciseIds: [] }], target: 1, period: "week" },
     ]
   );
   assert.deepEqual(parseImportFile("export.csv", "type,id\n", []).goals, []);

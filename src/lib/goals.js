@@ -3,9 +3,9 @@
 // sessions against a goal, its rolling window, and whether it's on track.
 // Kept free of React so they're testable.
 //
-// A goal record: { id, name, scope: "exercise" | "session", rules: [{ kind:
-// "any" | "none", tags, exerciseIds }], target, period: "week" | "month",
-// createdAt, updatedAt } (see matchEntry for what the rules mean). `name` is
+// A goal record: { id, name, active, scope: "exercise" | "session", rules:
+// [{ kind: "any" | "none", tags, exerciseIds }], target, period: "week" |
+// "month", createdAt, updatedAt } (see matchEntry for what the rules mean). `name` is
 // optional (goalLabel spells out the criteria when it's blank). The period
 // is a rolling window ending today — the last 7 or 30 days — not a calendar
 // week or month, so last Friday's session still counts on Thursday.
@@ -47,6 +47,10 @@ export const windowLabel = ({ start, end }) => `${shortDate(start)} – ${shortD
 
 // "Last 7 days", "Last 30 days".
 export const windowName = (goal) => `Last ${windowDays(goal)} days`;
+
+// An inactive goal is kept, history and all, but isn't tracked: it sits in
+// its own section on the Plan page and Home never warns about it.
+export const isActive = (goal) => goal.active !== false;
 
 export const GOAL_SCOPES = {
   exercise: { label: "Same exercise", hint: "One exercise has to meet every rule, by its own tags." },

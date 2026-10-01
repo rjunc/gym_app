@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { History, Check } from "lucide-react";
+import { History, Check, Pause, Play } from "lucide-react";
 import { todayISO, formatDate } from "../lib/id.js";
 import { nameMap } from "../lib/search.js";
 import { useSheets } from "../lib/SheetStack.js";
-import { goalLabel, frequencyLabel, goalStatus, recentWindows, windowEnding, windowLabel, windowName, matchesIn, progressText } from "../lib/goals.js";
+import { isActive, goalLabel, frequencyLabel, goalStatus, recentWindows, windowEnding, windowLabel, windowName, matchesIn, progressText } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
-import SheetActions from "../ui/SheetActions.jsx";
+import SheetActions, { sheetActionBtnStyle } from "../ui/SheetActions.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { StatusPill, PeriodStrip, MatchCard, RulesSummary, GOAL_ACCENT } from "./GoalParts.jsx";
 import { cardStyle, labelStyle, metaStyle, eyebrowStyle, ghostLinkStyle } from "../ui/styles.js";
@@ -13,13 +13,14 @@ import { cardStyle, labelStyle, metaStyle, eyebrowStyle, ghostLinkStyle } from "
 // How many earlier months of history show before "Show earlier".
 const EARLIER_PAGE = 6;
 
-// Read-only summary of a Plan goal, opened on the sheet stack: where it
+// Read-only summary of a Plan goal, opened on the sheet stack, with Edit,
+// Make active/inactive and Delete: where it
 // stands over its rolling window (the last 7 or 30 days), the windows before
 // that at a glance, what it counts, then every session that matched it —
 // the ones inside the window first, set apart, then earlier ones grouped by
 // month. Under each session, just the exercises that made it count. Tapping
 // one opens it on top. `matches` is goalMatches output.
-export default function GoalSheet({ goal, matches, exercises, onEdit, onDelete, onBack, onClose }) {
+export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleActive, onDelete, onBack, onClose }) {
   const today = todayISO();
   const sheets = useSheets();
   const [shownEarlier, setShownEarlier] = useState(EARLIER_PAGE);
@@ -50,7 +51,13 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onDelete, 
       onClose={onClose}
       header={
         <SheetHeader eyebrow="Goal" accent={GOAL_ACCENT} title={goalLabel(goal, exerciseNameById)} meta={frequencyLabel(goal)} onBack={onBack} onClose={onClose}>
-          <SheetActions onEdit={onEdit} onDelete={onDelete} />
+          <SheetActions onEdit={onEdit} onDelete={onDelete}>
+            {onToggleActive && (
+              <button onClick={onToggleActive} style={sheetActionBtnStyle}>
+                {isActive(goal) ? <Pause size={14} /> : <Play size={14} />} {isActive(goal) ? "Make inactive" : "Make active"}
+              </button>
+            )}
+          </SheetActions>
         </SheetHeader>
       }
     >
@@ -63,9 +70,10 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onDelete, 
               {previous.met ? " · met" : " · missed"}
             </div>
           </div>
-          <StatusPill status={state.status} />
+          <StatusPill status={isActive(goal) ? state.status : "inactive"} />
         </div>
         <PeriodStrip rows={strip} target={state.target} labels />
+        {!isActive(goal) && <div style={metaStyle}>Inactive: kept with its history, but not tracked on Home.</div>}
       </div>
 
       <div>

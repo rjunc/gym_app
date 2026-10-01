@@ -3,19 +3,19 @@ import { AlertTriangle, CheckCircle2, ChevronRight } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { nameMap } from "../lib/search.js";
 import { useSheets } from "../lib/SheetStack.js";
-import { goalSummaries, goalLabel, progressText, GOAL_STATUSES } from "../lib/goals.js";
+import { goalSummaries, goalLabel, progressText, isActive, GOAL_STATUSES } from "../lib/goals.js";
 import { StatusPill } from "./GoalParts.jsx";
 import { cardStyle, ghostLinkStyle, eyebrowStyle, metaStyle } from "../ui/styles.js";
 
 // Home's word on the Plan: the goals that are off track or at risk (worst
 // first), each opening its summary, or a single line saying everything's on
-// track. Nothing at all until there's a goal. `onOpenPlan` goes to the page.
+// track. Only active goals count; nothing at all until there's one. `onOpenPlan` goes to the page.
 export default function PlanAlerts({ goals, sessions, exercises, onOpenPlan }) {
   const sheets = useSheets();
   const today = todayISO();
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
-  const summaries = useMemo(() => goalSummaries(goals, sessions, exerciseById, today), [goals, sessions, exerciseById, today]);
+  const summaries = useMemo(() => goalSummaries(goals.filter(isActive), sessions, exerciseById, today), [goals, sessions, exerciseById, today]);
   if (summaries.length === 0) return null;
 
   const slipping = summaries

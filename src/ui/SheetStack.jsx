@@ -179,6 +179,7 @@ export default function SheetStack({ stack, setStack }) {
             matches={goalMatches(record, sessions, exerciseById)}
             exercises={exercises}
             onEdit={() => push({ kind: "editGoal", id: record.id })}
+            onToggleActive={() => setGoals((prev) => editById(prev, record.id, { active: record.active === false }))}
             onDelete={canDelete ? () => deleteGoal(record) : undefined}
             onBack={onBack}
             onClose={closeAll}
