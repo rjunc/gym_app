@@ -8,7 +8,9 @@
 // with sets that progress over time, notes, the odd extra exercise, some
 // exercises done twice, supersets and circuits, and dropsets), journal
 // entries, BJJ mat sessions (gi or no-gi, drills, rounds with partners and
-// how techniques went), and techniques whose positions chain into a flow.
+// how techniques went), techniques whose positions chain into a flow, and
+// Plan goals of every kind (tags matched all or any, exercises, both; weekly
+// and monthly; some easily met, some slipping).
 //
 // Every record's id starts with DEMO_PREFIX, which is the only way test data
 // is told apart from real data: isDemoRecord finds it again so it can be
@@ -175,6 +177,20 @@ const ROUND_NOTES = ["good pace", "went light", "stuck in bottom side", "long sc
 // How the rounds' techniques go: mostly hits and attempts, sometimes caught.
 const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "caught"];
 
+// Plan goals: tags (all or any of them) and/or exercises by name, how many
+// days, and per week or month (see lib/goals.js). Plyometrics only comes up
+// when Box jump is the odd extra exercise, so it's usually off track.
+const GOALS = [
+  { tags: ["plyometrics"], target: 2, period: "week" },
+  { tags: ["strength", "legs"], target: 2, period: "week" },
+  { tags: ["cardio"], target: 2, period: "week" },
+  { tags: ["mobility"], target: 1, period: "week" },
+  { name: "Grip work", exercises: ["Farmer carry", "Dead hang"], target: 1, period: "week" },
+  { tags: ["push", "pull"], tagMatch: "any", exercises: ["Deadlift"], target: 3, period: "week" },
+  { tags: ["fundamentals"], target: 2, period: "month" },
+  { exercises: ["Sled push"], target: 3, period: "month" },
+];
+
 // Builds a folder record per path in `paths` ("A/B" nests B under A), and
 // returns them with a path -> id map.
 function buildFolders(paths, createdAt) {
@@ -255,7 +271,7 @@ function plannedCount(ex, rounds) {
 const backOffSets = (sets) => sets.slice(0, 2).map((set) => (set.weight ? { ...set, weight: roundTo(set.weight * 0.8, 5) || 5 } : set));
 
 // Everything, as { exercises, exerciseFolders, folders, routines, sessions,
-// journals, rolls, jitsFolders, techniques }, with sessions and the rest spread over the
+// journals, rolls, jitsFolders, techniques, goals }, with sessions and the rest spread over the
 // `months` before `today` (a Date).
 export function generateDemoData(today = new Date(), months = 9) {
   const start = new Date(today);
@@ -431,5 +447,18 @@ export function generateDemoData(today = new Date(), months = 9) {
     }
   }
 
-  return { exercises, exerciseFolders, folders, routines, sessions, journals, rolls, jitsFolders, techniques };
+  const goals = GOALS.map((g, i) => ({
+    id: demoId(),
+    name: g.name || "",
+    tags: g.tags || [],
+    tagMatch: g.tagMatch || "all",
+    exerciseIds: (g.exercises || []).map((name) => exerciseByName.get(name).id),
+    target: g.target,
+    period: g.period,
+    // A second apart, so they keep this order on the Plan page.
+    createdAt: setupStamp.replace(/:00\.000Z$/, `:${String(i).padStart(2, "0")}.000Z`),
+    updatedAt: setupStamp,
+  }));
+
+  return { exercises, exerciseFolders, folders, routines, sessions, journals, rolls, jitsFolders, techniques, goals };
 }

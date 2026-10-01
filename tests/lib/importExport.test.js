@@ -643,3 +643,21 @@ test("combinedToCSV: a mat session's sets column describes its gi, drills and ro
   const row = parseCSV(csv).find((r) => r[0] === "roll");
   assert.equal(row[row.length - 1], "Gi · Drilled: Scissor sweep · Round 1 (Sam): Hit: Scissor sweep");
 });
+
+test("JSON import: Plan goals are normalized; a CSV brings none", () => {
+  const json = JSON.stringify({
+    goals: [
+      { id: "g1", name: "  Chest  day ", tags: ["Strength", "chest"], tagMatch: "any", exerciseIds: ["e1", 5], target: "2", period: "month" },
+      { tags: ["plyometrics"], target: 0, period: "fortnight", tagMatch: "most" },
+    ],
+  });
+  const { goals } = parseImportFile("export.json", json, []);
+  assert.deepEqual(
+    goals.map(({ createdAt, updatedAt, ...g }) => g),
+    [
+      { id: "g1", name: "Chest day", tags: ["strength", "chest"], tagMatch: "any", exerciseIds: ["e1"], target: 2, period: "month" },
+      { id: goals[1].id, name: "", tags: ["plyometrics"], tagMatch: "all", exerciseIds: [], target: 1, period: "week" },
+    ]
+  );
+  assert.deepEqual(parseImportFile("export.csv", "type,id\n", []).goals, []);
+});

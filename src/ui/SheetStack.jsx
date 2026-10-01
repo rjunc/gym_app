@@ -6,6 +6,7 @@ import { entriesByRoutine, routineOptions, routineFromSession } from "../lib/rou
 import { entriesByExercise, exerciseDeleteWarning } from "../lib/exercises.js";
 import { nameMap } from "../lib/search.js";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
+import { goalMatches } from "../lib/goals.js";
 import { useLog } from "../lib/LogContext.js";
 import RoutineHistorySheet from "../tabs/RoutineHistorySheet.jsx";
 import ExerciseHistorySheet from "../tabs/ExerciseHistorySheet.jsx";
@@ -14,6 +15,8 @@ import ExerciseEditor from "../tabs/ExerciseEditor.jsx";
 import { ROUTINE_CONFIG, routineDeleteWarning } from "../tabs/RoutinesTab.jsx";
 import { TECHNIQUE_CONFIG, rollsByTechnique, techniqueDeleteWarning } from "../tabs/TechniquesTab.jsx";
 import TechniqueHistorySheet from "../tabs/TechniqueHistorySheet.jsx";
+import GoalSheet from "../tabs/GoalSheet.jsx";
+import GoalEditor from "../tabs/GoalEditor.jsx";
 import RoundSheet from "./RoundSheet.jsx";
 import EntryDetailSheet from "./EntryDetailSheet.jsx";
 import EntrySheet from "./EntrySheet.jsx";
@@ -35,7 +38,7 @@ const ENTRY_TYPE_GROUPS = {
 // is deleted drops out of the stack by itself.
 //
 // Levels, besides the summary sheets SheetStack.open takes:
-//   { kind: "editRoutine" | "editExercise" | "editTechnique", id }
+//   { kind: "editRoutine" | "editExercise" | "editTechnique" | "editGoal", id }
 //   { kind: "editEntry" | "redoEntry", source, id }
 //   { kind: "routineFromEntry", source, id }  (a new routine from a session)
 // Every edit form returns to the sheet it was opened from, on save or cancel,
@@ -43,7 +46,7 @@ const ENTRY_TYPE_GROUPS = {
 // the form's place.
 export default function SheetStack({ stack, setStack }) {
   const log = useLog();
-  const { sessions, journals, rolls, routines, setRoutines, folders, exercises, setExercises, exerciseFolders = [], exerciseUsage, routineUsage, techniques = [], setTechniques, jitsFolders = [] } = log;
+  const { sessions, journals, rolls, routines, setRoutines, folders, exercises, setExercises, exerciseFolders = [], exerciseUsage, routineUsage, techniques = [], setTechniques, jitsFolders = [], goals = [], setGoals } = log;
   const entryLogs = { sessions, journals, rolls };
   const entrySetters = { sessions: log.setSessions, journals: log.setJournals, rolls: log.setRolls };
 
@@ -58,6 +61,7 @@ export default function SheetStack({ stack, setStack }) {
     if (level.kind === "routine" || level.kind === "editRoutine") return routines.find((r) => r.id === level.id);
     if (level.kind === "exercise" || level.kind === "editExercise") return exercises.find((e) => e.id === level.id);
     if (level.kind === "technique" || level.kind === "editTechnique") return techniques.find((t) => t.id === level.id);
+    if (level.kind === "goal" || level.kind === "editGoal") return goals.find((g) => g.id === level.id);
     return (entryLogs[level.source] || []).find((e) => e.id === level.id);
   };
 
@@ -84,6 +88,11 @@ export default function SheetStack({ stack, setStack }) {
     const warning = techniqueDeleteWarning(technique, rolls);
     if (!window.confirm(`Delete this technique?${warning ? ` ${warning}` : ""} This can't be undone.`)) return;
     setTechniques((prev) => prev.filter((t) => t.id !== technique.id));
+  };
+
+  const deleteGoal = (goal) => {
+    if (!window.confirm("Delete this goal? Your sessions aren't touched.")) return;
+    setGoals((prev) => prev.filter((g) => g.id !== goal.id));
   };
 
   const deleteEntry = (source, entry) => {
@@ -162,6 +171,22 @@ export default function SheetStack({ stack, setStack }) {
             onClose={closeAll}
           />
         );
+      case "goal": {
+        const exerciseById = new Map(exercises.map((e) => [e.id, e]));
+        return (
+          <GoalSheet
+            goal={record}
+            matches={goalMatches(record, { sessions, rolls }, exerciseById)}
+            exercises={exercises}
+            onEdit={() => push({ kind: "editGoal", id: record.id })}
+            onDelete={canDelete ? () => deleteGoal(record) : undefined}
+            onBack={onBack}
+            onClose={closeAll}
+          />
+        );
+      }
+      case "editGoal":
+        return <GoalEditor goal={record} onClose={back} />;
       case "round":
         return <RoundSheet entry={record} roundId={level.roundId} onBack={onBack} onClose={closeAll} />;
       case "editTechnique":

@@ -93,6 +93,24 @@ export function normalizeExercises(arr) {
     : [];
 }
 
+// Plan goals: what counts (tags, all or any of them, and Library exercises)
+// and how often (`target` days a week or month; see lib/goals.js). An
+// unknown period falls back to a week, and the target to at least 1.
+export function normalizeGoals(arr) {
+  return Array.isArray(arr)
+    ? arr.map((g) => ({
+        id: g.id || uid(),
+        name: typeof g.name === "string" ? g.name : "",
+        tags: normalizeTags(g.tags),
+        tagMatch: g.tagMatch === "any" ? "any" : "all",
+        exerciseIds: Array.isArray(g.exerciseIds) ? g.exerciseIds.filter((id) => typeof id === "string") : [],
+        target: Math.max(1, Math.round(Number(g.target)) || 1),
+        period: g.period === "month" ? "month" : "week",
+        ...importedTimestamps(g),
+      }))
+    : [];
+}
+
 export function mergeFolders(existingFolders, incomingFolders) {
   if (!Array.isArray(incomingFolders)) return existingFolders;
   const byId = new Map(existingFolders.map((f) => [f.id, f]));

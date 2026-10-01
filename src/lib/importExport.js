@@ -1,11 +1,11 @@
 import { combinedFromCSV } from "./combinedCsv.js";
-import { normalizeSimpleEntries, normalizeFolderItems, normalizeExercises, mergeFolders } from "./importNormalize.js";
+import { normalizeSimpleEntries, normalizeFolderItems, normalizeExercises, normalizeGoals, mergeFolders } from "./importNormalize.js";
 import { cleanFields, cleanLine } from "./text.js";
 
 export { combinedToCSV, combinedFromCSV } from "./combinedCsv.js";
 
 // Parses an imported .json or .csv file's text into normalized
-// { sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises, exerciseFolders },
+// { sessions, journals, routines, folders, rolls, techniques, jitsFolders, exercises, exerciseFolders, goals },
 // merging any folders discovered in the file into `existingFolders`/
 // `existingJitsFolders`/`existingExerciseFolders`. Throws if a JSON file has none of the known record types.
 // Imported text gets the same cleanup a composer applies on save (see
@@ -24,7 +24,7 @@ const DEFAULT_NAMES = { routines: "Untitled routine", techniques: "Untitled tech
 // what's already in the log is left as is.
 function cleanImport(data) {
   const out = { ...data };
-  ["sessions", "journals", "rolls", "routines", "techniques", "exercises"].forEach((key) => {
+  ["sessions", "journals", "rolls", "routines", "techniques", "exercises", "goals"].forEach((key) => {
     out[key] = data[key].map((item) => {
       const cleaned = cleanFields(item);
       if (key in DEFAULT_NAMES && !cleaned.name) cleaned.name = DEFAULT_NAMES[key];
@@ -42,7 +42,7 @@ const cleanFolders = (folders) =>
 function parseRaw(filename, text, existingFolders, existingJitsFolders, existingExerciseFolders) {
   if (filename.toLowerCase().endsWith(".json")) {
     const parsed = JSON.parse(text);
-    const hasKnownData = ["sessions", "routines", "journals", "rolls", "techniques", "exercises"].some((k) => Array.isArray(parsed[k]));
+    const hasKnownData = ["sessions", "routines", "journals", "rolls", "techniques", "exercises", "goals"].some((k) => Array.isArray(parsed[k]));
     if (!hasKnownData) {
       throw new Error("No sessions, journals, routines, rolls, techniques, or exercises found in JSON");
     }
@@ -56,7 +56,9 @@ function parseRaw(filename, text, existingFolders, existingJitsFolders, existing
       jitsFolders: mergeFolders(existingJitsFolders, cleanFolders(parsed.jitsFolders)),
       exercises: normalizeExercises(parsed.exercises),
       exerciseFolders: mergeFolders(existingExerciseFolders, cleanFolders(parsed.exerciseFolders)),
+      goals: normalizeGoals(parsed.goals),
     };
   }
-  return combinedFromCSV(text, existingFolders, existingJitsFolders, existingExerciseFolders);
+  // Plan goals only travel in the JSON export; a CSV has none.
+  return { ...combinedFromCSV(text, existingFolders, existingJitsFolders, existingExerciseFolders), goals: [] };
 }

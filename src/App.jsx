@@ -26,6 +26,7 @@ import RollsTab from "./tabs/RollsTab.jsx";
 import TechniquesTab from "./tabs/TechniquesTab.jsx";
 import FlowTab from "./tabs/FlowTab.jsx";
 import ExerciseLibraryTab from "./tabs/ExerciseLibraryTab.jsx";
+import PlanTab from "./tabs/PlanTab.jsx";
 
 export default function App({ uid, userEmail, onLogout }) {
   const [page, setPage] = useState("home");
@@ -40,7 +41,8 @@ export default function App({ uid, userEmail, onLogout }) {
   const [jitsFolders, setJitsFolders, jitsFoldersStatus] = useSyncedCollection(uid, "jitsFolders");
   const [exercises, setExercises, exercisesStatus] = useSyncedCollection(uid, "exercises");
   const [exerciseFolders, setExerciseFolders, exerciseFoldersStatus] = useSyncedCollection(uid, "exerciseFolders");
-  const statuses = [sessionsStatus, foldersStatus, routinesStatus, journalsStatus, rollsStatus, techniquesStatus, jitsFoldersStatus, exercisesStatus, exerciseFoldersStatus];
+  const [goals, setGoals, goalsStatus] = useSyncedCollection(uid, "goals");
+  const statuses = [sessionsStatus, foldersStatus, routinesStatus, journalsStatus, rollsStatus, techniquesStatus, jitsFoldersStatus, exercisesStatus, exerciseFoldersStatus, goalsStatus];
   const loaded = statuses.every((s) => s.loaded);
   // A failed first load blocks the whole app (see the error screen below)
   // rather than showing an empty log you could type over.
@@ -60,9 +62,9 @@ export default function App({ uid, userEmail, onLogout }) {
   const log = useMemo(
     () => ({
       sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseFolders, setExerciseFolders,
-      exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage,
+      exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage, goals, setGoals,
     }),
-    [sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseFolders, setExerciseFolders, exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage]
+    [sessions, setSessions, journals, setJournals, rolls, setRolls, routines, setRoutines, folders, setFolders, exercises, setExercises, exerciseFolders, setExerciseFolders, exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders, setJitsFolders, techniqueUsage, goals, setGoals]
   );
   // The summary sheets open on top of the page, drawn by SheetStack (see
   // lib/SheetStack.js).
@@ -81,7 +83,7 @@ export default function App({ uid, userEmail, onLogout }) {
     downloadFile(
       `workout-data-${todayISO()}.json`,
       JSON.stringify(
-        { exportedAt: new Date().toISOString(), sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises, exerciseFolders },
+        { exportedAt: new Date().toISOString(), sessions, folders, routines, journals, rolls, techniques, jitsFolders, exercises, exerciseFolders, goals },
         null,
         2
       ),
@@ -112,6 +114,7 @@ export default function App({ uid, userEmail, onLogout }) {
       setTechniques((prev) => mergeById(prev, incoming.techniques));
       setExerciseFolders(incoming.exerciseFolders);
       setExercises((prev) => mergeById(prev, incoming.exercises));
+      setGoals((prev) => mergeById(prev, incoming.goals));
     } catch (err) {
       setImportError("Couldn't read that file. Make sure it's a CSV or JSON export from this app.");
     }
@@ -131,6 +134,7 @@ export default function App({ uid, userEmail, onLogout }) {
     [jitsFolders, setJitsFolders, "jitsFolders"],
     [exercises, setExercises, "exercises"],
     [exerciseFolders, setExerciseFolders, "exerciseFolders"],
+    [goals, setGoals, "goals"],
   ];
   const hasDemoData = collections.some(([list]) => list.some(isDemoRecord));
   const toggleDemoData = () => {
@@ -138,7 +142,7 @@ export default function App({ uid, userEmail, onLogout }) {
       if (!window.confirm("Remove all test data? Only the generated test records are deleted; anything you added yourself stays.")) return;
       collections.forEach(([, set]) => set((prev) => prev.filter((r) => !isDemoRecord(r))));
     } else {
-      if (!window.confirm("Add test data? This adds about 300 made-up exercises, routines, sessions, journal entries, mat sessions and techniques to this account. You can remove them all again from here.")) return;
+      if (!window.confirm("Add test data? This adds about 300 made-up exercises, routines, sessions, journal entries, mat sessions, techniques and Plan goals to this account. You can remove them all again from here.")) return;
       const demo = generateDemoData();
       collections.forEach(([, set, key]) => set((prev) => mergeById(prev, demo[key])));
     }
@@ -213,7 +217,11 @@ export default function App({ uid, userEmail, onLogout }) {
                   exercises={exercises}
                   exerciseUsage={exerciseUsage}
                   routineUsage={routineUsage}
+                  goals={goals}
+                  onOpenPlan={() => navigate("plan")}
                 />
+              ) : page === "plan" ? (
+                <PlanTab goals={goals} sessions={sessions} rolls={rolls} exercises={exercises} />
               ) : page === "sessions" ? (
                 <SessionsTab
                   sessions={sessions}

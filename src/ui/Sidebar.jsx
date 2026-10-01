@@ -1,4 +1,4 @@
-import { X, Home, Dumbbell, Swords, ClipboardList, NotebookPen, BookOpen, Layers, Route, Download, Upload, LogOut, FlaskConical, AlertTriangle } from "lucide-react";
+import { X, Home, Dumbbell, Swords, ClipboardList, NotebookPen, BookOpen, Layers, Route, Target, Download, Upload, LogOut, FlaskConical, AlertTriangle } from "lucide-react";
 import { eyebrowStyle, secondaryBtnStyle } from "./styles.js";
 
 const GROUPS = [
@@ -101,7 +101,10 @@ export default function Sidebar({
         </div>
 
         <nav style={{ flex: 1, overflowY: "auto", padding: "4px 10px 12px", display: "flex", flexDirection: "column", gap: 18 }}>
-          <NavItem active={page === "home"} Icon={Home} label="Home" onClick={() => onNavigate("home")} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <NavItem active={page === "home"} Icon={Home} label="Home" onClick={() => onNavigate("home")} />
+            <NavItem active={page === "plan"} accent="--accent2" Icon={Target} label="Plan" onClick={() => onNavigate("plan")} />
+          </div>
 
           {GROUPS.map((group) => (
             <div key={group.key}>

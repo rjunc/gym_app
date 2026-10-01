@@ -64,8 +64,8 @@ from `BottomSheet` + `SheetHeader`, and empty lists from `EmptyState`.
 Every record is its own Firestore document, grouped by kind:
 `users/{uid}/sessions/{id}`, `.../journals/{id}`, `.../rolls/{id}`,
 `.../routines/{id}`, `.../folders/{id}`, `.../techniques/{id}`,
-`.../jitsFolders/{id}`, `.../exercises/{id}` and `.../exerciseFolders/{id}`
-(routines, techniques and exercises each have their own folder tree). The document id is the
+`.../jitsFolders/{id}`, `.../exercises/{id}`, `.../exerciseFolders/{id}` and
+`.../goals/{id}` (routines, techniques and exercises each have their own folder tree). The document id is the
 record's id and the document is the whole record, so what's stored is
 exactly what the app works with (see `src/lib/firestoreLog.js`).
 
@@ -125,9 +125,23 @@ is saved on every set. Time is saved in seconds, typed in min or sec the
 same way (cardio starts in min, holds in sec); `timeUnit` on the set records
 which. See `src/lib/sets.js`.
 
+**Plan goals.** The Plan page holds goals for how often to train
+something: `{ id, name, tags, tagMatch: "all" | "any", exerciseIds, target,
+period: "week" | "month" }` (`name` optional; blank shows the criteria). A
+session counts toward a goal when its own tags match, or when it has one of
+the goal's exercises, or an exercise carrying one of the goal's tags whose
+tags together with the session's match (so "strength + chest" counts a chest
+exercise in a strength-tagged session). Mat sessions count by their tags.
+Progress is in days, not entries (two sessions on one day count once), over
+Monday–Sunday weeks or calendar months. Status: **Done** (target met this
+period), **Off track** (can't be met any more, or last period was missed and
+this one is behind pace), **At risk** (behind an even spread, or needs every
+day left), otherwise **On track**. Home shows a card listing the goals that
+are off track or at risk. See `src/lib/goals.js`.
+
 CSV/JSON export and import live in the sidebar. JSON keeps blocks exactly.
 CSV lists them in order in a `sets` column for reading only, like exercise
-names.
+names. Plan goals only travel in the JSON export.
 
 ## Managing accounts
 
@@ -198,7 +212,7 @@ footprint.
   - **How the button decides (2026-09-28).** `toggleDemoData` in
     `src/App.jsx`. It reads "Remove test data" when any record in any
     collection (sessions, routines, folders, journals, rolls, techniques,
-    jitsFolders, exercises, exerciseFolders) has an id starting with `demo-`, and "Add test
+    jitsFolders, exercises, exerciseFolders, goals) has an id starting with `demo-`, and "Add test
     data" when none do. It's recomputed on every render, so it flips by
     itself. Add generates ~9 months ending today with fresh `demo-` ids and
     merges them in (nothing replaced); Remove deletes every `demo-` record

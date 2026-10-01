@@ -13,6 +13,7 @@ import EntrySheet from "../ui/EntrySheet.jsx";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import { PageHeader, PageBody } from "../ui/Page.jsx";
 import { TagsToggle } from "../ui/SearchBox.jsx";
+import PlanAlerts from "./PlanAlerts.jsx";
 import { cardStyle, primaryBtnStyle, chipRowStyle } from "../ui/styles.js";
 
 // Every kind of dated log the calendar can draw from, with its settings from
@@ -22,7 +23,7 @@ import { cardStyle, primaryBtnStyle, chipRowStyle } from "../ui/styles.js";
 const SOURCE_META = { sessions: ENTRY_TYPES.sessions, rolls: ENTRY_TYPES.rolls };
 const SOURCE_KEYS = Object.keys(SOURCE_META);
 
-export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises, exerciseUsage, routineUsage }) {
+export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises, exerciseUsage, routineUsage, goals = [], onOpenPlan }) {
   const today = todayISO();
   const [shown, setShown] = useState(SOURCE_KEYS);
   const [activeTags, setActiveTags] = useState([]);
@@ -152,6 +153,7 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
       </PageHeader>
 
       <PageBody wide>
+        <PlanAlerts goals={goals} sessions={sessions} rolls={rolls} exercises={exercises} onOpenPlan={onOpenPlan} />
         <div className="home-grid">
           <div style={cardStyle}>
             <ActivityCalendar

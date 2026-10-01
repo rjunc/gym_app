@@ -8,7 +8,7 @@ import { createContext, useContext } from "react";
 //   { sessions, setSessions, journals, setJournals, rolls, setRolls,
 //     routines, setRoutines, folders, setFolders, exercises, setExercises,
 //     exerciseFolders, setExerciseFolders, exerciseUsage, routineUsage, techniques, setTechniques, jitsFolders,
-//     setJitsFolders, techniqueUsage }
+//     setJitsFolders, techniqueUsage, goals, setGoals }
 export const LogContext = createContext(null);
 
 export const useLog = () => useContext(LogContext);

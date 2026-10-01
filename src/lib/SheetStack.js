@@ -7,7 +7,7 @@ import { createContext, useContext } from "react";
 // is drawn by ui/SheetStack.jsx.
 //   open(sheet)  pushes one of:
 //                { kind: "routine", id }   { kind: "exercise", id }
-//                { kind: "technique", id }
+//                { kind: "technique", id }   { kind: "goal", id }  (a Plan goal)
 //                { kind: "round", source: "rolls", id, roundId }  (one round of
 //                a mat session)
 //                { kind: "entry", source: "sessions" | "journals" | "rolls", id }
