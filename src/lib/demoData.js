@@ -473,6 +473,8 @@ export function generateDemoData(today = new Date(), months = 9) {
     rules: g.rules.map((r) => (r.none ? toRule("none", r.none, r.session) : toRule("any", r.any, r.session))),
     target: g.target,
     days: g.days,
+    // Your own order on the Plan page: newest first, unlike the created order.
+    order: GOALS.length - 1 - i,
     // A second apart, so they keep this order on the Plan page.
     createdAt: setupStamp.replace(/:00\.000Z$/, `:${String(i).padStart(2, "0")}.000Z`),
     updatedAt: setupStamp,

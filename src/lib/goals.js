@@ -4,15 +4,17 @@
 // Kept free of React so they're testable.
 //
 // A goal record: { id, name, active, rules: [{ kind: "any" | "none", scope:
-// "exercise" | "session", tags, exerciseIds }], target, days, createdAt,
-// updatedAt } (see matchEntry for what the rules mean): `target` sessions
+// "exercise" | "session", tags, exerciseIds }], target, days, order,
+// createdAt, updatedAt } (see matchEntry for what the rules mean): `target` sessions
 // every `days` days. `name` is optional (goalLabel spells out the criteria
 // when it's blank). The window is rolling, ending today — the last 7 days
 // for a week, 14 for every two weeks — not a calendar week or month, so last
-// Friday's session still counts on Thursday.
+// Friday's session still counts on Thursday. `order` is the goal's place in
+// your own order on the Plan page (see moveGoal).
 
 import { blocksOf } from "./sets.js";
 import { shiftISODate } from "./id.js";
+import { editRecord } from "./records.js";
 
 // The longest window a goal can have, in days.
 export const MAX_GOAL_DAYS = 365;
@@ -265,4 +267,67 @@ export function goalSummaries(goals, sessions, exerciseById, today) {
       const matches = goalMatches(goal, sessions, exerciseById);
       return { goal, matches, state: goalStatus(goal, matches, today) };
     });
+}
+
+// How the Plan page can order its goals.
+export const GOAL_SORTS = {
+  status: { label: "Status" },
+  name: { label: "Name" },
+  custom: { label: "My order" },
+};
+
+// Your own order: by `order`, then oldest first for any without one.
+function byOrder(a, b) {
+  const oa = Number.isFinite(a.order) ? a.order : Infinity;
+  const ob = Number.isFinite(b.order) ? b.order : Infinity;
+  if (oa !== ob) return oa < ob ? -1 : 1;
+  return (a.createdAt || "").localeCompare(b.createdAt || "");
+}
+
+// The `order` for a goal added now: after every other.
+export const nextGoalOrder = (goals) => goals.reduce((max, g) => (Number.isFinite(g.order) ? Math.max(max, g.order + 1) : max), 0);
+
+// How urgent a goal is within its status, most urgent first: Behind and
+// Overdue by how long they've been short (a goal never met at all heads
+// Behind, and trails Overdue, being still in its first window); At risk and
+// On track by the soonest due.
+function byUrgency({ state: a }, { state: b }) {
+  if (a.status === "behind" || a.status === "overdue") {
+    const short = (st) => (st.lastMet ? st.overdueDays : st.status === "behind" ? Infinity : -1);
+    return short(b) - short(a) || 0;
+  }
+  return (a.due || "").localeCompare(b.due || "");
+}
+
+// Goal summaries (see goalSummaries) in the order `sort` asks for:
+//   status  worst status first (Behind, Overdue, At risk, On track), then
+//           the most urgent, then by name
+//   name    A–Z by goalLabel
+//   custom  your own order (`order`, see moveGoal)
+// `labelOf` names a goal, for sorting by name.
+export function sortSummaries(summaries, sort, labelOf = (goal) => goalLabel(goal)) {
+  const byName = (a, b) => labelOf(a.goal).localeCompare(labelOf(b.goal), undefined, { sensitivity: "base" });
+  const compare =
+    sort === "name"
+      ? byName
+      : sort === "custom"
+        ? (a, b) => byOrder(a.goal, b.goal)
+        : (a, b) => GOAL_STATUSES[a.state.status].rank - GOAL_STATUSES[b.state.status].rank || byUrgency(a, b) || byName(a, b);
+  return [...summaries].sort(compare);
+}
+
+// Moves the goal `id` one place up (`dir` -1) or down (1) in your own order,
+// past its neighbour in the same section (active or inactive), and returns
+// the goals with every `order` renumbered 0, 1, 2… Only goals whose order
+// changed are edited. At either end, nothing moves.
+export function moveGoal(goals, id, dir) {
+  const ordered = [...goals].sort(byOrder);
+  const i = ordered.findIndex((g) => g.id === id);
+  if (i < 0) return goals;
+  let j = i + dir;
+  while (j >= 0 && j < ordered.length && isActive(ordered[j]) !== isActive(ordered[i])) j += dir;
+  if (j < 0 || j >= ordered.length) return goals;
+  [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+  const order = new Map(ordered.map((g, k) => [g.id, k]));
+  return goals.map((g) => (g.order === order.get(g.id) ? g : editRecord(g, { order: order.get(g.id) })));
 }

@@ -34,7 +34,7 @@ export function StatusPill({ status }) {
   );
 }
 
-// The last few windows (7 or 30 days each, back to back, ending today) as a
+// The last few windows (the goal's `days` each, back to back, ending today) as a
 // row of bars, oldest first: each fills up to the target and turns green
 // once met. The current window, ending today, is outlined. `rows` is
 // recentWindows output; `labels` adds each window's last day under its bar.

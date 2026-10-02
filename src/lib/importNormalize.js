@@ -98,10 +98,11 @@ export function normalizeExercises(arr) {
 // each on one exercise or anywhere in the session)
 // and how often (`target` sessions every `days` days; see lib/goals.js).
 // Anything unknown falls back to the default: active, "any", on one exercise,
-// every 7 days, and a target of at least 1.
+// every 7 days, and a target of at least 1. `order` (the goal's place in
+// your own order) falls back to where it is in the file.
 export function normalizeGoals(arr) {
   return Array.isArray(arr)
-    ? arr.map((g) => ({
+    ? arr.map((g, i) => ({
         id: g.id || uid(),
         name: typeof g.name === "string" ? g.name : "",
         active: g.active !== false,
@@ -115,6 +116,7 @@ export function normalizeGoals(arr) {
           })),
         target: Math.max(1, Math.round(Number(g.target)) || 1),
         days: Math.max(1, Math.min(MAX_GOAL_DAYS, Math.round(Number(g.days)) || 7)),
+        order: typeof g.order === "number" && Number.isFinite(g.order) ? g.order : i,
         ...importedTimestamps(g),
       }))
     : [];

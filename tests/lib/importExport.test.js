@@ -672,8 +672,9 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         ],
         target: 2,
         days: 30,
+        order: 0,
       },
-      { id: goals[1].id, name: "", active: true, rules: [{ kind: "any", scope: "exercise", tags: ["plyometrics"], exerciseIds: [] }], target: 1, days: 7 },
+      { id: goals[1].id, name: "", active: true, rules: [{ kind: "any", scope: "exercise", tags: ["plyometrics"], exerciseIds: [] }], target: 1, days: 7, order: 1 },
     ]
   );
   assert.deepEqual(parseImportFile("export.csv", "type,id\n", []).goals, []);

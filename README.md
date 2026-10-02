@@ -127,7 +127,7 @@ which. See `src/lib/sets.js`.
 
 **Plan goals.** The Plan page holds goals for how often to train
 something: `{ id, name, active, rules: [{ kind: "any" | "none", scope:
-"exercise" | "session", tags, exerciseIds }], target, days }` — `target`
+"exercise" | "session", tags, exerciseIds }], target, days, order }` — `target`
 sessions every `days` days (1–365; the form offers a week, 2 weeks and a
 month, 30 days, as quick picks) (`name` optional; blank spells out the rules, e.g. "push +
 plyometrics, in a session with legs"). Every rule must hold: an "any" rule
@@ -152,7 +152,11 @@ but due within a day per week of window — tomorrow for a weekly goal, within
 due today: a session today still keeps it), **Overdue** (short, for up to
 one window since it was due, e.g. "Overdue 3 days"), **Behind** (short for a
 whole window or longer, e.g. "Behind 3 weeks · last met Sep 7"; a goal never
-met counts as Overdue in its first window, then Behind). Home shows a card
+met counts as Overdue in its first window, then Behind). The Plan page sorts
+by **Status** (a folding heading per status, worst first, and within one the
+longest short or soonest due first), by **Name**, or in **My order** (↑/↓
+on each card, saved as each goal's `order`); the sort and folded headings
+are remembered per device. Home shows a card
 listing every goal that isn't on track, worst first. See `src/lib/goals.js`.
 
 CSV/JSON export and import live in the sidebar. JSON keeps blocks exactly.

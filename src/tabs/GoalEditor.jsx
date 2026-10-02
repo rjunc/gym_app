@@ -6,7 +6,7 @@ import { tagUsage } from "../lib/tags.js";
 import { cleanFields } from "../lib/text.js";
 import { nameMap } from "../lib/search.js";
 import { useLog } from "../lib/LogContext.js";
-import { GOAL_PERIODS, MAX_GOAL_DAYS, hasCriteria, goalMatches, perLabel } from "../lib/goals.js";
+import { GOAL_PERIODS, MAX_GOAL_DAYS, hasCriteria, goalMatches, perLabel, nextGoalOrder } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { NameField, ActiveField } from "../ui/ComposerFields.jsx";
@@ -58,7 +58,7 @@ export default function GoalEditor({ goal, onClose }) {
       rules: form.rules.filter((r) => r.tags.length + r.exerciseIds.length > 0).map(({ kind, scope, tags, exerciseIds }) => ({ kind, scope, tags, exerciseIds })),
     });
     if (goal) setGoals((prev) => editById(prev, goal.id, fields));
-    else setGoals((prev) => [...prev, newRecord(fields)]);
+    else setGoals((prev) => [...prev, newRecord({ ...fields, order: nextGoalOrder(prev) })]);
     onClose();
   };
 

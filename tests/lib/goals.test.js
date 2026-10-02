@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isActive, windowEnding, matchEntry, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel } from "../../src/lib/goals.js";
+import { isActive, windowEnding, matchEntry, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel, sortSummaries, moveGoal, nextGoalOrder } from "../../src/lib/goals.js";
 
 const exercises = new Map([
   ["bench", { id: "bench", tags: ["strength", "push"] }],
@@ -196,4 +196,46 @@ test("isActive: goals are active unless switched off", () => {
   assert.equal(isActive({ active: true }), true);
   assert.equal(isActive({}), true);
   assert.equal(isActive({ active: false }), false);
+});
+
+test("sortSummaries: by status, worst and most urgent first", () => {
+  const sum = (id, state) => ({ goal: { id, name: id }, state });
+  const list = [
+    sum("on-later", { status: "on", due: "2026-10-09" }),
+    sum("on-sooner", { status: "on", due: "2026-10-05" }),
+    sum("risk", { status: "risk", due: "2026-10-02" }),
+    sum("overdue-new", { status: "overdue", lastMet: null, overdueDays: 0 }),
+    sum("overdue-3", { status: "overdue", lastMet: "2026-09-27", overdueDays: 3 }),
+    sum("behind-9", { status: "behind", lastMet: "2026-09-20", overdueDays: 9 }),
+    sum("behind-never", { status: "behind", lastMet: null, overdueDays: 0 }),
+    sum("behind-20", { status: "behind", lastMet: "2026-09-10", overdueDays: 20 }),
+  ];
+  assert.deepEqual(sortSummaries(list, "status").map((s) => s.goal.id), ["behind-never", "behind-20", "behind-9", "overdue-3", "overdue-new", "risk", "on-sooner", "on-later"]);
+  assert.deepEqual(sortSummaries(list.slice(0, 3), "name").map((s) => s.goal.id), ["on-later", "on-sooner", "risk"]);
+});
+
+test("sortSummaries: in your own order, goals without one go last, oldest first", () => {
+  const sum = (id, order, createdAt) => ({ goal: { id, order, createdAt }, state: { status: "on" } });
+  const list = [sum("c", undefined, "2026-09-02"), sum("a", 1), sum("d", undefined, "2026-09-01"), sum("b", 0)];
+  assert.deepEqual(sortSummaries(list, "custom").map((s) => s.goal.id), ["b", "a", "d", "c"]);
+});
+
+test("moveGoal: swaps with the next goal in the same section and renumbers", () => {
+  const goals = [
+    { id: "a", order: 0 },
+    { id: "x", order: 1, active: false },
+    { id: "b", order: 2 },
+    { id: "c", order: 5 },
+  ];
+  const orderOf = (list) => Object.fromEntries(list.map((g) => [g.id, g.order]));
+  // b moves up past a, skipping the inactive x.
+  assert.deepEqual(orderOf(moveGoal(goals, "b", -1)), { b: 0, x: 1, a: 2, c: 3 });
+  assert.deepEqual(orderOf(moveGoal(goals, "a", 1)), { b: 0, x: 1, a: 2, c: 3 });
+  // At either end of its section, nothing moves.
+  assert.equal(moveGoal(goals, "a", -1), goals);
+  assert.equal(moveGoal(goals, "x", 1), goals);
+  // Untouched goals stay the same objects.
+  assert.equal(moveGoal(goals, "b", -1).find((g) => g.id === "x"), goals[1]);
+  assert.equal(nextGoalOrder(goals), 6);
+  assert.equal(nextGoalOrder([]), 0);
 });

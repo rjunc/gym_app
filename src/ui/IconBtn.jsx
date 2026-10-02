@@ -2,11 +2,12 @@
 // so a card's actions don't compete with its content. `label` names the
 // button for screen readers and as a hover tooltip. `active` gives it a
 // persistent highlighted state (e.g. a toggled-on star) instead of danger's
-// "this action is destructive" red on hover.
-export default function IconBtn({ children, onClick, danger, active, label }) {
+// "this action is destructive" red on hover. `disabled` fades it out.
+export default function IconBtn({ children, onClick, danger, active, label, disabled }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
       className={`icon-btn${danger ? " danger" : ""}`}
@@ -18,7 +19,8 @@ export default function IconBtn({ children, onClick, danger, active, label }) {
         height: 32,
         padding: 0,
         color: active ? "var(--accent)" : "var(--text-dim)",
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.3 : 1,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
