@@ -2,7 +2,8 @@ import { useState } from "react";
 import { X, Plus, LayoutGrid, Dumbbell } from "lucide-react";
 import { searchTags, addTagsFromDraft } from "../lib/tags.js";
 import { compareByUsage } from "../lib/links.js";
-import { prefixMatchesFirst } from "../lib/search.js";
+import { pickerMatches, exerciseSearchFields } from "../lib/search.js";
+import { useLog } from "../lib/LogContext.js";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import TagChip from "../ui/TagChip.jsx";
 import PagePicker from "../ui/PagePicker.jsx";
@@ -30,13 +31,14 @@ export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSugg
   const unusedTags = tagSuggestions.filter((s) => !rule.tags.includes(s.tag));
   // Most-used tags to start an empty rule from; matching ones once typing.
   const tagHits = q ? searchTags(unusedTags, q).slice(0, 6) : empty ? unusedTags.slice(0, 8) : [];
-  const exerciseHits = q
-    ? prefixMatchesFirst(
-        exercises.filter((e) => !rule.exerciseIds.includes(e.id) && e.name.toLowerCase().includes(q)).sort(compareByUsage(usage || new Map())),
-        q,
-        (e) => [e.name]
-      ).slice(0, 6)
-    : [];
+  // Exercises match what the Library's search box would (see pickerMatches).
+  const exerciseFolders = useLog()?.exerciseFolders || [];
+  const exerciseHits = pickerMatches(
+    exercises.filter((e) => !rule.exerciseIds.includes(e.id)),
+    query,
+    (e) => exerciseSearchFields(e, exerciseFolders),
+    { compare: compareByUsage(usage || new Map()), limit: 6 }
+  );
 
   const addTags = (text) => {
     onUpdate((r) => ({ ...r, tags: addTagsFromDraft(r.tags, text) }));

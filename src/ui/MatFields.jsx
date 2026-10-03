@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Plus, X, LayoutGrid, RotateCcw } from "lucide-react";
 import { useLog } from "../lib/LogContext.js";
 import { compareByUsage } from "../lib/links.js";
-import { prefixMatchesFirst } from "../lib/search.js";
+import { pickerMatches, folderItemSearchFields, nameMap } from "../lib/search.js";
 import { GI_KINDS, RESULTS, DEFAULT_RESULT, newDraftRound, newDraftPart, recentPartners } from "../lib/mat.js";
 import TagChip from "./TagChip.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
@@ -35,8 +35,9 @@ const resultSelectStyle = {
 };
 
 // Picks techniques from the Techniques library, the way ExercisesField picks
-// exercises: typing matches a technique's name, tags or positions (ranked by
-// use in mat sessions, names starting with the query first), and Browse
+// exercises: typing matches what the Techniques page's search box would (see
+// pickerMatches), ranked by use in mat sessions, names starting with the
+// query first, and Browse
 // opens the Techniques page itself over the form, where a technique that
 // doesn't exist yet can be created and is added once saved. Picking calls
 // onAdd(technique); `addedIds` are left out of the suggestions and shown as
@@ -49,15 +50,18 @@ export function TechniquePicker({ addedIds = [], onAdd, onRemove, label, placeho
   const [query, setQuery] = useState("");
   const [browsing, setBrowsing] = useState(false);
 
-  const q = query.trim().toLowerCase();
-  const suggestions = useMemo(() => {
-    if (!q) return [];
-    const ranked = techniques
-      .filter((t) => !addedIds.includes(t.id))
-      .filter((t) => [t.name, t.position, t.toPosition, ...(t.tags || [])].some((v) => (v || "").toLowerCase().includes(q)))
-      .sort(compareByUsage(log.techniqueUsage || new Map()));
-    return prefixMatchesFirst(ranked, q, (t) => [t.name]).slice(0, 8);
-  }, [q, techniques, addedIds, log.techniqueUsage]);
+  const exercises = log.exercises || [];
+  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
+  const suggestions = useMemo(
+    () =>
+      pickerMatches(
+        techniques.filter((t) => !addedIds.includes(t.id)),
+        query,
+        (t) => folderItemSearchFields(t, log.jitsFolders || [], exerciseNameById),
+        { compare: compareByUsage(log.techniqueUsage || new Map()) }
+      ),
+    [query, techniques, addedIds, log.jitsFolders, exerciseNameById, log.techniqueUsage]
+  );
 
   const add = (technique) => {
     onAdd(technique);

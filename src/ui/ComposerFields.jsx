@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Star, X, LayoutGrid } from "lucide-react";
 import { labelStyle, inputStyle, pickedPillStyle, pillRemoveStyle, ghostLinkStyle, chipRowStyle } from "./styles.js";
 import { applyRoutine } from "../lib/routines.js";
 import { compareByUsage } from "../lib/links.js";
-import { prefixMatchesFirst } from "../lib/search.js";
+import { pickerMatches, exerciseSearchFields, folderItemSearchFields, nameMap } from "../lib/search.js";
+import { useLog } from "../lib/LogContext.js";
 import { newDraftBlock } from "../lib/sets.js";
 import TagChip from "./TagChip.jsx";
 import PagePicker from "./PagePicker.jsx";
@@ -180,8 +181,9 @@ export function PrescriptionField({ form, setForm }) {
 // free-typed list like tags. Unlike TagsField, you can't invent a new entry
 // inline; it only picks from what's already in the Library. That keeps the
 // link real (survives renaming the exercise later), instead of repeating the
-// name-matching drift problem positions.js already has. Typing matches an
-// exercise's name or its tags, so "legs" suggests everything tagged legs.
+// name-matching drift problem positions.js already has. Typing matches what
+// the Library's search box would (see pickerMatches) — name, text, tags,
+// prescription or folder — so "legs" suggests everything tagged legs.
 // Suggestions only appear once something is typed — to look through
 // everything, use Browse. `usage` (exerciseUsageCounts output, see
 // lib/exercises.js) is optional: when given, matches rank by session use —
@@ -201,12 +203,14 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, asB
   const selectedIds = asBlocks ? [] : form.exerciseIds || [];
   const selected = selectedIds.map((id) => exercises.find((e) => e.id === id)).filter(Boolean);
 
-  const q = query.trim().toLowerCase();
-  const ranked = exercises
-    .filter((e) => !selectedIds.includes(e.id))
-    .filter((e) => e.name.toLowerCase().includes(q) || (e.tags || []).some((t) => t.toLowerCase().includes(q)))
-    .sort(compareByUsage(usage || new Map()));
-  const suggestions = q === "" ? [] : prefixMatchesFirst(ranked, q, (e) => [e.name]).slice(0, 8);
+  const log = useLog();
+  const exerciseFolders = log?.exerciseFolders || [];
+  const suggestions = pickerMatches(
+    exercises.filter((e) => !selectedIds.includes(e.id)),
+    query,
+    (e) => exerciseSearchFields(e, exerciseFolders),
+    { compare: compareByUsage(usage || new Map()) }
+  );
 
   const addExercise = (id) => {
     if (asBlocks) setForm((f) => ({ ...f, blocks: [...(f.blocks || []), newDraftBlock(id)] }));
@@ -242,7 +246,7 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, asB
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={exercises.length === 0 ? "No exercises yet — Browse to add one" : "Search exercises or tags…"}
+        placeholder={exercises.length === 0 ? "No exercises yet — Browse to add one" : "Search exercises to add…"}
         disabled={exercises.length === 0}
         style={inputStyle}
       />
@@ -282,7 +286,8 @@ export function ExercisesField({ form, setForm, exercises, accentVar, usage, asB
 // see lib/routines.js) is optional: when given, matches rank by session use —
 // last 30 days first, then all-time, then A–Z by folder path. Without it
 // they're plain A–Z. Routines whose name or folder path starts with the query
-// move ahead of the rest. "Browse" opens
+// move ahead of the rest. Typing matches what the Routines page's search box
+// would (see pickerMatches). "Browse" opens
 // the Routines page itself over the form (PagePicker) — folders, search,
 // previews, and creating a routine that doesn't exist yet — starting from
 // whatever was typed here.
@@ -292,13 +297,17 @@ export function RoutinesField({ form, setForm, routines, options, accentVar, usa
   const addedIds = form.routineIds || [];
   const added = addedIds.map((id) => options.find((o) => o.id === id)).filter(Boolean);
 
-  const q = query.trim().toLowerCase();
-  const nameOf = (o) => routines.find((r) => r.id === o.id)?.name || "";
-  const matching = options
-    .filter((o) => !addedIds.includes(o.id))
-    .filter((o) => o.label.toLowerCase().includes(q))
-    .sort(compareByUsage(usage || new Map(), (o) => o.label));
-  const suggestions = q === "" ? [] : prefixMatchesFirst(matching, q, (o) => [nameOf(o), o.label]).slice(0, 8);
+  const log = useLog();
+  const folders = log?.folders || [];
+  const exercises = log?.exercises || [];
+  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
+  const routineById = new Map(routines.map((r) => [r.id, r]));
+  const suggestions = pickerMatches(
+    options.filter((o) => !addedIds.includes(o.id) && routineById.has(o.id)),
+    query,
+    (o) => folderItemSearchFields(routineById.get(o.id), folders, exerciseNameById),
+    { compare: compareByUsage(usage || new Map(), (o) => o.label), namesOf: (o) => [routineById.get(o.id).name, o.label] }
+  );
 
   // Takes the routine itself, not its id: one just created from Browse
   // isn't in `routines` yet.

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   searchWords,
   prefixMatchesFirst,
+  pickerMatches,
   matchesSearch,
   exerciseNameMap,
   entrySearchFields,
@@ -147,4 +148,34 @@ test("entrySearchFields matches the names of the routines an entry was built fro
 test("entrySearchFields finds a session by the notes on its blocks", () => {
   const session = { text: "", tags: [], exerciseIds: ["e1"], blocks: [{ id: "b1", exerciseId: "e1", sets: [], note: "left shoulder twinged" }] };
   assert.equal(matchesSearch(entrySearchFields(session, new Map()), "shoulder"), true);
+});
+
+test("prefixMatchesFirst ignores quotes in the query", () => {
+  const items = ["front squat", "back squat"];
+  assert.deepEqual(prefixMatchesFirst(items, '"back squat', (s) => [s]), ["back squat", "front squat"]);
+});
+
+test("pickerMatches matches like the page's search box: words found anywhere, quoted phrases kept together", () => {
+  const items = [
+    { id: "a", name: "Back squat", tags: ["legs"] },
+    { id: "b", name: "Squat jump", tags: ["plyo"] },
+    { id: "c", name: "Bench press", tags: ["push"] },
+  ];
+  const fields = (e) => exerciseSearchFields(e);
+  assert.deepEqual(pickerMatches(items, "squat legs", fields).map((e) => e.id), ["a"]);
+  assert.deepEqual(pickerMatches(items, '"back squat"', fields).map((e) => e.id), ["a"]);
+  assert.deepEqual(pickerMatches(items, '"squat legs"', fields), []);
+});
+
+test("pickerMatches suggests nothing until something is typed", () => {
+  const items = [{ id: "a", name: "Back squat" }];
+  assert.deepEqual(pickerMatches(items, "  ", (e) => [e.name]), []);
+  assert.deepEqual(pickerMatches(items, '"', (e) => [e.name]), []);
+});
+
+test("pickerMatches orders by `compare`, then puts names starting with the query first, then keeps `limit`", () => {
+  const items = ["single-leg rdl", "leg press", "legs day", "leg curl"].map((name, i) => ({ id: String(i), name }));
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  const out = pickerMatches(items, "leg", (e) => [e.name], { compare: byName, limit: 3 }).map((e) => e.name);
+  assert.deepEqual(out, ["leg curl", "leg press", "legs day"]);
 });

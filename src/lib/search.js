@@ -37,12 +37,26 @@ export function matchesSearch(fields, query, mode = "all") {
 // Moves the items where any of `textsOf(item)` starts with `query` ahead of
 // the rest, keeping each group's existing order. The pickers use it while
 // typing, so "leg" puts "legs" ahead of "single-leg" without otherwise
-// disturbing their usage (or A–Z) order.
+// disturbing their usage (or A–Z) order. Quotes are ignored here, so
+// `"back squat` still puts "Back squat" first.
 export function prefixMatchesFirst(items, query, textsOf) {
-  const q = (query || "").trim().toLowerCase();
+  const q = searchWords(query).join(" ");
   if (!q) return items;
   const starts = (item) => textsOf(item).some((t) => (t || "").toLowerCase().startsWith(q));
   return [...items.filter(starts), ...items.filter((item) => !starts(item))];
+}
+
+// The type-ahead pickers in forms (exercises, routines, techniques): what's
+// typed matches exactly as it would in the search box of the item's own page
+// — `searchFieldsOf` gives the same fields — in "all words" mode. Matches are
+// ordered by `compare` (usage, in the pickers), then ones whose name starts
+// with the query move first, and the top `limit` are kept. Nothing is
+// suggested until something is typed.
+export function pickerMatches(items, query, searchFieldsOf, { compare, namesOf = (item) => [item.name], limit = 8 } = {}) {
+  if (searchWords(query).length === 0) return [];
+  const matching = items.filter((item) => matchesSearch(searchFieldsOf(item), query));
+  if (compare) matching.sort(compare);
+  return prefixMatchesFirst(matching, query, namesOf).slice(0, limit);
 }
 
 // Names of the records an item links to through `field` (exerciseIds,
