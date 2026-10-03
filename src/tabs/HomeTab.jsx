@@ -4,7 +4,8 @@ import { todayISO } from "../lib/id.js";
 import { useSheets } from "../lib/SheetStack.js";
 import { newRecord, editById, editRecord } from "../lib/records.js";
 import { matchesTags, groupByDate, shiftMonth } from "../lib/activity.js";
-import { exerciseNameMap, nameMap } from "../lib/search.js";
+import { matchesSearch, entrySearchFields, exerciseNameMap, nameMap } from "../lib/search.js";
+import { useLog } from "../lib/LogContext.js";
 import TagChip from "../ui/TagChip.jsx";
 import TagFilter from "../ui/TagFilter.jsx";
 import ActivityCalendar from "../ui/ActivityCalendar.jsx";
@@ -12,7 +13,7 @@ import DayEntries from "../ui/DayEntries.jsx";
 import EntrySheet from "../ui/EntrySheet.jsx";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
 import { PageHeader, PageBody } from "../ui/Page.jsx";
-import { TagsToggle } from "../ui/SearchBox.jsx";
+import SearchBox, { TagsToggle } from "../ui/SearchBox.jsx";
 import PlanAlerts from "./PlanAlerts.jsx";
 import { cardStyle, primaryBtnStyle, chipRowStyle } from "../ui/styles.js";
 
@@ -26,6 +27,8 @@ const SOURCE_KEYS = Object.keys(SOURCE_META);
 export default function HomeTab({ sessions, rolls, setSessions, setRolls, routines, folders, exercises, exerciseUsage, routineUsage, goals = [], onOpenPlan }) {
   const today = todayISO();
   const [shown, setShown] = useState(SOURCE_KEYS);
+  const [search, setSearch] = useState("");
+  const [searchMatchMode, setSearchMatchMode] = useState("all"); // "all" or "any" of the typed words
   const [activeTags, setActiveTags] = useState([]);
   const [tagMatchMode, setTagMatchMode] = useState("all");
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -40,6 +43,10 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   const bySource = useMemo(() => ({ sessions, rolls }), [sessions, rolls]);
   const exerciseNameById = useMemo(() => exerciseNameMap(exercises), [exercises]);
   const routineNameById = useMemo(() => nameMap(routines), [routines]);
+  // Rolls search their techniques by name too.
+  const log = useLog();
+  const techniques = (log && log.techniques) || [];
+  const techniqueNameById = useMemo(() => nameMap(techniques), [techniques]);
   const setters = { sessions: setSessions, rolls: setRolls };
 
   // Everything, regardless of filters — only used to say how much a day's
@@ -60,9 +67,18 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   // off; drop it from the filter rather than let a stale tag empty the calendar.
   const tagsInEffect = activeTags.filter((t) => inScope.some((e) => (e.tags || []).includes(t)));
 
+  // The search and tag filter narrow the calendar and the day's list alike:
+  // only matching entries are drawn, counted or listed.
   const byDate = useMemo(
-    () => groupByDate(inScope.filter((e) => matchesTags(e.tags, tagsInEffect, tagMatchMode))),
-    [inScope, tagsInEffect.join("\u0000"), tagMatchMode]
+    () =>
+      groupByDate(
+        inScope.filter(
+          (e) =>
+            matchesSearch(entrySearchFields(e, exerciseNameById, routineNameById, techniqueNameById), search, searchMatchMode) &&
+            matchesTags(e.tags, tagsInEffect, tagMatchMode)
+        )
+      ),
+    [inScope, search, searchMatchMode, exerciseNameById, routineNameById, techniqueNameById, tagsInEffect.join("\u0000"), tagMatchMode]
   );
 
   const monthPrefix = `${view.year}-${String(view.month + 1).padStart(2, "0")}-`;
@@ -132,13 +148,18 @@ export default function HomeTab({ sessions, rolls, setSessions, setRolls, routin
   return (
     <>
       <PageHeader eyebrow={todayLabel} title="Home" actions={logButton} wide>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <div style={chipRowStyle} role="group" aria-label="Show">
-            {SOURCE_KEYS.map((k) => (
-              <TagChip key={k} dot label={SOURCE_META[k].label} accent={SOURCE_META[k].accent} active={shown.includes(k)} onClick={() => toggleSource(k)} />
-            ))}
-          </div>
-          {hasTags && <TagsToggle open={tagsOpen} count={tagsInEffect.length} onClick={() => setTagsOpen((v) => !v)} />}
+        <SearchBox
+          value={search}
+          setValue={setSearch}
+          matchMode={searchMatchMode}
+          setMatchMode={setSearchMatchMode}
+          placeholder="Search notes, exercises, techniques, tags…"
+          trailing={hasTags && <TagsToggle open={tagsOpen} count={tagsInEffect.length} onClick={() => setTagsOpen((v) => !v)} />}
+        />
+        <div style={{ ...chipRowStyle, marginTop: 10 }} role="group" aria-label="Show">
+          {SOURCE_KEYS.map((k) => (
+            <TagChip key={k} dot label={SOURCE_META[k].label} accent={SOURCE_META[k].accent} active={shown.includes(k)} onClick={() => toggleSource(k)} />
+          ))}
         </div>
         {hasTags && (
           <TagFilter
