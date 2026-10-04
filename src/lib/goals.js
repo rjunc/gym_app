@@ -3,11 +3,16 @@
 // sessions against a goal, its rolling window, and whether it's on track.
 // Kept free of React so they're testable.
 //
-// A goal record: { id, name, active, rules: [{ kind: "any" | "none", scope:
-// "exercise" | "session", tags, exerciseIds }], target, days, order,
-// createdAt, updatedAt } (see matchEntry for what the rules mean): `target` sessions
-// every `days` days. `name` is optional (goalLabel spells out the criteria
-// when it's blank). The window is rolling, ending today — the last 7 days
+// A goal is one of two kinds (`mode`, see GOAL_MODES):
+//   sessions   { id, name, active, mode: "sessions", rules: [{ kind: "any" |
+//              "none", scope: "exercise" | "session", tags, exerciseIds }],
+//              target, days, order, createdAt, updatedAt } (see matchEntry for
+//              what the rules mean): `target` sessions every `days` days.
+//   checklist  { id, name, active, mode: "checklist", items: [{ tag, target }
+//              | { exerciseId, target }], days, order, createdAt, updatedAt }:
+//              each item done in at least its own `target` sessions every
+//              `days` days, from any mix of sessions (see matchChecklist).
+// `name` is optional (goalLabel spells out the criteria when it's blank). The window is rolling, ending today — the last 7 days
 // for a week, 14 for every two weeks — not a calendar week or month, so last
 // Friday's session still counts on Thursday. `order` is the goal's place in
 // your own order on the Plan page (see moveGoal).
@@ -62,6 +67,24 @@ export const windowName = (goal) => `Last ${windowDays(goal)} days`;
 // its own section on the Plan page and Home never warns about it.
 export const isActive = (goal) => goal.active !== false;
 
+// What a goal counts: sessions that meet its rules, or a checklist of items
+// that each have to be done often enough.
+export const GOAL_MODES = {
+  sessions: { label: "Sessions", hint: "Sessions that meet every rule." },
+  checklist: { label: "Checklist", hint: "Each item done often enough, from any mix of sessions." },
+};
+export const isChecklist = (goal) => goal.mode === "checklist";
+
+// A checklist's items: each a tag or a Library exercise, and how many
+// sessions it has to be done in (at least 1).
+export const checklistItems = (goal) => (goal.items || []).filter((it) => it && (it.tag || it.exerciseId));
+export const itemTarget = (item) => Math.max(1, Math.round(item.target) || 1);
+export const itemLabel = (item, exerciseNameById = new Map()) => item.tag || exerciseNameById.get(item.exerciseId) || "Deleted exercise";
+
+// The goal minus what it counts (its mode, rules or items, and target), for
+// replacing them on an edit that may switch the mode.
+export const withoutCriteria = ({ mode, rules, items, target, ...rest }) => rest;
+
 // Where a rule has to hold. Every "one exercise" rule must be met by the
 // same exercise; each "anywhere in the session" rule on its own.
 export const GOAL_SCOPES = {
@@ -72,16 +95,22 @@ const scopeOf = (rule) => (rule.scope === "session" ? "session" : "exercise");
 
 const ruleChips = (rule) => (rule.tags || []).length + (rule.exerciseIds || []).length;
 
-// A goal needs at least one "Any of" rule with something in it; exclusions
-// alone would count every session.
-export const hasCriteria = (goal) => (goal.rules || []).some((r) => r.kind !== "none" && ruleChips(r) > 0);
+// A sessions goal needs at least one "Any of" rule with something in it
+// (exclusions alone would count every session); a checklist, an item.
+export const hasCriteria = (goal) =>
+  isChecklist(goal) ? checklistItems(goal).length > 0 : (goal.rules || []).some((r) => r.kind !== "none" && ruleChips(r) > 0);
 
 // The goal's name, or its rules spelled out: "(push or pull) + plyometrics,
 // not legs" for rules on one exercise, then the session's: "…, in a session
 // with legs, not deload". A goal whose rules are all on the session reads
-// like the first kind: "strength, not deload".
+// like the first kind: "strength, not deload". A checklist lists its items,
+// with how many times when it's more than once: "L-sit, wall sit ×2".
 export function goalLabel(goal, exerciseNameById = new Map()) {
   if (goal.name) return goal.name;
+  if (isChecklist(goal)) {
+    const items = checklistItems(goal);
+    return items.length ? items.map((it) => itemLabel(it, exerciseNameById) + (itemTarget(it) > 1 ? ` ×${itemTarget(it)}` : "")).join(", ") : "Untitled goal";
+  }
   const rules = (goal.rules || []).filter((r) => ruleChips(r) > 0);
   const chips = (r) => [...(r.tags || []), ...(r.exerciseIds || []).map((id) => exerciseNameById.get(id) || "Deleted exercise")];
   const spell = (list) => {
@@ -103,11 +132,20 @@ export function perLabel(goal) {
   return days === 1 ? "every day" : `every ${days} days`;
 }
 
-// "Twice a week", "Once every 2 weeks", "2× every 10 days".
+const timesLabel = (n) => (n === 1 ? "Once" : n === 2 ? "Twice" : `${n}×`);
+
+// "Twice a week", "Once every 2 weeks", "2× every 10 days". A checklist:
+// "Each once a month" when every item has the same target, else "4 items a
+// month".
 export function frequencyLabel(goal) {
   const per = perLabel(goal);
-  const times = goal.target === 1 ? "Once" : goal.target === 2 ? "Twice" : `${goal.target}×`;
-  return `${times} ${per}`;
+  if (isChecklist(goal)) {
+    const targets = [...new Set(checklistItems(goal).map(itemTarget))];
+    if (targets.length === 1) return `Each ${timesLabel(targets[0]).toLowerCase()} ${per}`;
+    const n = checklistItems(goal).length;
+    return `${n} ${n === 1 ? "item" : "items"} ${per}`;
+  }
+  return `${timesLabel(goal.target)} ${per}`;
 }
 
 // Whether one rule's chips hit something with these `tags` and exercise ids.
@@ -150,13 +188,39 @@ export function matchEntry(goal, entry, exerciseById = new Map()) {
   return blocks.filter((b) => onExercise.includes(b) || sessionRules.some((r) => r.kind !== "none" && hits(r, tagsOf(b), [b.exerciseId])));
 }
 
+// Which of a checklist's items a session does, as { items, blocks }: the
+// indexes of the items done, and the exercises that did them in the order
+// done (empty when only the session's tags did), or null when it does none.
+// A tag item is done by the session's own tags or any exercise's, like a
+// rule anywhere in the session; an exercise item, by that exercise being in
+// it. One session can do several items.
+export function matchChecklist(goal, entry, exerciseById = new Map()) {
+  const blocks = blocksOf(entry);
+  const tagsOf = (b) => exerciseById.get(b.exerciseId)?.tags || [];
+  const hitsItem = (item, b) => (item.tag ? tagsOf(b).includes(item.tag) : b.exerciseId === item.exerciseId);
+  const items = [];
+  checklistItems(goal).forEach((item, i) => {
+    if ((item.tag && (entry.tags || []).includes(item.tag)) || blocks.some((b) => hitsItem(item, b))) items.push(i);
+  });
+  if (items.length === 0) return null;
+  const done = items.map((i) => checklistItems(goal)[i]);
+  return { items, blocks: blocks.filter((b) => done.some((item) => hitsItem(item, b))) };
+}
+
 // Every lifting session that counts toward `goal`, newest first, as
-// { entry, blocks }. Mat sessions don't count: goals are for lifting.
+// { entry, blocks }, plus `items` (the indexes of the items it does) for a
+// checklist. Mat sessions don't count: goals are for lifting.
 export function goalMatches(goal, sessions = [], exerciseById = new Map()) {
   if (!hasCriteria(goal)) return [];
+  const checklist = isChecklist(goal);
   const out = [];
   sessions.forEach((entry) => {
     if (typeof entry.date !== "string") return;
+    if (checklist) {
+      const hit = matchChecklist(goal, entry, exerciseById);
+      if (hit) out.push({ entry, ...hit });
+      return;
+    }
     const blocks = matchEntry(goal, entry, exerciseById);
     if (blocks) out.push({ entry, blocks });
   });
@@ -167,22 +231,42 @@ export function goalMatches(goal, sessions = [], exerciseById = new Map()) {
 // on the same day.
 export const matchesIn = (matches, { start, end }) => matches.filter((m) => m.entry.date >= start && m.entry.date <= end);
 
-// Whether the window ending on `day` holds the target. `dates` are the
-// matches' dates, sorted.
-function metOn(goal, dates, day, target) {
-  const { start } = windowEnding(goal, day);
-  let n = 0;
-  for (const d of dates) if (d >= start && d <= day) n += 1;
-  return n >= target;
+// What a goal has to keep up, as tracks of { target, dates, item? }: one for
+// a sessions goal (its matching sessions' dates), one per item for a
+// checklist (the dates of the sessions doing that item). The goal is met
+// when every track is.
+function goalTracks(goal, matches) {
+  if (!isChecklist(goal)) return [{ target: Math.max(1, goal.target || 1), dates: matches.map((m) => m.entry.date) }];
+  return checklistItems(goal).map((item, i) => ({
+    item,
+    target: itemTarget(item),
+    dates: matches.filter((m) => (m.items || []).includes(i)).map((m) => m.entry.date),
+  }));
+}
+
+// How a window went: { count, target, met }. For a sessions goal, its
+// sessions in the window against the target; for a checklist, how many
+// items were done often enough against how many there are, with `items`
+// saying how each went ({ item, count, target, met }).
+function tally(goal, tracks, { start, end }) {
+  const items = tracks.map((t) => {
+    const count = t.dates.filter((d) => d >= start && d <= end).length;
+    return { item: t.item, count, target: t.target, met: count >= t.target };
+  });
+  const met = items.length > 0 && items.every((it) => it.met);
+  if (!isChecklist(goal)) return { count: items[0].count, target: items[0].target, met };
+  return { count: items.filter((it) => it.met).length, target: items.length, met, items };
 }
 
 // Where a goal stands today: { status, count, target, needed, due,
-// overdueDays, lastMet, window }. `count` is the sessions in the window
-// ending today and `needed` how many more it takes to meet the target. A
-// session on the `due` day still counts, so the goal only slips the day
-// after.
+// overdueDays, lastMet, window }, plus `items` for a checklist. `count` is
+// the sessions in the window ending today (a checklist: the items done often
+// enough) and `needed` how many more it takes to meet the target (a
+// checklist: the items still short). A session on the `due` day still
+// counts, so the goal only slips the day after.
 //   on       met, and the next session isn't due soon (`due` is the last day
-//            it can come)
+//            it can come; for a checklist, the first day any item would
+//            drop short)
 //   risk     met, but due within riskDays (tomorrow, for a weekly goal), or
 //            due today: it was met yesterday, and a session today keeps it
 //   overdue  short, for up to one window (`days` days) since it was due;
@@ -191,24 +275,31 @@ function metOn(goal, dates, day, target) {
 //   behind   short for a whole window or longer, or never met in all that
 //            time. `lastMet` is the last day it was met (null if never)
 export function goalStatus(goal, matches, today) {
-  const target = Math.max(1, goal.target || 1);
   const days = windowDays(goal);
   const window = windowEnding(goal, today);
-  const dates = matches.map((m) => m.entry.date).filter((d) => d <= today).sort();
-  const inWindow = dates.filter((d) => d >= window.start);
-  const count = inWindow.length;
-  const base = { count, target, needed: Math.max(0, target - count), window, due: null, overdueDays: 0, lastMet: null };
+  const tracks = goalTracks(goal, matches).map((t) => ({ ...t, dates: t.dates.filter((d) => d <= today).sort() }));
+  const now = tally(goal, tracks, window);
+  const base = { ...now, needed: Math.max(0, now.target - now.count), window, due: null, overdueDays: 0, lastMet: null };
+  delete base.met;
 
-  if (count >= target) {
-    const due = shiftISODate(inWindow[count - target], days);
+  if (now.met) {
+    // Each track is due once its oldest session that's still needed drops
+    // out of the window; the goal, when the first of them is.
+    const due = tracks
+      .map((t) => {
+        const inWindow = t.dates.filter((d) => d >= window.start);
+        return shiftISODate(inWindow[inWindow.length - t.target], days);
+      })
+      .sort()[0];
     return { ...base, status: daysBetween(today, due) <= riskDays(goal) ? "risk" : "on", due };
   }
 
   // Short today: step back to the last day the window was met. Nothing before
-  // the first matching session can have been.
+  // every track's first session can have been.
   let lastMet = null;
-  for (let day = shiftISODate(today, -1); dates.length > 0 && day >= dates[0]; day = shiftISODate(day, -1)) {
-    if (metOn(goal, dates, day, target)) {
+  const earliest = tracks.length > 0 && tracks.every((t) => t.dates.length > 0) ? tracks.map((t) => t.dates[0]).sort().pop() : null;
+  for (let day = shiftISODate(today, -1); earliest && day >= earliest; day = shiftISODate(day, -1)) {
+    if (tally(goal, tracks, windowEnding(goal, day)).met) {
       lastMet = day;
       break;
     }
@@ -223,14 +314,15 @@ export function goalStatus(goal, matches, today) {
 }
 
 // The last `n` windows back to back, ending today, oldest first, each as
-// { window, count, met }: for a weekly goal, the last 7 days, the 7 before
-// those, and so on.
+// { window, count, met } (see tally; a checklist's count is items done): for
+// a weekly goal, the last 7 days, the 7 before those, and so on.
 export function recentWindows(goal, matches, today, n = 8) {
   const days = windowDays(goal);
+  const tracks = goalTracks(goal, matches);
   return Array.from({ length: n }, (_, i) => {
     const window = windowEnding(goal, shiftISODate(today, -days * (n - 1 - i)));
-    const count = matchesIn(matches, window).length;
-    return { window, count, met: count >= (goal.target || 1) };
+    const { count, met } = tally(goal, tracks, window);
+    return { window, count, met };
   });
 }
 
@@ -241,19 +333,35 @@ function howLong(days) {
   return `${Math.floor(days / 30)} months`;
 }
 
+// A checklist's items still short, named when there are one or two ("Wall
+// sit and Copenhagen plank"), else counted ("3 items").
+function shortItems(state, exerciseNameById) {
+  const short = (state.items || []).filter((it) => !it.met);
+  if (short.length > 2) return `${short.length} items`;
+  return short.map((it) => itemLabel(it.item, exerciseNameById)).join(" and ");
+}
+
 // One line on where a goal stands:
 //   on/risk   "3 in the last 7 days · next by Sat, Oct 3" (or "tomorrow")
 //   risk      "1 of 2 in the last 7 days · 1 more due today"
 //   overdue   "Overdue 2 days · 1 more needed"
 //   behind    "Behind 3 weeks · last met Sep 3", "Never met · 2 more needed"
-export function progressText(goal, { status, count, target, needed, due, overdueDays, lastMet }, today) {
+// A checklist counts items, and names the ones left when there are one or
+// two: "All 4 done in the last 30 days · next by Sat, Oct 3", "3 of 4 done
+// in the last 30 days · Wall sit due today", "Overdue 2 days · Wall sit
+// left". `exerciseNameById` names its exercise items.
+export function progressText(goal, { status, count, target, needed, due, overdueDays, lastMet, items }, today, exerciseNameById = new Map()) {
   const span = `in the last ${windowDays(goal)} days`;
   const longDate = (iso) => dateOf(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  const more = `${needed} more needed`;
+  const checklist = isChecklist(goal);
+  const left = checklist ? shortItems({ items }, exerciseNameById) : "";
+  const more = checklist ? `${left} left` : `${needed} more needed`;
+  const done = checklist ? `${count} of ${target} done ${span}` : `${count} of ${target} ${span}`;
   if (status === "behind") return lastMet ? `Behind ${howLong(overdueDays)} · last met ${shortDate(lastMet)}` : `Never met · ${more}`;
-  if (status === "overdue") return lastMet ? `Overdue ${howLong(overdueDays)} · ${more}` : `${count} of ${target} ${span} · ${more}`;
-  if (due === today) return `${count} of ${target} ${span} · ${needed} more due today`;
+  if (status === "overdue") return lastMet ? `Overdue ${howLong(overdueDays)} · ${more}` : `${done} · ${more}`;
+  if (due === today) return `${done} · ${checklist ? left : `${needed} more`} due today`;
   const when = daysBetween(today, due) === 1 ? "tomorrow" : longDate(due);
+  if (checklist) return `${target === 1 ? "Done" : `All ${target} done`} ${span} · next by ${when}`;
   return `${count} ${span} · next by ${when}`;
 }
 

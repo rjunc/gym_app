@@ -1,29 +1,33 @@
 import { useState, useMemo } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { todayISO, uid } from "../lib/id.js";
-import { newRecord, editById } from "../lib/records.js";
+import { newRecord, editRecord } from "../lib/records.js";
 import { tagUsage } from "../lib/tags.js";
 import { cleanFields } from "../lib/text.js";
 import { nameMap } from "../lib/search.js";
 import { useLog } from "../lib/LogContext.js";
-import { GOAL_PERIODS, MAX_GOAL_DAYS, hasCriteria, goalMatches, perLabel, nextGoalOrder } from "../lib/goals.js";
+import { GOAL_PERIODS, GOAL_MODES, MAX_GOAL_DAYS, hasCriteria, isChecklist, goalMatches, perLabel, nextGoalOrder, withoutCriteria } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { NameField, ActiveField } from "../ui/ComposerFields.jsx";
 import GoalRuleField from "./GoalRuleField.jsx";
-import { MatchCard, GOAL_ACCENT } from "./GoalParts.jsx";
-import { labelStyle, metaStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
+import GoalChecklistField from "./GoalChecklistField.jsx";
+import { MatchCard, Stepper, GOAL_ACCENT } from "./GoalParts.jsx";
+import { labelStyle, metaStyle, primaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
 
 // How many matching sessions the preview lists.
 const PREVIEW = 3;
 
 const blankRule = (kind = "any") => ({ key: uid(), kind, scope: "exercise", tags: [], exerciseIds: [] });
 
-// The new/edit form for a Plan goal: its rules (each "Any of" or "None of"
-// some tags and Library exercises, on one exercise or anywhere in the
-// session, all of which must hold), and how often (a
-// number of sessions in a rolling window of any number of days, with a week,
-// two weeks and a month as quick picks). Pass `goal` to edit it, or
+// The new/edit form for a Plan goal, of either kind (see GOAL_MODES):
+// sessions, with its rules (each "Any of" or "None of" some tags and Library
+// exercises, on one exercise or anywhere in the session, all of which must
+// hold) and how many sessions; or a checklist, with its items (tags and
+// Library exercises) and how many sessions each has to be done in. Then
+// the rolling window, of any number of days, with a week, two weeks and a
+// month as quick picks. Switching kinds keeps what was filled in for the
+// other until saving, which keeps only the chosen kind's. Pass `goal` to edit it, or
 // leave it out to add one. Under the fields, a live preview of the latest
 // sessions it matches, so you can tell the rules are right before saving.
 export default function GoalEditor({ goal, onClose }) {
@@ -32,8 +36,10 @@ export default function GoalEditor({ goal, onClose }) {
     name: goal?.name || "",
     active: goal ? goal.active !== false : true,
     // Each rule gets a key while it's being edited, for React; it isn't saved.
+    mode: goal && isChecklist(goal) ? "checklist" : "sessions",
     rules: goal?.rules?.length ? goal.rules.map((r) => ({ ...r, key: uid(), tags: [...r.tags], exerciseIds: [...r.exerciseIds] })) : [blankRule()],
     target: goal?.target || 1,
+    items: (goal?.items || []).map((it) => ({ ...it, key: uid() })),
     days: goal?.days || 7,
   }));
   // Tags from everything a goal can match on: sessions and their exercises.
@@ -41,23 +47,32 @@ export default function GoalEditor({ goal, onClose }) {
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
   const matches = useMemo(() => goalMatches(form, sessions, exerciseById), [form, sessions, exerciseById]);
+  const checklist = isChecklist(form);
   const canSave = hasCriteria(form) && form.target >= 1 && form.days >= 1;
 
   const updateRule = (key) => (fn) => setForm((f) => ({ ...f, rules: f.rules.map((r) => (r.key === key ? fn(r) : r)) }));
   const removeRule = (key) => setForm((f) => ({ ...f, rules: f.rules.filter((r) => r.key !== key) }));
   const addRule = (kind) => setForm((f) => ({ ...f, rules: [...f.rules, blankRule(kind)] }));
+  const updateItems = (fn) => setForm((f) => ({ ...f, items: fn(f.items) }));
 
   const setTarget = (n) => setForm((f) => ({ ...f, target: Math.max(1, Math.min(MAX_GOAL_DAYS, n || 1)) }));
   const setDays = (n) => setForm((f) => ({ ...f, days: Math.max(1, Math.min(MAX_GOAL_DAYS, n || 1)) }));
 
   const save = () => {
     if (!canSave) return;
-    // Empty rules are dropped, and the editing keys with them.
-    const fields = cleanFields({
-      ...form,
-      rules: form.rules.filter((r) => r.tags.length + r.exerciseIds.length > 0).map(({ kind, scope, tags, exerciseIds }) => ({ kind, scope, tags, exerciseIds })),
-    });
-    if (goal) setGoals((prev) => editById(prev, goal.id, fields));
+    // Only the chosen kind's criteria are kept: empty rules are dropped, and
+    // the editing keys with them.
+    const { name, active, days } = form;
+    const criteria = checklist
+      ? { mode: "checklist", items: form.items.map(({ tag, exerciseId, target }) => (tag ? { tag, target } : { exerciseId, target })) }
+      : {
+          mode: "sessions",
+          rules: form.rules.filter((r) => r.tags.length + r.exerciseIds.length > 0).map(({ kind, scope, tags, exerciseIds }) => ({ kind, scope, tags, exerciseIds })),
+          target: form.target,
+        };
+    const fields = cleanFields({ name, active, ...criteria, days });
+    // An edit replaces the old criteria outright, in case the kind changed.
+    if (goal) setGoals((prev) => prev.map((g) => (g.id === goal.id ? editRecord(withoutCriteria(g), fields) : g)));
     else setGoals((prev) => [...prev, newRecord({ ...fields, order: nextGoalOrder(prev) })]);
     onClose();
   };
@@ -79,38 +94,65 @@ export default function GoalEditor({ goal, onClose }) {
     >
       <div>
         <label style={labelStyle}>Counts</label>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {form.rules.map((r, i) => (
-            <GoalRuleField
-              key={r.key}
-              rule={r}
-              first={i === 0}
-              onUpdate={updateRule(r.key)}
-              onRemove={form.rules.length > 1 ? () => removeRule(r.key) : undefined}
-              tagSuggestions={tagSuggestions}
-              exercises={exercises}
-              usage={exerciseUsage}
-            />
-          ))}
-        </div>
-        <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>
-          Every rule has to hold. Rules on <b>one exercise</b> must all be met by the same exercise, by its own tags; rules <b>anywhere in the session</b> can each be met by the session's tags or any exercise in it.
-        </div>
-        <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
-          <button onClick={() => addRule("any")} style={{ ...ghostLinkStyle, color: `var(${GOAL_ACCENT})` }}>
-            <Plus size={14} /> And any of…
-          </button>
-          <button onClick={() => addRule("none")} style={{ ...ghostLinkStyle, color: "var(--danger)" }}>
-            <Plus size={14} /> And none of…
-          </button>
-        </div>
+        <SegmentedToggle
+          options={Object.entries(GOAL_MODES).map(([key, m]) => ({ key, label: m.label }))}
+          value={form.mode}
+          setValue={(mode) => setForm((f) => ({ ...f, mode }))}
+          accent={GOAL_ACCENT}
+        />
+        <div style={{ ...metaStyle, marginTop: 6 }}>{GOAL_MODES[form.mode].hint}</div>
       </div>
+
+      {checklist ? (
+        <div>
+          <label style={labelStyle}>Items</label>
+          <GoalChecklistField items={form.items} onUpdate={updateItems} tagSuggestions={tagSuggestions} exercises={exercises} usage={exerciseUsage} />
+          <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>
+            Each item has to be done in its number of sessions; one session can tick off several. A tag counts on the session or any exercise in it.
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label style={labelStyle}>Rules</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {form.rules.map((r, i) => (
+              <GoalRuleField
+                key={r.key}
+                rule={r}
+                first={i === 0}
+                onUpdate={updateRule(r.key)}
+                onRemove={form.rules.length > 1 ? () => removeRule(r.key) : undefined}
+                tagSuggestions={tagSuggestions}
+                exercises={exercises}
+                usage={exerciseUsage}
+              />
+            ))}
+          </div>
+          <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>
+            Every rule has to hold. Rules on <b>one exercise</b> must all be met by the same exercise, by its own tags; rules <b>anywhere in the session</b> can each be met by the session's tags or any exercise in it.
+          </div>
+          <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+            <button onClick={() => addRule("any")} style={{ ...ghostLinkStyle, color: `var(${GOAL_ACCENT})` }}>
+              <Plus size={14} /> And any of…
+            </button>
+            <button onClick={() => addRule("none")} style={{ ...ghostLinkStyle, color: "var(--danger)" }}>
+              <Plus size={14} /> And none of…
+            </button>
+          </div>
+        </div>
+      )}
 
       <div>
         <label style={labelStyle}>How often</label>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <Stepper value={form.target} setValue={setTarget} label="Sessions" />
-          <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.target === 1 ? "session" : "sessions"} every</span>
+          {checklist ? (
+            <span style={{ fontSize: 14, color: "var(--text-dim)" }}>Every</span>
+          ) : (
+            <>
+              <Stepper value={form.target} setValue={setTarget} label="Sessions" />
+              <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.target === 1 ? "session" : "sessions"} every</span>
+            </>
+          )}
           <Stepper value={form.days} setValue={setDays} label="Days" />
           <span style={{ fontSize: 14, color: "var(--text-dim)" }}>{form.days === 1 ? "day" : "days"}</span>
         </div>
@@ -123,7 +165,7 @@ export default function GoalEditor({ goal, onClose }) {
           />
         </div>
         <div style={{ ...metaStyle, marginTop: 8 }}>
-          {form.target === 1 ? "Once" : `${form.target} sessions`} {perLabel(form)}, counted over the last {form.days === 1 ? "day" : `${form.days} days`}, rolling: every session counts, even two on one day.
+          {checklist ? "Each item" : form.target === 1 ? "Once" : `${form.target} sessions`} {perLabel(form)}, counted over the last {form.days === 1 ? "day" : `${form.days} days`}, rolling: every session counts, even two on one day.
         </div>
       </div>
 
@@ -149,29 +191,5 @@ export default function GoalEditor({ goal, onClose }) {
         </div>
       )}
     </BottomSheet>
-  );
-}
-
-// A number with − and + buttons either side, from 1 to MAX_GOAL_DAYS.
-function Stepper({ value, setValue, label }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <button onClick={() => setValue(value - 1)} aria-label={`Fewer ${label.toLowerCase()}`} disabled={value <= 1} style={{ ...secondaryBtnStyle, padding: 0, width: 40, minHeight: 40, opacity: value <= 1 ? 0.4 : 1 }}>
-        <Minus size={16} />
-      </button>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={MAX_GOAL_DAYS}
-        value={value}
-        onChange={(e) => setValue(Number(e.target.value))}
-        aria-label={label}
-        style={{ width: 56, textAlign: "center", background: "var(--surface-2)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: "8px 4px", color: "var(--text)", fontSize: 16, fontWeight: 700 }}
-      />
-      <button onClick={() => setValue(value + 1)} aria-label={`More ${label.toLowerCase()}`} disabled={value >= MAX_GOAL_DAYS} style={{ ...secondaryBtnStyle, padding: 0, width: 40, minHeight: 40, opacity: value >= MAX_GOAL_DAYS ? 0.4 : 1 }}>
-        <Plus size={16} />
-      </button>
-    </div>
   );
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isActive, windowEnding, matchEntry, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel, sortSummaries, moveGoal, nextGoalOrder } from "../../src/lib/goals.js";
+import { isActive, windowEnding, matchEntry, matchChecklist, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel, hasCriteria, withoutCriteria, sortSummaries, moveGoal, nextGoalOrder } from "../../src/lib/goals.js";
 
 const exercises = new Map([
   ["bench", { id: "bench", tags: ["strength", "push"] }],
@@ -238,4 +238,78 @@ test("moveGoal: swaps with the next goal in the same section and renumbers", () 
   assert.equal(moveGoal(goals, "b", -1).find((g) => g.id === "x"), goals[1]);
   assert.equal(nextGoalOrder(goals), 6);
   assert.equal(nextGoalOrder([]), 0);
+});
+
+// Checklist goals: each item done often enough, from any mix of sessions.
+const isoExercises = new Map([
+  ["lsit", { id: "lsit", tags: ["core", "isometrics"] }],
+  ["horse", { id: "horse", tags: ["legs", "isometrics"] }],
+  ["wall", { id: "wall", tags: ["legs", "isometrics"] }],
+  ["cope", { id: "cope", tags: ["core", "isometrics"] }],
+  ...exercises,
+]);
+const isoNames = new Map([["lsit", "L-sit"], ["horse", "Horse stance"], ["wall", "Wall sit"], ["cope", "Copenhagen plank"]]);
+const isometrics = { mode: "checklist", items: ["lsit", "horse", "wall", "cope"].map((exerciseId) => ({ exerciseId, target: 1 })), days: 30 };
+const dated = (date, exerciseIds, tags = []) => ({ ...session(exerciseIds, tags), id: `${date}-${exerciseIds.join("-")}`, date });
+
+test("matchChecklist: a session does every item it has, by exercise or by tag", () => {
+  assert.deepEqual(matchChecklist(isometrics, session(["lsit", "bench", "horse"]), isoExercises), {
+    items: [0, 1],
+    blocks: [{ id: "b0", exerciseId: "lsit" }, { id: "b2", exerciseId: "horse" }],
+  });
+  assert.equal(matchChecklist(isometrics, session(["bench"]), isoExercises), null);
+  // A tag item is done by an exercise's tags or the session's own.
+  const ppl = { mode: "checklist", items: [{ tag: "push", target: 2 }, { tag: "pull", target: 1 }, { tag: "legs", target: 1 }], days: 7 };
+  assert.deepEqual(matchChecklist(ppl, session(["bench", "row"]), isoExercises).items, [0, 1]);
+  assert.deepEqual(matchChecklist(ppl, { tags: ["legs"] }, isoExercises), { items: [2], blocks: [] });
+});
+
+test("goalStatus, checklist: items done in separate sessions add up", () => {
+  const sessions = [dated("2026-10-01", ["lsit", "horse"]), dated("2026-10-02", ["wall", "cope"])];
+  const matches = goalMatches(isometrics, sessions, isoExercises);
+  // Only half of it on the first day…
+  const first = goalStatus({ ...isometrics, createdAt: "2026-09-30" }, matches, "2026-10-01");
+  assert.equal(first.status, "overdue");
+  assert.deepEqual([first.count, first.target, first.needed], [2, 4, 2]);
+  assert.equal(progressText(isometrics, first, "2026-10-01", isoNames), "2 of 4 done in the last 30 days · Wall sit and Copenhagen plank left");
+  // …all of it the next, due when the first day's items slide out.
+  const s = goalStatus(isometrics, matches, "2026-10-02");
+  assert.equal(s.status, "on");
+  assert.equal(s.due, "2026-10-31");
+  assert.deepEqual(s.items.map((it) => it.met), [true, true, true, true]);
+  assert.equal(progressText(isometrics, s, "2026-10-02", isoNames), "All 4 done in the last 30 days · next by Sat, Oct 31");
+});
+
+test("goalStatus, checklist: per-item targets, and slipping when one item does", () => {
+  const goal = { mode: "checklist", items: [{ exerciseId: "lsit", target: 2 }, { exerciseId: "wall", target: 1 }], days: 7 };
+  const sessions = [dated("2026-09-20", ["lsit", "wall"]), dated("2026-09-26", ["lsit"]), dated("2026-09-30", ["lsit"])];
+  const matches = goalMatches(goal, sessions, isoExercises);
+  // Wall sits last on Sep 20: met through Sep 26, so the goal is overdue
+  // though L-sits are fine.
+  const s = goalStatus(goal, matches, "2026-10-01");
+  assert.equal(s.status, "overdue");
+  assert.equal(s.lastMet, "2026-09-26");
+  assert.deepEqual(s.items.map((it) => [it.count, it.target, it.met]), [[2, 2, true], [0, 1, false]]);
+  assert.equal(progressText(goal, s, "2026-10-01", isoNames), "Overdue 4 days · Wall sit left");
+  // Never met when one item was never done.
+  const never = goalStatus({ ...goal, createdAt: "2026-09-01" }, goalMatches(goal, sessions.slice(1), isoExercises), "2026-10-01");
+  assert.equal(never.status, "behind");
+  assert.equal(never.lastMet, null);
+});
+
+test("recentWindows, checklist: counts items done, met when all are", () => {
+  const sessions = [dated("2026-09-02", ["lsit", "horse", "wall", "cope"]), dated("2026-09-20", ["lsit"])];
+  const rows = recentWindows(isometrics, goalMatches(isometrics, sessions, isoExercises), "2026-10-01", 2);
+  assert.deepEqual(rows.map((r) => [r.count, r.met]), [[0, false], [4, true]]);
+});
+
+test("checklist labels, criteria, and switching modes on an edit", () => {
+  const mixed = { mode: "checklist", items: [{ tag: "push", target: 1 }, { exerciseId: "wall", target: 2 }], days: 7 };
+  assert.equal(goalLabel(isometrics, isoNames), "L-sit, Horse stance, Wall sit, Copenhagen plank");
+  assert.equal(goalLabel(mixed, isoNames), "push, Wall sit ×2");
+  assert.equal(frequencyLabel(isometrics), "Each once a month");
+  assert.equal(frequencyLabel(mixed), "2 items a week");
+  assert.equal(hasCriteria(isometrics), true);
+  assert.equal(hasCriteria({ mode: "checklist", items: [] }), false);
+  assert.deepEqual(withoutCriteria({ id: "g", name: "x", mode: "sessions", rules: [], target: 2, days: 7, order: 0 }), { id: "g", name: "x", days: 7, order: 0 });
 });

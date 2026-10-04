@@ -126,8 +126,9 @@ same way (cardio starts in min, holds in sec); `timeUnit` on the set records
 which. See `src/lib/sets.js`.
 
 **Plan goals.** The Plan page holds goals for how often to train
-something: `{ id, name, active, rules: [{ kind: "any" | "none", scope:
-"exercise" | "session", tags, exerciseIds }], target, days, order }` — `target`
+something, of two kinds (`mode`). A **sessions** goal is `{ id, name, active,
+mode: "sessions", rules: [{ kind: "any" | "none", scope: "exercise" |
+"session", tags, exerciseIds }], target, days, order }` — `target`
 sessions every `days` days (1–365; the form offers a week, 2 weeks and a
 month, 30 days, as quick picks) (`name` optional; blank spells out the rules, e.g. "push +
 plyometrics, in a session with legs"). Every rule must hold: an "any" rule
@@ -138,7 +139,16 @@ by the *same* exercise; or **anywhere in the session** (the session's tags or
 any of its exercises), each such rule met on its own. So "push" + "plyometrics"
 on one exercise needs a clap push-up, while on the session bench press plus
 box jumps counts, and "a plyometric push exercise in a session with legs"
-mixes the two. Only lifting sessions count (not mat sessions). The goal form
+mixes the two. A **checklist** goal is `{ id, name, active, mode:
+"checklist", items: [{ tag, target } | { exerciseId, target }], days, order }`:
+each item done in at least its own `target` sessions every `days` days, added
+up across any mix of sessions, and one session can tick off several items
+("L-sit, horse stance, wall sit and Copenhagen plank, each once a month" is
+met by L-sits and horse stance one day and the other two the next). A tag
+item is done by the session's tags or any of its exercises'. The goal is met
+when every item is, and is due when the first item would drop short; its
+progress counts items ("3 of 4 done in the last 30 days · Wall sit left").
+Only lifting sessions count (not mat sessions). The goal form
 previews the latest sessions a goal matches as you edit it. An
 inactive goal (`active: false`) keeps its history but isn't tracked: it's
 listed last on the Plan page, greyed out, and Home never warns about it.

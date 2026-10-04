@@ -94,27 +94,50 @@ export function normalizeExercises(arr) {
     : [];
 }
 
-// Plan goals: the rules ("any" or "none" of some tags and Library exercises,
-// each on one exercise or anywhere in the session)
-// and how often (`target` sessions every `days` days; see lib/goals.js).
-// Anything unknown falls back to the default: active, "any", on one exercise,
-// every 7 days, and a target of at least 1. `order` (the goal's place in
-// your own order) falls back to where it is in the file.
+// Plan goals (see lib/goals.js), either kind: a sessions goal's rules ("any"
+// or "none" of some tags and Library exercises, each on one exercise or
+// anywhere in the session) and `target` sessions, or a checklist's items
+// (each a tag or an exercise, with a `target` of its own), every `days` days.
+// Anything unknown falls back to the default: active, a sessions goal, "any",
+// on one exercise, every 7 days, and targets of at least 1. `order` (the
+// goal's place in your own order) falls back to where it is in the file.
+const atLeastOne = (n) => Math.max(1, Math.round(Number(n)) || 1);
+
+function normalizeGoalCriteria(g) {
+  if (g.mode === "checklist") {
+    return {
+      mode: "checklist",
+      items: (Array.isArray(g.items) ? g.items : [])
+        .filter((it) => it && typeof it === "object")
+        .map((it) => {
+          const tag = typeof it.tag === "string" ? normalizeTags([it.tag])[0] : "";
+          if (tag) return { tag, target: atLeastOne(it.target) };
+          return typeof it.exerciseId === "string" && it.exerciseId ? { exerciseId: it.exerciseId, target: atLeastOne(it.target) } : null;
+        })
+        .filter(Boolean),
+    };
+  }
+  return {
+    mode: "sessions",
+    rules: (Array.isArray(g.rules) ? g.rules : [])
+      .filter((r) => r && typeof r === "object")
+      .map((r) => ({
+        kind: r.kind === "none" ? "none" : "any",
+        scope: r.scope === "session" ? "session" : "exercise",
+        tags: normalizeTags(r.tags),
+        exerciseIds: Array.isArray(r.exerciseIds) ? r.exerciseIds.filter((id) => typeof id === "string") : [],
+      })),
+    target: atLeastOne(g.target),
+  };
+}
+
 export function normalizeGoals(arr) {
   return Array.isArray(arr)
     ? arr.map((g, i) => ({
         id: g.id || uid(),
         name: typeof g.name === "string" ? g.name : "",
         active: g.active !== false,
-        rules: (Array.isArray(g.rules) ? g.rules : [])
-          .filter((r) => r && typeof r === "object")
-          .map((r) => ({
-            kind: r.kind === "none" ? "none" : "any",
-            scope: r.scope === "session" ? "session" : "exercise",
-            tags: normalizeTags(r.tags),
-            exerciseIds: Array.isArray(r.exerciseIds) ? r.exerciseIds.filter((id) => typeof id === "string") : [],
-          })),
-        target: Math.max(1, Math.round(Number(g.target)) || 1),
+        ...normalizeGoalCriteria(g),
         days: Math.max(1, Math.min(MAX_GOAL_DAYS, Math.round(Number(g.days)) || 7)),
         order: typeof g.order === "number" && Number.isFinite(g.order) ? g.order : i,
         ...importedTimestamps(g),

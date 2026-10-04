@@ -10,7 +10,8 @@
 // entries, BJJ mat sessions (gi or no-gi, drills, rounds with partners and
 // how techniques went), techniques whose positions chain into a flow, and
 // Plan goals of every kind (tags matched all or any, exercises, both;
-// every 3, 7, 10, 14 or 30 days; some easily met, some slipping).
+// checklists of items each done often enough, across sessions; every 3, 7,
+// 10, 14 or 30 days; some easily met, some slipping).
 //
 // Every record's id starts with DEMO_PREFIX, which is the only way test data
 // is told apart from real data: isDemoRecord finds it again so it can be
@@ -61,6 +62,10 @@ const EXERCISES = [
   { name: "Plank", folder: "Core", tags: ["core"], measure: "time", seconds: 45, prescription: "3 x 45s" },
   { name: "Side plank", folder: "Core", tags: ["core"], measure: "time", seconds: 30 },
   { name: "Weighted plank", folder: "Core", tags: ["core"], measure: "weight_time", weight: 25, seconds: 40 },
+  { name: "L-sit", folder: "Core", tags: ["core", "isometrics"], measure: "time", seconds: 15 },
+  { name: "Copenhagen plank", folder: "Core", tags: ["core", "legs", "isometrics"], measure: "time", seconds: 20, prescription: "3x20s each side" },
+  { name: "Wall sit", folder: "Strength/Legs", tags: ["legs", "isometrics"], measure: "time", seconds: 60 },
+  { name: "Horse stance", folder: "Mobility", tags: ["legs", "mobility", "isometrics"], measure: "time", seconds: 60 },
   { name: "Dead hang", folder: "Strength/Pull", tags: ["pull", "grip"], measure: "time", seconds: 40 },
   { name: "Hanging leg raise", folder: "Core", tags: ["core"], measure: "reps", reps: 10 },
   { name: "Ab wheel", folder: "Core", tags: ["core"], measure: "reps", reps: 8 },
@@ -99,9 +104,9 @@ const ROUTINES = [
   { name: "Easy cardio", folder: "Conditioning", tags: ["cardio"], exercises: ["Stairmaster", "Row"] },
   { name: "Long run", folder: "Conditioning", tags: ["cardio"], exercises: ["Run"] },
   { name: "Bike intervals", folder: "Conditioning", tags: ["cardio", "conditioning"], exercises: ["Assault bike", "Jump rope"] },
-  { name: "Morning mobility", folder: "Mobility", tags: ["mobility"], exercises: ["Cat-cow", "World's greatest stretch", "Hip flexor stretch", "Plank"] },
-  { name: "Hips & back", folder: "Mobility", tags: ["mobility"], exercises: ["Couch stretch", "Hip flexor stretch", "Dead hang"] },
-  { name: "Core finisher", folder: null, tags: ["core"], exercises: ["Ab wheel", "Side plank", "Weighted plank"], groups: [{ kind: "circuit", exercises: ["Ab wheel", "Side plank", "Weighted plank"] }] },
+  { name: "Morning mobility", folder: "Mobility", tags: ["mobility"], exercises: ["Cat-cow", "World's greatest stretch", "Hip flexor stretch", "Plank", "Horse stance"] },
+  { name: "Hips & back", folder: "Mobility", tags: ["mobility"], exercises: ["Couch stretch", "Hip flexor stretch", "Dead hang", "Wall sit"] },
+  { name: "Core finisher", folder: null, tags: ["core"], exercises: ["Ab wheel", "Side plank", "Weighted plank", "L-sit", "Copenhagen plank"], groups: [{ kind: "circuit", exercises: ["Ab wheel", "Side plank", "Weighted plank"] }] },
 ];
 
 // The weekly shape sessions follow, cycling through a training block.
@@ -178,10 +183,13 @@ const ROUND_NOTES = ["good pace", "went light", "stuck in bottom side", "long sc
 // How the rounds' techniques go: mostly hits and attempts, sometimes caught.
 const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "caught"];
 
-// Plan goals: the rules — "any" or "none" of some chips, each a tag or an
-// exercise by name, on one exercise unless `session` (anywhere in the
-// session) — how many sessions, every so many days in a rolling window (see
-// lib/goals.js), and whether it's active (one is not). Plain plyometrics
+// Plan goals, either kind (see lib/goals.js): sessions goals with rules —
+// "any" or "none" of some chips, each a tag or an exercise by name, on one
+// exercise unless `session` (anywhere in the session) — and how many
+// sessions; or checklists (`each`), a [chip, times] per item. Then every so
+// many days in a rolling window, and whether it's active (one is not). The
+// isometrics are spread over three routines, so their checklist is only met
+// by adding up separate sessions. Plain plyometrics
 // only comes up with Clap push-ups (push day, full body) or the odd Box jump,
 // so it's usually off track.
 const GOALS = [
@@ -200,6 +208,9 @@ const GOALS = [
   { name: "Heavy legs", rules: [{ any: ["strength"] }, { any: ["legs"] }], target: 1, days: 14 },
   { rules: [{ any: ["cardio"], session: true }], target: 2, days: 10 },
   { rules: [{ any: ["mobility"], session: true }], target: 1, days: 3 },
+  { name: "Isometrics", each: [["L-sit", 1], ["Horse stance", 1], ["Wall sit", 1], ["Copenhagen plank", 1]], days: 30 },
+  { name: "Push, pull, legs", each: [["push", 2], ["pull", 2], ["legs", 2]], days: 7 },
+  { each: [["Dead hang", 1], ["mobility", 3], ["Clap push-up", 2]], days: 14 },
 ];
 
 // Builds a folder record per path in `paths` ("A/B" nests B under A), and
@@ -466,12 +477,14 @@ export function generateDemoData(today = new Date(), months = 9) {
     tags: chips.filter((c) => !exerciseByName.has(c)),
     exerciseIds: chips.filter((c) => exerciseByName.has(c)).map((name) => exerciseByName.get(name).id),
   });
+  const toItem = ([chip, target]) => (exerciseByName.has(chip) ? { exerciseId: exerciseByName.get(chip).id, target } : { tag: chip, target });
   const goals = GOALS.map((g, i) => ({
     id: demoId(),
     name: g.name || "",
     active: g.active !== false,
-    rules: g.rules.map((r) => (r.none ? toRule("none", r.none, r.session) : toRule("any", r.any, r.session))),
-    target: g.target,
+    ...(g.each
+      ? { mode: "checklist", items: g.each.map(toItem) }
+      : { mode: "sessions", rules: g.rules.map((r) => (r.none ? toRule("none", r.none, r.session) : toRule("any", r.any, r.session))), target: g.target }),
     days: g.days,
     // Your own order on the Plan page: newest first, unlike the created order.
     order: GOALS.length - 1 - i,

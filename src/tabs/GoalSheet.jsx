@@ -3,11 +3,11 @@ import { History, Check, Pause, Play } from "lucide-react";
 import { todayISO, formatDate } from "../lib/id.js";
 import { nameMap } from "../lib/search.js";
 import { useSheets } from "../lib/SheetStack.js";
-import { isActive, goalLabel, frequencyLabel, goalStatus, recentWindows, windowEnding, windowLabel, windowName, matchesIn, progressText } from "../lib/goals.js";
+import { isActive, isChecklist, goalLabel, frequencyLabel, goalStatus, recentWindows, windowEnding, windowLabel, windowName, matchesIn, progressText } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SheetActions, { sheetActionBtnStyle } from "../ui/SheetActions.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
-import { StatusPill, PeriodStrip, MatchCard, RulesSummary, GOAL_ACCENT } from "./GoalParts.jsx";
+import { StatusPill, PeriodStrip, MatchCard, RulesSummary, ChecklistSummary, GOAL_ACCENT } from "./GoalParts.jsx";
 import { cardStyle, labelStyle, metaStyle, eyebrowStyle, ghostLinkStyle } from "../ui/styles.js";
 
 // How many earlier months of history show before "Show earlier".
@@ -16,7 +16,8 @@ const EARLIER_PAGE = 6;
 // Read-only summary of a Plan goal, opened on the sheet stack, with Edit,
 // Make active/inactive and Delete: where it
 // stands over its rolling window (the last 7 or 30 days), the windows before
-// that at a glance, what it counts, then every session that matched it —
+// that at a glance, what it counts (a checklist's items, each with how it's
+// going in the window), then every session that matched it —
 // the ones inside the window first, set apart, then earlier ones grouped by
 // month. Under each session, just the exercises that made it count. Tapping
 // one opens it on top. `matches` is goalMatches output.
@@ -28,6 +29,8 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
   const state = goalStatus(goal, matches, today);
   const strip = recentWindows(goal, matches, today, 8);
   const previous = strip[strip.length - 2];
+  // A checklist's windows count items done, not sessions.
+  const unit = isChecklist(goal) ? " items" : "";
 
   const window = windowEnding(goal, today);
   const inWindow = matchesIn(matches, window);
@@ -64,9 +67,10 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
       <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{progressText(goal, state, today)}</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{progressText(goal, state, today, exerciseNameById)}</div>
             <div style={{ ...metaStyle, marginTop: 2 }}>
               {windowLabel(previous.window)}: {previous.count} of {state.target}
+              {unit}
               {previous.met ? " · met" : " · missed"}
             </div>
           </div>
@@ -77,8 +81,8 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
       </div>
 
       <div>
-        <span style={labelStyle}>Counts</span>
-        <RulesSummary goal={goal} exerciseNameById={exerciseNameById} />
+        <span style={labelStyle}>{isChecklist(goal) ? `Each of · ${windowName(goal).toLowerCase()}` : "Counts"}</span>
+        {isChecklist(goal) ? <ChecklistSummary items={state.items} exerciseNameById={exerciseNameById} /> : <RulesSummary goal={goal} exerciseNameById={exerciseNameById} />}
       </div>
 
       <div>
@@ -99,6 +103,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
               sub={windowLabel(window)}
               count={state.count}
               target={state.target}
+              unit={unit}
               current
               matches={inWindow}
               emptyText={`Nothing in the ${windowName(goal).toLowerCase()}.`}
@@ -134,10 +139,10 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
 }
 
 // A run of a goal's history: a title (the window, or a month), how many
-// sessions of the target it holds (the window only, with a tick once met),
+// sessions of the target it holds (a checklist: items done, with `unit`) (the window only, with a tick once met),
 // then its sessions. The window's are outlined in the goal's colour and the
 // earlier ones are quieter, so what counts right now stands out.
-function MatchGroup({ title, sub, count, target, current = false, matches, emptyText, exerciseNameById, sheets }) {
+function MatchGroup({ title, sub, count, target, unit = "", current = false, matches, emptyText, exerciseNameById, sheets }) {
   const met = count >= target;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -148,6 +153,7 @@ function MatchGroup({ title, sub, count, target, current = false, matches, empty
           <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: met ? "var(--accent2)" : "var(--danger)", whiteSpace: "nowrap" }}>
             {met && <Check size={13} />}
             {count} of {target}
+            {unit}
           </span>
         )}
       </div>

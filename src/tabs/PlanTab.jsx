@@ -147,7 +147,7 @@ function GoalCard({ summary: { goal, matches, state }, today, exerciseNameById, 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15 }}>{goalLabel(goal, exerciseNameById)}</div>
           <div style={{ ...metaStyle, marginTop: 2 }}>
-            {frequencyLabel(goal)} · {progressText(goal, state, today)}
+            {frequencyLabel(goal)} · {progressText(goal, state, today, exerciseNameById)}
           </div>
         </div>
         <StatusPill status={active ? state.status : "inactive"} />

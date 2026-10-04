@@ -54,7 +54,7 @@ export default function PlanAlerts({ goals, sessions, exercises, onOpenPlan }) {
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goalLabel(goal, exerciseNameById)}</div>
-                <div style={metaStyle}>{progressText(goal, state, today)}</div>
+                <div style={metaStyle}>{progressText(goal, state, today, exerciseNameById)}</div>
               </div>
               <StatusPill status={state.status} />
             </button>

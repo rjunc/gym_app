@@ -1,53 +1,28 @@
 import { useState } from "react";
-import { X, Plus, LayoutGrid, Dumbbell } from "lucide-react";
-import { searchTags, addTagsFromDraft } from "../lib/tags.js";
-import { compareByUsage } from "../lib/links.js";
-import { pickerMatches, exerciseSearchFields } from "../lib/search.js";
-import { useLog } from "../lib/LogContext.js";
+import { X, LayoutGrid } from "lucide-react";
+import { addTagsFromDraft } from "../lib/tags.js";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
-import TagChip from "../ui/TagChip.jsx";
-import PagePicker from "../ui/PagePicker.jsx";
 import { GOAL_SCOPES } from "../lib/goals.js";
 import { RuleChip, GOAL_ACCENT } from "./GoalParts.jsx";
-import { inputStyle, labelStyle, metaStyle, secondaryBtnStyle, ghostLinkStyle, pillRemoveStyle, chipRowStyle, insetStyle } from "../ui/styles.js";
+import GoalChipPicker from "./GoalChipPicker.jsx";
+import { metaStyle, ghostLinkStyle, pillRemoveStyle, chipRowStyle, insetStyle } from "../ui/styles.js";
 
 // One rule of a goal in the editor: Any of / None of, where it has to hold
 // (on one exercise, or anywhere in the session), its chips (tags and
-// Library exercises, each with an X), and one box to add more. Typing
-// suggests matching tags and exercises; Enter adds what's typed as a tag
-// (commas add several). Browse opens the Library to pick exercises from.
+// Library exercises, each with an X), and one box to add more (see
+// GoalChipPicker). Browse opens the Library to pick exercises from.
 //   rule       { kind, scope, tags, exerciseIds }
 //   onUpdate   (rule => rule) => void, applied to the latest rule
 //   onRemove   removes the rule (left out when it's the only one)
 //   first      the first rule (the others read "and …")
 //   tagSuggestions  tagUsage output, most used first
 export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSuggestions, exercises, usage }) {
-  const [query, setQuery] = useState("");
   const [browsing, setBrowsing] = useState(false);
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
-  const q = query.trim().toLowerCase();
   const empty = rule.tags.length + rule.exerciseIds.length === 0;
 
-  const unusedTags = tagSuggestions.filter((s) => !rule.tags.includes(s.tag));
-  // Most-used tags to start an empty rule from; matching ones once typing.
-  const tagHits = q ? searchTags(unusedTags, q).slice(0, 6) : empty ? unusedTags.slice(0, 8) : [];
-  // Exercises match what the Library's search box would (see pickerMatches).
-  const exerciseFolders = useLog()?.exerciseFolders || [];
-  const exerciseHits = pickerMatches(
-    exercises.filter((e) => !rule.exerciseIds.includes(e.id)),
-    query,
-    (e) => exerciseSearchFields(e, exerciseFolders),
-    { compare: compareByUsage(usage || new Map()), limit: 6 }
-  );
-
-  const addTags = (text) => {
-    onUpdate((r) => ({ ...r, tags: addTagsFromDraft(r.tags, text) }));
-    setQuery("");
-  };
-  const addExercise = (id) => {
-    onUpdate((r) => (r.exerciseIds.includes(id) ? r : { ...r, exerciseIds: [...r.exerciseIds, id] }));
-    setQuery("");
-  };
+  const addTags = (text) => onUpdate((r) => ({ ...r, tags: addTagsFromDraft(r.tags, text) }));
+  const addExercise = (id) => onUpdate((r) => (r.exerciseIds.includes(id) ? r : { ...r, exerciseIds: [...r.exerciseIds, id] }));
   const removeExercise = (id) => onUpdate((r) => ({ ...r, exerciseIds: r.exerciseIds.filter((x) => x !== id) }));
 
   return (
@@ -106,59 +81,19 @@ export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSugg
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.key === "Enter" || e.key === ",") && q) {
-              e.preventDefault();
-              addTags(query);
-            }
-          }}
-          placeholder={empty ? "Add a tag or exercise…" : "Add another…"}
-          style={{ ...inputStyle, flex: 1 }}
-        />
-        <button onClick={() => q && addTags(query)} disabled={!q} style={{ ...secondaryBtnStyle, minHeight: 44, padding: "0 14px", opacity: q ? 1 : 0.5 }}>
-          <Plus size={15} /> Tag
-        </button>
-      </div>
-
-      {(tagHits.length > 0 || exerciseHits.length > 0) && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {tagHits.length > 0 && (
-            <div>
-              <span style={{ ...labelStyle, fontWeight: 500, marginBottom: 6 }}>{q ? "Tags" : "Most used tags"}</span>
-              <div style={chipRowStyle}>
-                {tagHits.map(({ tag }) => (
-                  <TagChip key={tag} small accent={GOAL_ACCENT} label={tag} onClick={() => addTags(tag)} />
-                ))}
-              </div>
-            </div>
-          )}
-          {exerciseHits.length > 0 && (
-            <div>
-              <span style={{ ...labelStyle, fontWeight: 500, marginBottom: 6 }}>Exercises</span>
-              <div style={chipRowStyle}>
-                {exerciseHits.map((e) => (
-                  <TagChip key={e.id} small accent={GOAL_ACCENT} label={<><Dumbbell size={11} /> {e.name}</>} onClick={() => addExercise(e.id)} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {browsing && (
-        <PagePicker
-          kind="exercises"
-          addedIds={rule.exerciseIds}
-          onAdd={(exercise) => addExercise(exercise.id)}
-          onRemove={removeExercise}
-          onDone={() => setBrowsing(false)}
-          initialQuery={query.trim()}
-        />
-      )}
+      <GoalChipPicker
+        addedTags={rule.tags}
+        addedExerciseIds={rule.exerciseIds}
+        onAddTags={addTags}
+        onAddExercise={addExercise}
+        onRemoveExercise={removeExercise}
+        tagSuggestions={tagSuggestions}
+        exercises={exercises}
+        usage={usage}
+        empty={empty}
+        browsing={browsing}
+        onDoneBrowsing={() => setBrowsing(false)}
+      />
     </div>
   );
 }

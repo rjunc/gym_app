@@ -656,6 +656,7 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         days: 30,
       },
       { rules: [{ kind: "most", scope: "gym", tags: ["plyometrics"] }], target: 0, days: "fortnight" },
+      { mode: "checklist", items: [{ tag: " Push ", target: 2 }, { exerciseId: "e1", target: 0 }, { tag: "" }, null], target: 3, rules: [], days: 30 },
     ],
   });
   const { goals } = parseImportFile("export.json", json, []);
@@ -666,6 +667,7 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         id: "g1",
         name: "Plyo push",
         active: false,
+        mode: "sessions",
         rules: [
           { kind: "any", scope: "session", tags: ["push", "pull"], exerciseIds: ["e1"] },
           { kind: "none", scope: "exercise", tags: ["legs"], exerciseIds: [] },
@@ -674,7 +676,9 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         days: 30,
         order: 0,
       },
-      { id: goals[1].id, name: "", active: true, rules: [{ kind: "any", scope: "exercise", tags: ["plyometrics"], exerciseIds: [] }], target: 1, days: 7, order: 1 },
+      { id: goals[1].id, name: "", active: true, mode: "sessions", rules: [{ kind: "any", scope: "exercise", tags: ["plyometrics"], exerciseIds: [] }], target: 1, days: 7, order: 1 },
+      // A checklist keeps only its items, each with a target of at least 1.
+      { id: goals[2].id, name: "", active: true, mode: "checklist", items: [{ tag: "push", target: 2 }, { exerciseId: "e1", target: 1 }], days: 30, order: 2 },
     ]
   );
   assert.deepEqual(parseImportFile("export.csv", "type,id\n", []).goals, []);

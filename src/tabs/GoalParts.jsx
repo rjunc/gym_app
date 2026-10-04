@@ -1,10 +1,10 @@
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, Minus, Plus, Check } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
-import { GOAL_STATUSES, GOAL_SCOPES } from "../lib/goals.js";
+import { GOAL_STATUSES, MAX_GOAL_DAYS, itemLabel } from "../lib/goals.js";
 import SetsSummary from "../ui/SetsSummary.jsx";
 import { SheetLink } from "../ui/SheetNav.jsx";
-import { eyebrowStyle, cardStyle, metaStyle, chipRowStyle } from "../ui/styles.js";
+import { eyebrowStyle, cardStyle, metaStyle, chipRowStyle, secondaryBtnStyle } from "../ui/styles.js";
 
 export const GOAL_ACCENT = "--accent2";
 
@@ -154,5 +154,55 @@ export function RuleChip({ label, kind, exercise = false, children }) {
       {label}
       {children}
     </span>
+  );
+}
+
+// A number with − and + buttons either side, from 1 to MAX_GOAL_DAYS.
+// `compact` makes it smaller, for a checklist item's row.
+export function Stepper({ value, setValue, label, compact = false }) {
+  const size = compact ? 32 : 40;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <button onClick={() => setValue(value - 1)} aria-label={`Fewer ${label.toLowerCase()}`} disabled={value <= 1} style={{ ...secondaryBtnStyle, padding: 0, width: size, minHeight: size, opacity: value <= 1 ? 0.4 : 1 }}>
+        <Minus size={16} />
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={MAX_GOAL_DAYS}
+        value={value}
+        onChange={(e) => setValue(Number(e.target.value))}
+        aria-label={label}
+        style={{ width: compact ? 44 : 56, textAlign: "center", background: "var(--surface-2)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: compact ? "5px 2px" : "8px 4px", color: "var(--text)", fontSize: compact ? 15 : 16, fontWeight: 700 }}
+      />
+      <button onClick={() => setValue(value + 1)} aria-label={`More ${label.toLowerCase()}`} disabled={value >= MAX_GOAL_DAYS} style={{ ...secondaryBtnStyle, padding: 0, width: size, minHeight: size, opacity: value >= MAX_GOAL_DAYS ? 0.4 : 1 }}>
+        <Plus size={16} />
+      </button>
+    </div>
+  );
+}
+
+// A checklist's items, read-only, each with how it's going in the current
+// window ("1 of 2", ticked once met). Exercises link to their sheets. `items`
+// is goalStatus's items.
+export function ChecklistSummary({ items, exerciseNameById }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {items.map(({ item, count, target, met }, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {item.tag ? (
+            <RuleChip label={item.tag} kind="any" />
+          ) : (
+            <RuleChip kind="any" exercise label={<SheetLink sheet={exerciseNameById.has(item.exerciseId) ? { kind: "exercise", id: item.exerciseId } : null}>{itemLabel(item, exerciseNameById)}</SheetLink>} />
+          )}
+          <span style={{ ...metaStyle, flex: 1 }}>{target === 1 ? "once" : `${target} times`}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: met ? "var(--accent2)" : "var(--danger)", whiteSpace: "nowrap" }}>
+            {met && <Check size={13} />}
+            {count} of {target}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
