@@ -73,7 +73,7 @@ export default function SheetStack({ stack, setStack }) {
   });
 
   const deleteRoutine = (routine) => {
-    const warning = routineDeleteWarning(routine, sessions, journals);
+    const warning = routineDeleteWarning(routine, sessions, journals, goals);
     if (!window.confirm(`Delete this routine?${warning ? ` ${warning}` : ""} This can't be undone.`)) return;
     setRoutines((prev) => prev.filter((r) => r.id !== routine.id));
   };

@@ -190,14 +190,15 @@ const ROUND_NOTES = ["good pace", "went light", "stuck in bottom side", "long sc
 const RESULT_WEIGHTS = ["hit", "hit", "attempted", "attempted", "attempted", "caught"];
 
 // Plan goals, either kind (see lib/goals.js): sessions goals with rules —
-// "any" or "none" of some chips, each a tag or an exercise by name, on one
-// exercise unless `session` (anywhere in the session) — and how many
-// sessions; or checklists (`each`), a [chip, times] per item. Then every so
-// many days in a rolling window, and whether it's active (one is not). The
-// isometrics are spread over three routines, so their checklist is only met
-// by adding up separate sessions. Plain plyometrics
-// only comes up with Clap push-ups (push day, full body) or the odd Box jump,
-// so it's usually off track.
+// "any" or "none" of some chips, each a tag, an exercise or a routine by
+// name (a routine counting the sessions it was added to), on one exercise
+// unless `session` (anywhere in the session; always, with a routine) — and
+// how many sessions; or checklists (`each`), a [chip, times] per item. Then
+// every so many days in a rolling window, and whether it's active (one is
+// not). The isometrics are spread over three routines, so their checklist
+// is only met by adding up separate sessions. Plain plyometrics only comes
+// up with Clap push-ups (push day, full body) or the odd Box jump, so it's
+// usually off track.
 const GOALS = [
   { rules: [{ any: ["plyometrics"] }], target: 2, days: 7 },
   { rules: [{ any: ["push", "pull"] }, { any: ["plyometrics"] }], target: 1, days: 7 },
@@ -216,6 +217,9 @@ const GOALS = [
   { rules: [{ any: ["mobility"], session: true }], target: 1, days: 3 },
   { name: "Isometrics", each: [["L-sit", 1], ["Horse stance", 1], ["Wall sit", 1], ["Copenhagen plank", 1]], days: 30 },
   { name: "Push, pull, legs", each: [["push", 2], ["pull", 2], ["legs", 2]], days: 7 },
+  { name: "Upper push day", rules: [{ any: ["Upper push"] }], target: 1, days: 7 },
+  { rules: [{ any: ["Long run", "Easy cardio"] }, { none: ["deload"], session: true }], target: 1, days: 10 },
+  { name: "Strength split", each: [["Lower A", 1], ["Lower B", 1], ["Upper push", 1], ["Upper pull", 1]], days: 14 },
   { each: [["Dead hang", 1], ["mobility", 3], ["Clap push-up", 2]], days: 14 },
 ];
 
@@ -477,13 +481,24 @@ export function generateDemoData(today = new Date(), months = 9) {
 
   // A chip that names a Library exercise is that exercise; anything else is
   // a tag.
-  const toRule = (kind, chips, session) => ({
-    kind,
-    scope: session ? "session" : "exercise",
-    tags: chips.filter((c) => !exerciseByName.has(c)),
-    exerciseIds: chips.filter((c) => exerciseByName.has(c)).map((name) => exerciseByName.get(name).id),
-  });
-  const toItem = ([chip, target]) => (exerciseByName.has(chip) ? { exerciseId: exerciseByName.get(chip).id, target } : { tag: chip, target });
+  // A chip that names a routine is that routine (a rule with one is anywhere
+  // in the session).
+  const toRule = (kind, chips, session) => {
+    const routineIds = chips.filter((c) => routineByName.has(c)).map((name) => routineByName.get(name).id);
+    return {
+      kind,
+      scope: session || routineIds.length > 0 ? "session" : "exercise",
+      tags: chips.filter((c) => !exerciseByName.has(c) && !routineByName.has(c)),
+      exerciseIds: chips.filter((c) => exerciseByName.has(c)).map((name) => exerciseByName.get(name).id),
+      routineIds,
+    };
+  };
+  const toItem = ([chip, target]) =>
+    exerciseByName.has(chip)
+      ? { exerciseId: exerciseByName.get(chip).id, target }
+      : routineByName.has(chip)
+        ? { routineId: routineByName.get(chip).id, target }
+        : { tag: chip, target };
   const goals = GOALS.map((g, i) => ({
     id: demoId(),
     name: g.name || "",

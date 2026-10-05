@@ -6,7 +6,7 @@ import { newRecord, editRecord } from "../lib/records.js";
 import { cleanFields } from "../lib/text.js";
 import { nameMap } from "../lib/search.js";
 import { useLog } from "../lib/LogContext.js";
-import { GOAL_PERIODS, GOAL_MODES, MAX_GOAL_DAYS, hasCriteria, isChecklist, goalMatches, perLabel, nextGoalOrder, withoutCriteria } from "../lib/goals.js";
+import { GOAL_PERIODS, GOAL_MODES, MAX_GOAL_DAYS, hasCriteria, isChecklist, goalMatches, perLabel, nextGoalOrder, withoutCriteria, scopeOf } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import { NameField, ActiveField } from "../ui/ComposerFields.jsx";
@@ -19,7 +19,7 @@ import useTagSuggestions from "../lib/useTagSuggestions.js";
 // How many matching sessions the preview lists.
 const PREVIEW = 3;
 
-const blankRule = (kind = "any") => ({ key: uid(), kind, scope: "exercise", tags: [], exerciseIds: [] });
+const blankRule = (kind = "any") => ({ key: uid(), kind, scope: "exercise", tags: [], exerciseIds: [], routineIds: [] });
 
 // The new/edit form for a Plan goal, of either kind (see GOAL_MODES):
 // sessions, with its rules (each "Any of" or "None of" some tags and Library
@@ -32,13 +32,13 @@ const blankRule = (kind = "any") => ({ key: uid(), kind, scope: "exercise", tags
 // leave it out to add one. Under the fields, a live preview of the latest
 // sessions it matches, so you can tell the rules are right before saving.
 export default function GoalEditor({ goal, onClose }) {
-  const { setGoals, sessions, exercises, exerciseUsage } = useLog();
+  const { setGoals, sessions, exercises, routines } = useLog();
   const [form, setForm] = useState(() => ({
     name: goal?.name || "",
     active: goal ? goal.active !== false : true,
     // Each rule gets a key while it's being edited, for React; it isn't saved.
     mode: goal && isChecklist(goal) ? "checklist" : "sessions",
-    rules: goal?.rules?.length ? goal.rules.map((r) => ({ ...r, key: uid(), tags: [...r.tags], exerciseIds: [...r.exerciseIds] })) : [blankRule()],
+    rules: goal?.rules?.length ? goal.rules.map((r) => ({ ...r, key: uid(), tags: [...r.tags], exerciseIds: [...r.exerciseIds], routineIds: [...(r.routineIds || [])] })) : [blankRule()],
     target: goal?.target || 1,
     items: (goal?.items || []).map((it) => ({ ...it, key: uid() })),
     days: goal?.days || 7,
@@ -48,7 +48,7 @@ export default function GoalEditor({ goal, onClose }) {
   const matchable = useMemo(() => [...sessions, ...exercises], [sessions, exercises]);
   const tagSuggestions = useTagSuggestions(matchable);
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
-  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
+  const nameById = useMemo(() => nameMap([...exercises, ...routines]), [exercises, routines]);
   const matches = useMemo(() => goalMatches(form, sessions, exerciseById), [form, sessions, exerciseById]);
   const checklist = isChecklist(form);
   const canSave = hasCriteria(form) && form.target >= 1 && form.days >= 1;
@@ -67,10 +67,14 @@ export default function GoalEditor({ goal, onClose }) {
     // the editing keys with them.
     const { name, active, days } = form;
     const criteria = checklist
-      ? { mode: "checklist", items: form.items.map(({ tag, exerciseId, target }) => (tag ? { tag, target } : { exerciseId, target })) }
+      ? { mode: "checklist", items: form.items.map(({ tag, exerciseId, routineId, target }) => (tag ? { tag, target } : exerciseId ? { exerciseId, target } : { routineId, target })) }
       : {
           mode: "sessions",
-          rules: form.rules.filter((r) => r.tags.length + r.exerciseIds.length > 0).map(({ kind, scope, tags, exerciseIds }) => ({ kind, scope, tags, exerciseIds })),
+          // A rule with a routine is saved as anywhere in the session, which
+          // is what it means (see scopeOf).
+          rules: form.rules
+            .filter((r) => r.tags.length + r.exerciseIds.length + r.routineIds.length > 0)
+            .map(({ kind, scope, tags, exerciseIds, routineIds }) => ({ kind, scope: scopeOf({ scope, routineIds }), tags, exerciseIds, routineIds })),
           target: form.target,
         };
     const fields = cleanFields({ name, active, ...criteria, days });
@@ -109,9 +113,9 @@ export default function GoalEditor({ goal, onClose }) {
       {checklist ? (
         <div>
           <label style={labelStyle}>Items</label>
-          <GoalChecklistField items={form.items} onUpdate={updateItems} tagSuggestions={tagSuggestions} exercises={exercises} usage={exerciseUsage} />
+          <GoalChecklistField items={form.items} onUpdate={updateItems} tagSuggestions={tagSuggestions} nameById={nameById} />
           <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>
-            Each item has to be done in its number of sessions; one session can tick off several. A tag counts on the session or any exercise in it.
+            Each item has to be done in its number of sessions; one session can tick off several. A tag counts on the session or any exercise in it; a routine, when it was added to the session.
           </div>
         </div>
       ) : (
@@ -126,13 +130,12 @@ export default function GoalEditor({ goal, onClose }) {
                 onUpdate={updateRule(r.key)}
                 onRemove={form.rules.length > 1 ? () => removeRule(r.key) : undefined}
                 tagSuggestions={tagSuggestions}
-                exercises={exercises}
-                usage={exerciseUsage}
+                nameById={nameById}
               />
             ))}
           </div>
           <div style={{ ...metaStyle, marginTop: 8, lineHeight: 1.45 }}>
-            Every rule has to hold. Rules on <b>one exercise</b> must all be met by the same exercise, by its own tags; rules <b>anywhere in the session</b> can each be met by the session's tags or any exercise in it.
+            Every rule has to hold. Rules on <b>one exercise</b> must all be met by the same exercise, by its own tags; rules <b>anywhere in the session</b> can each be met by the session's tags, any exercise in it, or a routine added to it.
           </div>
           <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
             <button onClick={() => addRule("any")} style={{ ...ghostLinkStyle, color: `var(${GOAL_ACCENT})` }}>
@@ -187,7 +190,7 @@ export default function GoalEditor({ goal, onClose }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {matches.slice(0, PREVIEW).map((m) => (
-                <MatchCard key={m.entry.id} match={m} exerciseNameById={exerciseNameById} />
+                <MatchCard key={m.entry.id} match={m} nameById={nameById} />
               ))}
             </div>
           )}

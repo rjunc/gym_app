@@ -5,14 +5,18 @@
 //
 // A goal is one of two kinds (`mode`, see GOAL_MODES):
 //   sessions   { id, name, active, mode: "sessions", rules: [{ kind: "any" |
-//              "none", scope: "exercise" | "session", tags, exerciseIds }],
+//              "none", scope: "exercise" | "session", tags, exerciseIds,
+//              routineIds }],
 //              target, days, order, createdAt, updatedAt } (see matchEntry for
 //              what the rules mean): `target` sessions every `days` days.
 //   checklist  { id, name, active, mode: "checklist", items: [{ tag, target }
-//              | { exerciseId, target }], days, order, createdAt, updatedAt }:
+//              | { exerciseId, target } | { routineId, target }], days,
+//              order, createdAt, updatedAt }:
 //              each item done in at least its own `target` sessions every
 //              `days` days, from any mix of sessions (see matchChecklist).
-// `name` is optional (goalLabel spells out the criteria when it's blank). The window is rolling, ending today — the last 7 days
+// `name` is optional (goalLabel spells out the criteria when it's blank).
+// A routine counts when it was added to the session (its `routineIds`), the
+// same as the routine's own history goes by, however much of it was done. The window is rolling, ending today — the last 7 days
 // for a week, 14 for every two weeks — not a calendar week or month, so last
 // Friday's session still counts on Thursday. `order` is the goal's place in
 // your own order on the Plan page (see moveGoal).
@@ -75,11 +79,18 @@ export const GOAL_MODES = {
 };
 export const isChecklist = (goal) => goal.mode === "checklist";
 
-// A checklist's items: each a tag or a Library exercise, and how many
-// sessions it has to be done in (at least 1).
-export const checklistItems = (goal) => (goal.items || []).filter((it) => it && (it.tag || it.exerciseId));
+// A checklist's items: each a tag, a Library exercise or a routine, and how
+// many sessions it has to be done in (at least 1).
+export const checklistItems = (goal) => (goal.items || []).filter((it) => it && (it.tag || it.exerciseId || it.routineId));
 export const itemTarget = (item) => Math.max(1, Math.round(item.target) || 1);
-export const itemLabel = (item, exerciseNameById = new Map()) => item.tag || exerciseNameById.get(item.exerciseId) || "Deleted exercise";
+
+// What a goal's chips are called. `nameById` maps the ids of Library
+// exercises and routines (ids are unique across both) to their names; one
+// that's gone reads "Deleted exercise" or "Deleted routine".
+const exerciseName = (id, nameById) => nameById.get(id) || "Deleted exercise";
+const routineName = (id, nameById) => nameById.get(id) || "Deleted routine";
+export const itemLabel = (item, nameById = new Map()) =>
+  item.tag || (item.routineId ? routineName(item.routineId, nameById) : exerciseName(item.exerciseId, nameById));
 
 // The goal minus what it counts (its mode, rules or items, and target), for
 // replacing them on an edit that may switch the mode.
@@ -91,9 +102,12 @@ export const GOAL_SCOPES = {
   exercise: { label: "One exercise", hint: "Met by a single exercise, by its own tags. All the rules set to this have to be met by the same exercise." },
   session: { label: "Anywhere in the session", hint: "Met by the session's tags or any exercise in it." },
 };
-const scopeOf = (rule) => (rule.scope === "session" ? "session" : "exercise");
+// A rule with a routine in it is always anywhere in the session: a routine
+// belongs to the whole session, not to one exercise.
+export const hasRoutines = (rule) => (rule.routineIds || []).length > 0;
+export const scopeOf = (rule) => (rule.scope === "session" || hasRoutines(rule) ? "session" : "exercise");
 
-const ruleChips = (rule) => (rule.tags || []).length + (rule.exerciseIds || []).length;
+const ruleChips = (rule) => (rule.tags || []).length + (rule.exerciseIds || []).length + (rule.routineIds || []).length;
 
 // A sessions goal needs at least one "Any of" rule with something in it
 // (exclusions alone would count every session); a checklist, an item.
@@ -105,14 +119,15 @@ export const hasCriteria = (goal) =>
 // with legs, not deload". A goal whose rules are all on the session reads
 // like the first kind: "strength, not deload". A checklist lists its items,
 // with how many times when it's more than once: "L-sit, wall sit ×2".
-export function goalLabel(goal, exerciseNameById = new Map()) {
+// `nameById` names exercises and routines (see itemLabel).
+export function goalLabel(goal, nameById = new Map()) {
   if (goal.name) return goal.name;
   if (isChecklist(goal)) {
     const items = checklistItems(goal);
-    return items.length ? items.map((it) => itemLabel(it, exerciseNameById) + (itemTarget(it) > 1 ? ` ×${itemTarget(it)}` : "")).join(", ") : "Untitled goal";
+    return items.length ? items.map((it) => itemLabel(it, nameById) + (itemTarget(it) > 1 ? ` ×${itemTarget(it)}` : "")).join(", ") : "Untitled goal";
   }
   const rules = (goal.rules || []).filter((r) => ruleChips(r) > 0);
-  const chips = (r) => [...(r.tags || []), ...(r.exerciseIds || []).map((id) => exerciseNameById.get(id) || "Deleted exercise")];
+  const chips = (r) => [...(r.tags || []), ...(r.exerciseIds || []).map((id) => exerciseName(id, nameById)), ...(r.routineIds || []).map((id) => routineName(id, nameById))];
   const spell = (list) => {
     const any = list.filter((r) => r.kind !== "none");
     const anyText = any.map((r) => (chips(r).length > 1 && any.length > 1 ? `(${chips(r).join(" or ")})` : chips(r).join(" or "))).join(" + ");
@@ -148,13 +163,18 @@ export function frequencyLabel(goal) {
   return `${timesLabel(goal.target)} ${per}`;
 }
 
-// Whether one rule's chips hit something with these `tags` and exercise ids.
-const hits = (rule, tags, exerciseIds) => (rule.tags || []).some((t) => tags.includes(t)) || (rule.exerciseIds || []).some((id) => exerciseIds.includes(id));
+// Whether one rule's chips hit something with these `tags`, exercise ids
+// and routine ids.
+const hits = (rule, tags, exerciseIds, routineIds = []) =>
+  (rule.tags || []).some((t) => tags.includes(t)) ||
+  (rule.exerciseIds || []).some((id) => exerciseIds.includes(id)) ||
+  (rule.routineIds || []).some((id) => routineIds.includes(id));
 
-// Whether `tags` + `exerciseIds` meet every rule: each "Any of" rule hits,
-// no "None of" rule does. Rules with nothing in them are ignored.
-function meetsRules(rules, tags, exerciseIds) {
-  return rules.every((r) => ruleChips(r) === 0 || (r.kind === "none" ? !hits(r, tags, exerciseIds) : hits(r, tags, exerciseIds)));
+// Whether `tags`, `exerciseIds` and `routineIds` meet every rule: each "Any
+// of" rule hits, no "None of" rule does. Rules with nothing in them are
+// ignored.
+function meetsRules(rules, tags, exerciseIds, routineIds = []) {
+  return rules.every((r) => ruleChips(r) === 0 || (r.kind === "none" ? !hits(r, tags, exerciseIds, routineIds) : hits(r, tags, exerciseIds, routineIds)));
 }
 
 // Whether a session counts toward `goal`, and which of its exercises did it.
@@ -167,12 +187,14 @@ function meetsRules(rules, tags, exerciseIds) {
 //             on one exercise needs a clap push-up, not bench press plus box
 //             jumps.
 //   session   anywhere in the session: its own tags plus every exercise's
-//             tags, and every exercise in it. Each such rule is met on its
-//             own, so "push" + "plyometrics" both on the session counts bench
-//             press plus box jumps.
+//             tags, every exercise in it, and the routines added to it. Each
+//             such rule is met on its own, so "push" + "plyometrics" both on
+//             the session counts bench press plus box jumps. A rule with a
+//             routine is always this (see scopeOf).
 // Returns the exercises that made it count — the ones meeting the exercise
 // rules, and any hitting an "Any of" session rule — in the order done
-// (empty when only the session's tags did), or null when it doesn't count.
+// (empty when only the session's tags or routines did), or null when it
+// doesn't count.
 export function matchEntry(goal, entry, exerciseById = new Map()) {
   const rules = (goal.rules || []).filter((r) => ruleChips(r) > 0);
   const exerciseRules = rules.filter((r) => scopeOf(r) === "exercise");
@@ -181,7 +203,7 @@ export function matchEntry(goal, entry, exerciseById = new Map()) {
   const tagsOf = (b) => exerciseById.get(b.exerciseId)?.tags || [];
 
   const sessionTags = [...(entry.tags || []), ...blocks.flatMap(tagsOf)];
-  if (!meetsRules(sessionRules, sessionTags, blocks.map((b) => b.exerciseId))) return null;
+  if (!meetsRules(sessionRules, sessionTags, blocks.map((b) => b.exerciseId), entry.routineIds || [])) return null;
   const onExercise = exerciseRules.length > 0 ? blocks.filter((b) => meetsRules(exerciseRules, tagsOf(b), [b.exerciseId])) : [];
   if (exerciseRules.length > 0 && onExercise.length === 0) return null;
 
@@ -190,25 +212,38 @@ export function matchEntry(goal, entry, exerciseById = new Map()) {
 
 // Which of a checklist's items a session does, as { items, blocks }: the
 // indexes of the items done, and the exercises that did them in the order
-// done (empty when only the session's tags did), or null when it does none.
-// A tag item is done by the session's own tags or any exercise's, like a
-// rule anywhere in the session; an exercise item, by that exercise being in
-// it. One session can do several items.
+// done (empty when only the session's tags or routines did), or null when it
+// does none. A tag item is done by the session's own tags or any exercise's,
+// like a rule anywhere in the session; an exercise item, by that exercise
+// being in it; a routine item, by that routine having been added to it. One
+// session can do several items.
 export function matchChecklist(goal, entry, exerciseById = new Map()) {
   const blocks = blocksOf(entry);
   const tagsOf = (b) => exerciseById.get(b.exerciseId)?.tags || [];
   const hitsItem = (item, b) => (item.tag ? tagsOf(b).includes(item.tag) : b.exerciseId === item.exerciseId);
   const items = [];
   checklistItems(goal).forEach((item, i) => {
-    if ((item.tag && (entry.tags || []).includes(item.tag)) || blocks.some((b) => hitsItem(item, b))) items.push(i);
+    if (item.routineId) {
+      if ((entry.routineIds || []).includes(item.routineId)) items.push(i);
+    } else if ((item.tag && (entry.tags || []).includes(item.tag)) || blocks.some((b) => hitsItem(item, b))) items.push(i);
   });
   if (items.length === 0) return null;
   const done = items.map((i) => checklistItems(goal)[i]);
-  return { items, blocks: blocks.filter((b) => done.some((item) => hitsItem(item, b))) };
+  return { items, blocks: blocks.filter((b) => done.some((item) => !item.routineId && hitsItem(item, b))) };
+}
+
+// The routines a goal asks for ("Any of" rules' routines, or a checklist's
+// routine items) that were added to `entry`, to show why it counted.
+function routinesCounted(goal, entry) {
+  const wanted = isChecklist(goal)
+    ? checklistItems(goal).map((it) => it.routineId).filter(Boolean)
+    : (goal.rules || []).filter((r) => r.kind !== "none").flatMap((r) => r.routineIds || []);
+  return (entry.routineIds || []).filter((id) => wanted.includes(id));
 }
 
 // Every lifting session that counts toward `goal`, newest first, as
-// { entry, blocks }, plus `items` (the indexes of the items it does) for a
+// { entry, blocks, routineIds } — `routineIds` being the goal's routines it
+// was done with — plus `items` (the indexes of the items it does) for a
 // checklist. Mat sessions don't count: goals are for lifting.
 export function goalMatches(goal, sessions = [], exerciseById = new Map()) {
   if (!hasCriteria(goal)) return [];
@@ -218,11 +253,11 @@ export function goalMatches(goal, sessions = [], exerciseById = new Map()) {
     if (typeof entry.date !== "string") return;
     if (checklist) {
       const hit = matchChecklist(goal, entry, exerciseById);
-      if (hit) out.push({ entry, ...hit });
+      if (hit) out.push({ entry, ...hit, routineIds: routinesCounted(goal, entry) });
       return;
     }
     const blocks = matchEntry(goal, entry, exerciseById);
-    if (blocks) out.push({ entry, blocks });
+    if (blocks) out.push({ entry, blocks, routineIds: routinesCounted(goal, entry) });
   });
   return out.sort((a, b) => b.entry.date.localeCompare(a.entry.date) || (b.entry.createdAt || "").localeCompare(a.entry.createdAt || ""));
 }
@@ -335,10 +370,10 @@ function howLong(days) {
 
 // A checklist's items still short, named when there are one or two ("Wall
 // sit and Copenhagen plank"), else counted ("3 items").
-function shortItems(state, exerciseNameById) {
+function shortItems(state, nameById) {
   const short = (state.items || []).filter((it) => !it.met);
   if (short.length > 2) return `${short.length} items`;
-  return short.map((it) => itemLabel(it.item, exerciseNameById)).join(" and ");
+  return short.map((it) => itemLabel(it.item, nameById)).join(" and ");
 }
 
 // One line on where a goal stands:
@@ -349,12 +384,12 @@ function shortItems(state, exerciseNameById) {
 // A checklist counts items, and names the ones left when there are one or
 // two: "All 4 done in the last 30 days · next by Sat, Oct 3", "3 of 4 done
 // in the last 30 days · Wall sit due today", "Overdue 2 days · Wall sit
-// left". `exerciseNameById` names its exercise items.
-export function progressText(goal, { status, count, target, needed, due, overdueDays, lastMet, items }, today, exerciseNameById = new Map()) {
+// left". `nameById` names its exercise and routine items.
+export function progressText(goal, { status, count, target, needed, due, overdueDays, lastMet, items }, today, nameById = new Map()) {
   const span = `in the last ${windowDays(goal)} days`;
   const longDate = (iso) => dateOf(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   const checklist = isChecklist(goal);
-  const left = checklist ? shortItems({ items }, exerciseNameById) : "";
+  const left = checklist ? shortItems({ items }, nameById) : "";
   const more = checklist ? `${left} left` : `${needed} more needed`;
   const done = checklist ? `${count} of ${target} done ${span}` : `${count} of ${target} ${span}`;
   if (status === "behind") return lastMet ? `Behind ${howLong(overdueDays)} · last met ${shortDate(lastMet)}` : `Never met · ${more}`;

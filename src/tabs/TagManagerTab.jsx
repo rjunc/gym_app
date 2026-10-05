@@ -31,7 +31,7 @@ const cleanTag = (text) => text.replace(/,/g, " ").replace(/\s+/g, " ").trim().t
 export default function TagManagerTab() {
   const log = useLog();
   const inventory = useMemo(() => tagInventory(log), [log]);
-  const exerciseNameById = useMemo(() => nameMap(log.exercises), [log.exercises]);
+  const nameById = useMemo(() => nameMap([...log.exercises, ...log.routines]), [log.exercises, log.routines]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useStoredState("tags.sort", "used", (v) => v in SORTS);
   const [notSame, setNotSame] = useStoredState("tags.notDuplicates", [], Array.isArray);
@@ -62,7 +62,7 @@ export default function TagManagerTab() {
   const remove = (entry) => {
     const emptied = goalsEmptiedBy(log.goals, entry.tag);
     const warning = emptied.length
-      ? `\n\n${emptied.length === 1 ? "This goal" : "These goals"} will be left with nothing to count, and stop matching sessions until you edit ${emptied.length === 1 ? "it" : "them"}:\n${emptied.map((g) => `• ${goalLabel(g, exerciseNameById)}`).join("\n")}`
+      ? `\n\n${emptied.length === 1 ? "This goal" : "These goals"} will be left with nothing to count, and stop matching sessions until you edit ${emptied.length === 1 ? "it" : "them"}:\n${emptied.map((g) => `• ${goalLabel(g, nameById)}`).join("\n")}`
       : "";
     if (!window.confirm(`Delete "${entry.tag}" from all ${records(entry.total)}? This can't be undone.${warning}`)) return false;
     retag(entry.tag, null);

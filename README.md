@@ -128,24 +128,30 @@ which. See `src/lib/sets.js`.
 **Plan goals.** The Plan page holds goals for how often to train
 something, of two kinds (`mode`). A **sessions** goal is `{ id, name, active,
 mode: "sessions", rules: [{ kind: "any" | "none", scope: "exercise" |
-"session", tags, exerciseIds }], target, days, order }` — `target`
+"session", tags, exerciseIds, routineIds }], target, days, order }` — `target`
 sessions every `days` days (1–365; the form offers a week, 2 weeks and a
 month, 30 days, as quick picks) (`name` optional; blank spells out the rules, e.g. "push +
 plyometrics, in a session with legs"). Every rule must hold: an "any" rule
-needs one of its chips (tags or Library exercises), a "none" rule none of
-them. Each rule says where: **on one exercise** (by that exercise's own
+needs one of its chips (tags, Library exercises or routines), a "none" rule
+none of them. A routine counts when it was added to the session
+(`routineIds`), as on the routine's own history, however much of it was
+done. Each rule says where: **on one exercise** (by that exercise's own
 Library tags; the session's tags don't count), and all such rules must be met
-by the *same* exercise; or **anywhere in the session** (the session's tags or
-any of its exercises), each such rule met on its own. So "push" + "plyometrics"
+by the *same* exercise; or **anywhere in the session** (the session's tags,
+any of its exercises, or a routine added to it), each such rule met on its
+own. A rule with a routine is always anywhere in the session, since a
+routine belongs to the whole session ("Upper push once a week" is one rule). So "push" + "plyometrics"
 on one exercise needs a clap push-up, while on the session bench press plus
 box jumps counts, and "a plyometric push exercise in a session with legs"
 mixes the two. A **checklist** goal is `{ id, name, active, mode:
-"checklist", items: [{ tag, target } | { exerciseId, target }], days, order }`:
+"checklist", items: [{ tag, target } | { exerciseId, target } | { routineId,
+target }], days, order }`:
 each item done in at least its own `target` sessions every `days` days, added
 up across any mix of sessions, and one session can tick off several items
 ("L-sit, horse stance, wall sit and Copenhagen plank, each once a month" is
 met by L-sits and horse stance one day and the other two the next). A tag
-item is done by the session's tags or any of its exercises'. The goal is met
+item is done by the session's tags or any of its exercises'; a routine item,
+by the routine having been added to the session. The goal is met
 when every item is, and is due when the first item would drop short; its
 progress counts items ("3 of 4 done in the last 30 days · Wall sit left").
 Only lifting sessions count (not mat sessions). The goal form

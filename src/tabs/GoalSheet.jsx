@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { History, Check, Pause, Play } from "lucide-react";
 import { todayISO, formatDate } from "../lib/id.js";
 import { nameMap } from "../lib/search.js";
+import { useLog } from "../lib/LogContext.js";
 import { useSheets } from "../lib/SheetStack.js";
 import { isActive, isChecklist, goalLabel, frequencyLabel, goalStatus, recentWindows, windowEnding, windowLabel, windowName, matchesIn, progressText } from "../lib/goals.js";
 import BottomSheet, { SheetHeader } from "../ui/BottomSheet.jsx";
@@ -25,7 +26,9 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
   const today = todayISO();
   const sheets = useSheets();
   const [shownEarlier, setShownEarlier] = useState(EARLIER_PAGE);
-  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
+  const { routines } = useLog();
+  // Names for the goal's exercises and routines (see goalLabel).
+  const nameById = useMemo(() => nameMap([...exercises, ...routines]), [exercises, routines]);
   const state = goalStatus(goal, matches, today);
   const strip = recentWindows(goal, matches, today, 8);
   const previous = strip[strip.length - 2];
@@ -53,7 +56,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
     <BottomSheet
       onClose={onClose}
       header={
-        <SheetHeader eyebrow="Goal" accent={GOAL_ACCENT} title={goalLabel(goal, exerciseNameById)} meta={frequencyLabel(goal)} onBack={onBack} onClose={onClose}>
+        <SheetHeader eyebrow="Goal" accent={GOAL_ACCENT} title={goalLabel(goal, nameById)} meta={frequencyLabel(goal)} onBack={onBack} onClose={onClose}>
           <SheetActions onEdit={onEdit} onDelete={onDelete}>
             {onToggleActive && (
               <button onClick={onToggleActive} style={sheetActionBtnStyle}>
@@ -67,7 +70,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
       <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{progressText(goal, state, today, exerciseNameById)}</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{progressText(goal, state, today, nameById)}</div>
             <div style={{ ...metaStyle, marginTop: 2 }}>
               {windowLabel(previous.window)}: {previous.count} of {state.target}
               {unit}
@@ -82,7 +85,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
 
       <div>
         <span style={labelStyle}>{isChecklist(goal) ? `Each of · ${windowName(goal).toLowerCase()}` : "Counts"}</span>
-        {isChecklist(goal) ? <ChecklistSummary items={state.items} exerciseNameById={exerciseNameById} /> : <RulesSummary goal={goal} exerciseNameById={exerciseNameById} />}
+        {isChecklist(goal) ? <ChecklistSummary items={state.items} nameById={nameById} /> : <RulesSummary goal={goal} nameById={nameById} />}
       </div>
 
       <div>
@@ -97,7 +100,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {later.length > 0 && <MatchGroup title="Coming up" matches={later} exerciseNameById={exerciseNameById} sheets={sheets} />}
+            {later.length > 0 && <MatchGroup title="Coming up" matches={later} nameById={nameById} sheets={sheets} />}
             <MatchGroup
               title={windowName(goal)}
               sub={windowLabel(window)}
@@ -107,7 +110,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
               current
               matches={inWindow}
               emptyText={`Nothing in the ${windowName(goal).toLowerCase()}.`}
-              exerciseNameById={exerciseNameById}
+              nameById={nameById}
               sheets={sheets}
             />
             {earlierGroups.length > 0 && (
@@ -122,7 +125,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
                 title={new Date(`${g.month}-01T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
                 sub={`${g.matches.length} ${g.matches.length === 1 ? "session" : "sessions"}`}
                 matches={g.matches}
-                exerciseNameById={exerciseNameById}
+                nameById={nameById}
                 sheets={sheets}
               />
             ))}
@@ -142,7 +145,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
 // sessions of the target it holds (a checklist: items done, with `unit`) (the window only, with a tick once met),
 // then its sessions. The window's are outlined in the goal's colour and the
 // earlier ones are quieter, so what counts right now stands out.
-function MatchGroup({ title, sub, count, target, unit = "", current = false, matches, emptyText, exerciseNameById, sheets }) {
+function MatchGroup({ title, sub, count, target, unit = "", current = false, matches, emptyText, nameById, sheets }) {
   const met = count >= target;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -161,7 +164,7 @@ function MatchGroup({ title, sub, count, target, unit = "", current = false, mat
         <div style={{ ...metaStyle, padding: "10px 12px", border: "1px dashed var(--border-strong)", borderRadius: 12 }}>{emptyText}</div>
       ) : (
         matches.map((m) => (
-          <MatchCard key={m.entry.id} match={m} current={current} exerciseNameById={exerciseNameById} onOpen={sheets ? () => sheets.open({ kind: "entry", source: "sessions", id: m.entry.id }) : undefined} />
+          <MatchCard key={m.entry.id} match={m} current={current} nameById={nameById} onOpen={sheets ? () => sheets.open({ kind: "entry", source: "sessions", id: m.entry.id }) : undefined} />
         ))
       )}
     </div>

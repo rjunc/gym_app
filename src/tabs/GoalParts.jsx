@@ -1,7 +1,7 @@
-import { Dumbbell, Minus, Plus, Check } from "lucide-react";
+import { Dumbbell, BookOpen, Minus, Plus, Check } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
-import { GOAL_STATUSES, MAX_GOAL_DAYS, itemLabel } from "../lib/goals.js";
+import { GOAL_STATUSES, MAX_GOAL_DAYS, itemLabel, scopeOf } from "../lib/goals.js";
 import SetsSummary from "../ui/SetsSummary.jsx";
 import { SheetLink } from "../ui/SheetNav.jsx";
 import { eyebrowStyle, cardStyle, metaStyle, chipRowStyle, secondaryBtnStyle } from "../ui/styles.js";
@@ -82,10 +82,11 @@ export function PeriodStrip({ rows, target, labels = false }) {
   );
 }
 
-// One matching session: its date and title, then only the exercises that
-// made it count (or a note that its tags did).
-export function MatchCard({ match, current, exerciseNameById, onOpen }) {
-  const { entry, blocks } = match;
+// One matching session: its date and title, the goal's routines it was done
+// with, then only the exercises that made it count (or a note that its tags
+// did). `nameById` names exercises and routines.
+export function MatchCard({ match, current, nameById, onOpen }) {
+  const { entry, blocks, routineIds = [] } = match;
   return (
     <div
       onClick={onOpen}
@@ -94,19 +95,25 @@ export function MatchCard({ match, current, exerciseNameById, onOpen }) {
     >
       <div style={{ fontSize: 12, color: "var(--text-dim)" }}>{formatDate(entry.date)}</div>
       {entry.title && <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{entry.title}</div>}
+      {routineIds.length > 0 && (
+        <div style={{ ...metaStyle, marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}>
+          <BookOpen size={12} /> {routineIds.map((id) => itemLabel({ routineId: id }, nameById)).join(", ")}
+        </div>
+      )}
       {blocks.length > 0 ? (
-        <SetsSummary entry={{ blocks, groups: [] }} exerciseNameById={exerciseNameById} accent={ENTRY_TYPES.sessions.accent} includeEmpty style={{ marginTop: 6 }} />
+        <SetsSummary entry={{ blocks, groups: [] }} exerciseNameById={nameById} accent={ENTRY_TYPES.sessions.accent} includeEmpty style={{ marginTop: 6 }} />
       ) : (
-        <div style={{ ...metaStyle, marginTop: 6 }}>Counted by its tags: {(entry.tags || []).join(", ")}</div>
+        routineIds.length === 0 && <div style={{ ...metaStyle, marginTop: 6 }}>Counted by its tags: {(entry.tags || []).join(", ")}</div>
       )}
     </div>
   );
 }
 
 // A goal's rules, read-only: a line per rule ("Any of" / "None of", its
-// chips — exercises link to their sheets — and where it has to hold).
-export function RulesSummary({ goal, exerciseNameById }) {
-  const rules = (goal.rules || []).filter((r) => (r.tags || []).length + (r.exerciseIds || []).length > 0);
+// chips — exercises and routines link to their sheets — and where it has to
+// hold).
+export function RulesSummary({ goal, nameById }) {
+  const rules = (goal.rules || []).filter((r) => (r.tags || []).length + (r.exerciseIds || []).length + (r.routineIds || []).length > 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {rules.map((r, i) => (
@@ -116,25 +123,32 @@ export function RulesSummary({ goal, exerciseNameById }) {
               {i === 0 ? (r.kind === "none" ? "None of" : "Any of") : r.kind === "none" ? "And none of" : "And any of"}
             </span>
             <div style={chipRowStyle}>
-              {r.tags.map((t) => (
-                <RuleChip key={t} label={t} kind={r.kind} />
-              ))}
-              {r.exerciseIds.map((id) => (
-                <RuleChip key={id} kind={r.kind} exercise label={<SheetLink sheet={exerciseNameById.has(id) ? { kind: "exercise", id } : null}>{exerciseNameById.get(id) || "Deleted exercise"}</SheetLink>} />
+              {ruleChips(r).map((chip) => (
+                <GoalChip key={chipKey(chip)} chip={chip} kind={r.kind} nameById={nameById} link />
               ))}
             </div>
           </div>
-          <span style={{ ...metaStyle, paddingLeft: 84, fontSize: 11 }}>{r.scope === "session" ? "anywhere in the session" : "on one exercise"}</span>
+          <span style={{ ...metaStyle, paddingLeft: 84, fontSize: 11 }}>{scopeOf(r) === "session" ? "anywhere in the session" : "on one exercise"}</span>
         </div>
       ))}
-      {rules.filter((r) => r.scope !== "session").length > 1 && <div style={metaStyle}>The rules on one exercise have to be met by the same exercise.</div>}
+      {rules.filter((r) => scopeOf(r) !== "session").length > 1 && <div style={metaStyle}>The rules on one exercise have to be met by the same exercise.</div>}
     </div>
   );
 }
 
-// One chip in a rule: a tag, or a Library exercise (with a dumbbell), tinted
-// red in a "None of" rule. `children` is its remove button, in the editor.
-export function RuleChip({ label, kind, exercise = false, children }) {
+// A rule's chips as one list: { tag } | { exerciseId } | { routineId }, the
+// same shape as a checklist's items.
+export const ruleChips = (rule) => [
+  ...(rule.tags || []).map((tag) => ({ tag })),
+  ...(rule.exerciseIds || []).map((exerciseId) => ({ exerciseId })),
+  ...(rule.routineIds || []).map((routineId) => ({ routineId })),
+];
+export const chipKey = (chip) => chip.tag || chip.exerciseId || chip.routineId;
+
+// One chip in a rule, tinted red in a "None of" rule: a tag, a Library
+// exercise (with a dumbbell) or a routine (with a book). `icon` is
+// "exercise" or "routine". `children` is its remove button, in the editor.
+export function RuleChip({ label, kind, icon, children }) {
   const accent = kind === "none" ? "--danger" : GOAL_ACCENT;
   return (
     <span
@@ -150,10 +164,26 @@ export function RuleChip({ label, kind, exercise = false, children }) {
         color: `var(${accent})`,
       }}
     >
-      {exercise && <Dumbbell size={12} />}
+      {icon === "exercise" && <Dumbbell size={12} />}
+      {icon === "routine" && <BookOpen size={12} />}
       {label}
       {children}
     </span>
+  );
+}
+
+// A goal chip (a rule's chip or a checklist item: { tag } | { exerciseId } |
+// { routineId }) as a RuleChip, named by `nameById`. With `link`, an
+// exercise or routine opens its sheet.
+export function GoalChip({ chip, kind = "any", nameById, link = false, children }) {
+  const label = itemLabel(chip, nameById);
+  if (chip.tag) return <RuleChip label={label} kind={kind}>{children}</RuleChip>;
+  const id = chip.exerciseId || chip.routineId;
+  const sheet = link && nameById.has(id) ? { kind: chip.routineId ? "routine" : "exercise", id } : null;
+  return (
+    <RuleChip kind={kind} icon={chip.routineId ? "routine" : "exercise"} label={link ? <SheetLink sheet={sheet}>{label}</SheetLink> : label}>
+      {children}
+    </RuleChip>
   );
 }
 
@@ -184,18 +214,14 @@ export function Stepper({ value, setValue, label, compact = false }) {
 }
 
 // A checklist's items, read-only, each with how it's going in the current
-// window ("1 of 2", ticked once met). Exercises link to their sheets. `items`
-// is goalStatus's items.
-export function ChecklistSummary({ items, exerciseNameById }) {
+// window ("1 of 2", ticked once met). Exercises and routines link to their
+// sheets. `items` is goalStatus's items.
+export function ChecklistSummary({ items, nameById }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {items.map(({ item, count, target, met }, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {item.tag ? (
-            <RuleChip label={item.tag} kind="any" />
-          ) : (
-            <RuleChip kind="any" exercise label={<SheetLink sheet={exerciseNameById.has(item.exerciseId) ? { kind: "exercise", id: item.exerciseId } : null}>{itemLabel(item, exerciseNameById)}</SheetLink>} />
-          )}
+          <GoalChip chip={item} nameById={nameById} link />
           <span style={{ ...metaStyle, flex: 1 }}>{target === 1 ? "once" : `${target} times`}</span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: met ? "var(--accent2)" : "var(--danger)", whiteSpace: "nowrap" }}>
             {met && <Check size={13} />}

@@ -656,7 +656,8 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         days: 30,
       },
       { rules: [{ kind: "most", scope: "gym", tags: ["plyometrics"] }], target: 0, days: "fortnight" },
-      { mode: "checklist", items: [{ tag: " Push ", target: 2 }, { exerciseId: "e1", target: 0 }, { tag: "" }, null], target: 3, rules: [], days: 30 },
+      { mode: "checklist", items: [{ tag: " Push ", target: 2 }, { exerciseId: "e1", target: 0 }, { routineId: "r1", target: 2 }, { tag: "" }, null], target: 3, rules: [], days: 30 },
+      { rules: [{ kind: "any", scope: "exercise", routineIds: ["r1", 7] }], days: 7 },
     ],
   });
   const { goals } = parseImportFile("export.json", json, []);
@@ -669,16 +670,18 @@ test("JSON import: Plan goals are normalized; a CSV brings none", () => {
         active: false,
         mode: "sessions",
         rules: [
-          { kind: "any", scope: "session", tags: ["push", "pull"], exerciseIds: ["e1"] },
-          { kind: "none", scope: "exercise", tags: ["legs"], exerciseIds: [] },
+          { kind: "any", scope: "session", tags: ["push", "pull"], exerciseIds: ["e1"], routineIds: [] },
+          { kind: "none", scope: "exercise", tags: ["legs"], exerciseIds: [], routineIds: [] },
         ],
         target: 2,
         days: 30,
         order: 0,
       },
-      { id: goals[1].id, name: "", active: true, mode: "sessions", rules: [{ kind: "any", scope: "exercise", tags: ["plyometrics"], exerciseIds: [] }], target: 1, days: 7, order: 1 },
+      { id: goals[1].id, name: "", active: true, mode: "sessions", rules: [{ kind: "any", scope: "exercise", tags: ["plyometrics"], exerciseIds: [], routineIds: [] }], target: 1, days: 7, order: 1 },
       // A checklist keeps only its items, each with a target of at least 1.
-      { id: goals[2].id, name: "", active: true, mode: "checklist", items: [{ tag: "push", target: 2 }, { exerciseId: "e1", target: 1 }], days: 30, order: 2 },
+      { id: goals[2].id, name: "", active: true, mode: "checklist", items: [{ tag: "push", target: 2 }, { exerciseId: "e1", target: 1 }, { routineId: "r1", target: 2 }], days: 30, order: 2 },
+      // A rule with a routine is always anywhere in the session.
+      { id: goals[3].id, name: "", active: true, mode: "sessions", rules: [{ kind: "any", scope: "session", tags: [], exerciseIds: [], routineIds: ["r1"] }], target: 1, days: 7, order: 3 },
     ]
   );
   assert.deepEqual(parseImportFile("export.csv", "type,id\n", []).goals, []);

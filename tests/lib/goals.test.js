@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isActive, windowEnding, matchEntry, matchChecklist, goalMatches, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel, hasCriteria, withoutCriteria, sortSummaries, moveGoal, nextGoalOrder } from "../../src/lib/goals.js";
+import { isActive, windowEnding, matchEntry, matchChecklist, goalMatches, scopeOf, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel, hasCriteria, withoutCriteria, sortSummaries, moveGoal, nextGoalOrder } from "../../src/lib/goals.js";
 
 const exercises = new Map([
   ["bench", { id: "bench", tags: ["strength", "push"] }],
@@ -312,4 +312,46 @@ test("checklist labels, criteria, and switching modes on an edit", () => {
   assert.equal(hasCriteria(isometrics), true);
   assert.equal(hasCriteria({ mode: "checklist", items: [] }), false);
   assert.deepEqual(withoutCriteria({ id: "g", name: "x", mode: "sessions", rules: [], target: 2, days: 7, order: 0 }), { id: "g", name: "x", days: 7, order: 0 });
+});
+
+// Routines as goal chips: a session counts a routine when it was added to it.
+const withRoutines = (routineIds, exerciseIds = [], tags = []) => ({ ...session(exerciseIds, tags), routineIds });
+const routineRule = (...routineIds) => ({ kind: "any", scope: "exercise", tags: [], exerciseIds: [], routineIds });
+
+test("matchEntry: a routine chip is met by a session the routine was added to, always on the whole session", () => {
+  const goal = { rules: [routineRule("upperPush")] };
+  assert.equal(scopeOf(goal.rules[0]), "session"); // even if saved as one exercise
+  assert.deepEqual(matchEntry(goal, withRoutines(["upperPush", "core"], ["bench"]), exercises), []);
+  assert.equal(matchEntry(goal, withRoutines(["lowerA"], ["bench"]), exercises), null);
+  assert.equal(matchEntry(goal, session(["bench"]), exercises), null);
+  // Mixed with other rules: the routine, but not a deload.
+  const notDeload = { rules: [routineRule("upperPush"), onSession(none("deload"))] };
+  assert.equal(matchEntry(notDeload, withRoutines(["upperPush"], [], ["deload"]), exercises), null);
+  // A routine or a tag in one rule.
+  const either = { rules: [{ kind: "any", scope: "session", tags: ["plyometrics"], exerciseIds: [], routineIds: ["upperPush"] }] };
+  assert.deepEqual(ids(matchEntry(either, session(["jump"]), exercises)), ["jump"]);
+});
+
+test("goalMatches: says which of the goal's routines a session was done with", () => {
+  const goal = { rules: [routineRule("upperPush", "upperPull")], target: 1, days: 7 };
+  const sessions = [{ id: "a", date: "2026-09-30", routineIds: ["core", "upperPull"], blocks: [] }];
+  assert.deepEqual(goalMatches(goal, sessions)[0].routineIds, ["upperPull"]);
+});
+
+test("checklist: routine items add up across sessions", () => {
+  const split = { mode: "checklist", items: [{ routineId: "upperPush", target: 1 }, { routineId: "lowerA", target: 2 }], days: 7 };
+  const sessions = [
+    { id: "a", date: "2026-09-28", routineIds: ["lowerA"], blocks: [] },
+    { id: "b", date: "2026-09-29", routineIds: ["upperPush", "core"], blocks: [] },
+    { id: "c", date: "2026-09-30", routineIds: ["lowerA"], blocks: [] },
+  ];
+  const names = new Map([["upperPush", "Upper push"], ["lowerA", "Lower A"]]);
+  const matches = goalMatches(split, sessions);
+  assert.deepEqual(matches.map((m) => [m.entry.id, m.items, m.blocks]), [["c", [1], []], ["b", [0], []], ["a", [1], []]]);
+  const short = goalStatus({ ...split, createdAt: "2026-09-28" }, matches.slice(1), "2026-10-01");
+  assert.equal(progressText(split, short, "2026-10-01", names), "1 of 2 done in the last 7 days · Lower A left");
+  assert.equal(goalStatus(split, matches, "2026-10-01").status, "on");
+  assert.equal(goalLabel(split, names), "Upper push, Lower A ×2");
+  assert.equal(goalLabel({ mode: "checklist", items: [{ routineId: "gone", target: 1 }] }), "Deleted routine");
+  assert.equal(goalLabel({ rules: [routineRule("upperPush")] }, names), "Upper push");
 });

@@ -1,33 +1,40 @@
 import { useState } from "react";
-import { X, LayoutGrid } from "lucide-react";
+import { X } from "lucide-react";
 import { addTagsFromDraft } from "../lib/tags.js";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
-import { GOAL_SCOPES } from "../lib/goals.js";
-import { RuleChip, GOAL_ACCENT } from "./GoalParts.jsx";
-import GoalChipPicker from "./GoalChipPicker.jsx";
-import { metaStyle, ghostLinkStyle, pillRemoveStyle, chipRowStyle, insetStyle } from "../ui/styles.js";
+import { GOAL_SCOPES, hasRoutines } from "../lib/goals.js";
+import { GoalChip, ruleChips, chipKey, GOAL_ACCENT } from "./GoalParts.jsx";
+import GoalChipPicker, { BrowseButtons } from "./GoalChipPicker.jsx";
+import { metaStyle, pillRemoveStyle, chipRowStyle, insetStyle } from "../ui/styles.js";
 
 // One rule of a goal in the editor: Any of / None of, where it has to hold
-// (on one exercise, or anywhere in the session), its chips (tags and
-// Library exercises, each with an X), and one box to add more (see
-// GoalChipPicker). Browse opens the Library to pick exercises from.
-//   rule       { kind, scope, tags, exerciseIds }
+// (on one exercise, or anywhere in the session — always the latter once it
+// has a routine, which belongs to the whole session), its chips (tags,
+// Library exercises and routines, each with an X), and one box to add more
+// (see GoalChipPicker). Browse opens the Library or the Routines page to
+// pick from.
+//   rule       { kind, scope, tags, exerciseIds, routineIds }
 //   onUpdate   (rule => rule) => void, applied to the latest rule
 //   onRemove   removes the rule (left out when it's the only one)
 //   first      the first rule (the others read "and …")
 //   tagSuggestions  tagUsage output, most used first
-export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSuggestions, exercises, usage }) {
-  const [browsing, setBrowsing] = useState(false);
-  const exerciseById = new Map(exercises.map((e) => [e.id, e]));
-  const empty = rule.tags.length + rule.exerciseIds.length === 0;
+//   nameById   names exercises and routines
+const FIELD = { exercises: "exerciseIds", routines: "routineIds" };
+
+export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSuggestions, nameById }) {
+  const [browsing, setBrowsing] = useState(null);
+  const chips = ruleChips(rule);
+  const routineWide = hasRoutines(rule);
 
   const addTags = (text) => onUpdate((r) => ({ ...r, tags: addTagsFromDraft(r.tags, text) }));
-  const addExercise = (id) => onUpdate((r) => (r.exerciseIds.includes(id) ? r : { ...r, exerciseIds: [...r.exerciseIds, id] }));
-  const removeExercise = (id) => onUpdate((r) => ({ ...r, exerciseIds: r.exerciseIds.filter((x) => x !== id) }));
+  const add = (kind, id) => onUpdate((r) => (r[FIELD[kind]].includes(id) ? r : { ...r, [FIELD[kind]]: [...r[FIELD[kind]], id] }));
+  const remove = (kind, id) => onUpdate((r) => ({ ...r, [FIELD[kind]]: r[FIELD[kind]].filter((x) => x !== id) }));
+  const removeChip = (chip) =>
+    chip.tag ? onUpdate((r) => ({ ...r, tags: r.tags.filter((x) => x !== chip.tag) })) : remove(chip.routineId ? "routines" : "exercises", chip.exerciseId || chip.routineId);
 
   return (
     <div style={{ ...insetStyle, display: "flex", flexDirection: "column", gap: 10, borderColor: rule.kind === "none" ? "color-mix(in srgb, var(--danger) 35%, var(--border))" : "var(--border)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         {!first && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-dim)" }}>AND</span>}
         <SegmentedToggle
           options={[
@@ -39,9 +46,7 @@ export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSugg
           accent={GOAL_ACCENT}
         />
         <span style={{ flex: 1 }} />
-        <button onClick={() => setBrowsing(true)} style={{ ...ghostLinkStyle, fontSize: 12, color: `var(${GOAL_ACCENT})` }}>
-          <LayoutGrid size={13} /> Browse
-        </button>
+        <BrowseButtons onBrowse={setBrowsing} />
         {onRemove && (
           <button onClick={onRemove} aria-label="Remove rule" title="Remove rule" className="icon-btn" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: 4, borderRadius: 8 }}>
             <X size={16} />
@@ -51,48 +56,39 @@ export default function GoalRuleField({ rule, onUpdate, onRemove, first, tagSugg
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={metaStyle}>Where</span>
-        <SegmentedToggle
-          options={Object.entries(GOAL_SCOPES).map(([key, sc]) => ({ key, label: sc.label.toLowerCase() }))}
-          value={rule.scope === "session" ? "session" : "exercise"}
-          setValue={(scope) => onUpdate((r) => ({ ...r, scope }))}
-          accent={GOAL_ACCENT}
-        />
+        {routineWide ? (
+          <span style={{ ...metaStyle, color: "var(--text)" }}>anywhere in the session — a routine counts for the whole session</span>
+        ) : (
+          <SegmentedToggle
+            options={Object.entries(GOAL_SCOPES).map(([key, sc]) => ({ key, label: sc.label.toLowerCase() }))}
+            value={rule.scope === "session" ? "session" : "exercise"}
+            setValue={(scope) => onUpdate((r) => ({ ...r, scope }))}
+            accent={GOAL_ACCENT}
+          />
+        )}
       </div>
 
-      {!empty && (
+      {chips.length > 0 && (
         <div style={chipRowStyle}>
-          {rule.tags.map((t) => (
-            <RuleChip key={t} label={t} kind={rule.kind}>
-              <button onClick={() => onUpdate((r) => ({ ...r, tags: r.tags.filter((x) => x !== t) }))} aria-label={`Remove ${t}`} style={pillRemoveStyle}>
+          {chips.map((chip) => (
+            <GoalChip key={chipKey(chip)} chip={chip} kind={rule.kind} nameById={nameById}>
+              <button onClick={() => removeChip(chip)} aria-label={`Remove ${chip.tag || nameById.get(chip.exerciseId || chip.routineId) || "it"}`} style={pillRemoveStyle}>
                 <X size={13} />
               </button>
-            </RuleChip>
+            </GoalChip>
           ))}
-          {rule.exerciseIds.map((id) => {
-            const name = exerciseById.get(id)?.name || "Deleted exercise";
-            return (
-              <RuleChip key={id} label={name} kind={rule.kind} exercise>
-                <button onClick={() => removeExercise(id)} aria-label={`Remove ${name}`} style={pillRemoveStyle}>
-                  <X size={13} />
-                </button>
-              </RuleChip>
-            );
-          })}
         </div>
       )}
 
       <GoalChipPicker
-        addedTags={rule.tags}
-        addedExerciseIds={rule.exerciseIds}
+        added={rule}
         onAddTags={addTags}
-        onAddExercise={addExercise}
-        onRemoveExercise={removeExercise}
+        onAdd={add}
+        onRemove={remove}
         tagSuggestions={tagSuggestions}
-        exercises={exercises}
-        usage={usage}
-        empty={empty}
+        empty={chips.length === 0}
         browsing={browsing}
-        onDoneBrowsing={() => setBrowsing(false)}
+        onDoneBrowsing={() => setBrowsing(null)}
       />
     </div>
   );

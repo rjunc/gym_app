@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { entriesByRoutine } from "../lib/routines.js";
 import { usageSummary, usageList } from "../lib/links.js";
 import { useSheets } from "../lib/SheetStack.js";
+import { useLog } from "../lib/LogContext.js";
 import FolderLibraryTab from "./FolderLibraryTab.jsx";
 
 const ACCENT = "--accent2";
@@ -18,11 +19,17 @@ export const ROUTINE_CONFIG = {
   showBlocks: true,
 };
 
-// What deleting a routine does to the entries built from it, for the
-// confirmation (empty when nothing uses it).
-export function routineDeleteWarning(routine, sessions, journals) {
+// What deleting a routine does to the entries built from it and the Plan
+// goals that count it, for the confirmation (empty when nothing uses it).
+export function routineDeleteWarning(routine, sessions, journals, goals = []) {
   const list = usageList({ sessions: entriesByRoutine(sessions).get(routine.id), journals: entriesByRoutine(journals).get(routine.id) });
-  return list ? `Used in ${list} — they'll keep their text, but lose the link.` : "";
+  const inGoals = goals.filter((g) => (g.rules || []).some((r) => (r.routineIds || []).includes(routine.id)) || (g.items || []).some((it) => it.routineId === routine.id)).length;
+  return [
+    list ? `Used in ${list} — they'll keep their text, but lose the link.` : "",
+    inGoals ? `${inGoals === 1 ? "A Plan goal counts" : `${inGoals} Plan goals count`} it, and will stop matching sessions by it.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 // Routines, plus backlinks to the sessions and journal entries built from
@@ -33,6 +40,7 @@ export function routineDeleteWarning(routine, sessions, journals) {
 // FolderLibraryTab's `pick`); the summary sheet then hides Delete too.
 export default function RoutinesTab({ folders, setFolders, routines, setRoutines, exercises, exerciseUsage, sessions = [], journals = [], pick }) {
   const sheets = useSheets();
+  const goals = useLog()?.goals || [];
   const sessionsByRoutine = useMemo(() => entriesByRoutine(sessions), [sessions]);
   const journalsByRoutine = useMemo(() => entriesByRoutine(journals), [journals]);
   const usesOf = (routine) => ({ sessions: sessionsByRoutine.get(routine.id), journals: journalsByRoutine.get(routine.id) });
@@ -54,7 +62,7 @@ export default function RoutinesTab({ folders, setFolders, routines, setRoutines
       pick={pick}
       usageFor={(routine) => usageSummary(usesOf(routine))}
       onOpenItem={(routine) => sheets.open({ kind: "routine", id: routine.id, ...(pick ? { hideDelete: true } : {}) })}
-      deleteWarningFor={(routine) => routineDeleteWarning(routine, sessions, journals)}
+      deleteWarningFor={(routine) => routineDeleteWarning(routine, sessions, journals, goals)}
     />
   );
 }

@@ -25,17 +25,18 @@ import { cardStyle, primaryBtnStyle, metaStyle, eyebrowStyle } from "../ui/style
 // goals are listed last, greyed out, and left out of the counts.
 export default function PlanTab({ goals, sessions, exercises }) {
   const sheets = useSheets();
-  const { setGoals } = useLog();
+  const { setGoals, routines } = useLog();
   const [adding, setAdding] = useState(false);
   const [sort, setSort] = useStoredState("plan.sort", "status", (v) => v in GOAL_SORTS);
   const [folded, setFolded] = useStoredState("plan.folded", [], Array.isArray);
   const toggleFold = (key) => setFolded((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   const today = todayISO();
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
-  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
+  // Names for goals' exercises and routines (see goalLabel).
+  const nameById = useMemo(() => nameMap([...exercises, ...routines]), [exercises, routines]);
   const summaries = useMemo(() => goalSummaries(goals, sessions, exerciseById, today), [goals, sessions, exerciseById, today]);
 
-  const sorted = useMemo(() => sortSummaries(summaries, sort, (goal) => goalLabel(goal, exerciseNameById)), [summaries, sort, exerciseNameById]);
+  const sorted = useMemo(() => sortSummaries(summaries, sort, (goal) => goalLabel(goal, nameById)), [summaries, sort, nameById]);
   const active = sorted.filter(({ goal }) => isActive(goal));
   const inactive = sorted.filter(({ goal }) => !isActive(goal));
   const counts = {};
@@ -50,7 +51,7 @@ export default function PlanTab({ goals, sessions, exercises }) {
       key={summary.goal.id}
       summary={summary}
       today={today}
-      exerciseNameById={exerciseNameById}
+      nameById={nameById}
       onOpen={() => sheets.open({ kind: "goal", id: summary.goal.id })}
       move={sort === "custom" ? { up: i > 0, down: i < list.length - 1, onMove: (dir) => setGoals((prev) => moveGoal(prev, summary.goal.id, dir)) } : null}
     />
@@ -128,7 +129,7 @@ function SectionHeading({ label, count, color, open, onToggle }) {
 // One goal on the Plan page: its name, how often, where it stands and the
 // last eight windows. An inactive goal is greyed out, with an Inactive pill.
 // `move` ({ up, down, onMove }) adds ↑/↓ buttons, in your own order.
-function GoalCard({ summary: { goal, matches, state }, today, exerciseNameById, onOpen, move }) {
+function GoalCard({ summary: { goal, matches, state }, today, nameById, onOpen, move }) {
   const active = isActive(goal);
   return (
     <div
@@ -145,9 +146,9 @@ function GoalCard({ summary: { goal, matches, state }, today, exerciseNameById, 
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{goalLabel(goal, exerciseNameById)}</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{goalLabel(goal, nameById)}</div>
           <div style={{ ...metaStyle, marginTop: 2 }}>
-            {frequencyLabel(goal)} · {progressText(goal, state, today, exerciseNameById)}
+            {frequencyLabel(goal)} · {progressText(goal, state, today, nameById)}
           </div>
         </div>
         <StatusPill status={active ? state.status : "inactive"} />

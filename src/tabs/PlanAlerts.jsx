@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { AlertTriangle, CheckCircle2, ChevronRight } from "lucide-react";
 import { todayISO } from "../lib/id.js";
 import { nameMap } from "../lib/search.js";
+import { useLog } from "../lib/LogContext.js";
 import { useSheets } from "../lib/SheetStack.js";
 import { goalSummaries, goalLabel, progressText, isActive, GOAL_STATUSES } from "../lib/goals.js";
 import { StatusPill } from "./GoalParts.jsx";
@@ -14,7 +15,9 @@ export default function PlanAlerts({ goals, sessions, exercises, onOpenPlan }) {
   const sheets = useSheets();
   const today = todayISO();
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
-  const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
+  const { routines } = useLog();
+  // Names for goals' exercises and routines (see goalLabel).
+  const nameById = useMemo(() => nameMap([...exercises, ...routines]), [exercises, routines]);
   const summaries = useMemo(() => goalSummaries(goals.filter(isActive), sessions, exerciseById, today), [goals, sessions, exerciseById, today]);
   if (summaries.length === 0) return null;
 
@@ -53,8 +56,8 @@ export default function PlanAlerts({ goals, sessions, exercises, onOpenPlan }) {
               style={{ display: "flex", alignItems: "center", gap: 10, width: "calc(100% + 16px)", padding: 8, margin: "0 -8px", boxSizing: "border-box", background: "none", border: "none", borderRadius: 10, color: "var(--text)", cursor: "pointer", textAlign: "left" }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goalLabel(goal, exerciseNameById)}</div>
-                <div style={metaStyle}>{progressText(goal, state, today, exerciseNameById)}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{goalLabel(goal, nameById)}</div>
+                <div style={metaStyle}>{progressText(goal, state, today, nameById)}</div>
               </div>
               <StatusPill status={state.status} />
             </button>
