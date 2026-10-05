@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
-import { addTagsFromDraft, tagUsage } from "../lib/tags.js";
+import { addTagsFromDraft } from "../lib/tags.js";
 import { routineOptions } from "../lib/routines.js";
 import { redoFields } from "../lib/activity.js";
-import { todayISO } from "../lib/id.js";
 import { cleanFields } from "../lib/text.js";
 import { toDraftBlocks, fromDraftBlocks, hasLoggedBlocks, blockExerciseIds } from "../lib/sets.js";
 import { tidyGroups } from "../lib/groups.js";
@@ -10,6 +9,7 @@ import { toDraftRounds, matFields, hasMatContent } from "../lib/mat.js";
 import EntryComposer from "./EntryComposer.jsx";
 import SegmentedToggle from "./SegmentedToggle.jsx";
 import { labelStyle } from "./styles.js";
+import useTagSuggestions from "../lib/useTagSuggestions.js";
 
 // Bottom sheet for logging a new dated entry or editing one — the one add/edit
 // form behind Home and the Sessions/Journals/Rolls pages. Owns its own draft
@@ -92,9 +92,9 @@ export default function EntrySheet({
   // a drilled technique or round (a mat session can be just those).
   const hasContent = form.text.trim() !== "" || (meta.showSets && hasLoggedBlocks(form.blocks)) || (meta.showMat && hasMatContent(form));
   const canSave = hasContent && form.date !== "";
-  // Sessions and rolls have different vocabularies (legs vs. guard), so suggest
-  // from the type being logged.
-  const tagSuggestions = useMemo(() => tagUsage(entriesByType[type], todayISO()), [entriesByType, type]);
+  // Sessions and rolls have different vocabularies (legs vs. guard), so the
+  // type being logged's own tags come first, then the rest of the app's.
+  const tagSuggestions = useTagSuggestions(entriesByType[type]);
 
   const routineChoices = useMemo(() => routineOptions(routines, folders), [routines, folders]);
 

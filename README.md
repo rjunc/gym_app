@@ -169,6 +169,23 @@ on each card, saved as each goal's `order`); the sort and folded headings
 are remembered per device. Home shows a card
 listing every goal that isn't on track, worst first. See `src/lib/goals.js`.
 
+**Tags and the Tag manager.** Tags are plain lowercase strings on each
+record (`tags` on sessions, journals, mat sessions, routines, exercises and
+techniques; goals refer to them in `rules[].tags` and checklist
+`items[].tag`). There's no tags collection: a tag exists while something
+uses it. Every Tags field suggests the tags of the kind being edited first,
+then every other tag in the app, so one vocabulary is shared; typing a new
+tag that looks like a slip for one in use ("leg" for "legs", "mobilty",
+"open-mat") offers it under **Did you mean** (`similarTags` in
+`src/lib/tags.js`). The **Tag manager** (sidebar) lists every tag with how
+many records of each kind use it, flags lookalike pairs to merge in one tap
+(or wave off as "Not the same", remembered per device), and opens a tag to
+rename it, merge it into another (each record keeps it once; a checklist
+with both keeps the higher target) or delete it — everywhere at once, goals
+included, warning first about any goal a delete would leave with nothing to
+count. Each change writes every record that had the tag. See
+`src/lib/tagManager.js`.
+
 CSV/JSON export and import live in the sidebar. JSON keeps blocks exactly.
 CSV lists them in order in a `sets` column for reading only, like exercise
 names. Plan goals only travel in the JSON export.

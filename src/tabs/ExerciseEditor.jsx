@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
-import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
-import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
+import { addTagsFromDraft } from "../lib/tags.js";
 import { cleanFields, cleanLine } from "../lib/text.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import { folderOptions as folderOptionsOf } from "./FolderBrowser.jsx";
+import useTagSuggestions from "../lib/useTagSuggestions.js";
 
 const ACCENT = "--accent2"; // matches the Library page
 
@@ -31,7 +31,7 @@ export default function ExerciseEditor({ exercise, initialName = "", initialFold
       : { name: initialName, tags: [], text: "", prescription: "", active: true, folderId: initialFolderId }
   );
   const [tagDraft, setTagDraft] = useState("");
-  const tagSuggestions = useMemo(() => tagUsage(exercises, todayISO()), [exercises]);
+  const tagSuggestions = useTagSuggestions(exercises);
   const folderOptions = useMemo(() => folderOptionsOf(folders), [folders]);
 
   const trimmedName = cleanLine(form.name);

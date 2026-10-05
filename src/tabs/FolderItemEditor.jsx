@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
-import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
 import { cleanFields } from "../lib/text.js";
 import { collectPositions } from "../lib/positions.js";
-import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
+import { addTagsFromDraft } from "../lib/tags.js";
 import { toDraftBlocks, fromDraftBlocks, blockExerciseIds } from "../lib/sets.js";
 import { tidyGroups } from "../lib/groups.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import { folderOptions as folderOptionsOf } from "./FolderBrowser.jsx";
+import useTagSuggestions from "../lib/useTagSuggestions.js";
 
 // The new/edit form for a routine or technique, on its own so it opens the
 // same from its library page and from anywhere a routine sheet was reached by
@@ -47,7 +47,7 @@ export default function FolderItemEditor({ item, defaults = {}, items, setItems,
       : {}),
   }));
   const [tagDraft, setTagDraft] = useState("");
-  const tagSuggestions = useMemo(() => tagUsage(items, todayISO()), [items]);
+  const tagSuggestions = useTagSuggestions(items);
   const positionOptions = useMemo(() => (showPositions ? collectPositions(items) : []), [items, showPositions]);
 
   const folderOptions = useMemo(() => folderOptionsOf(folders), [folders]);

@@ -11,7 +11,9 @@
 // how techniques went), techniques whose positions chain into a flow, and
 // Plan goals of every kind (tags matched all or any, exercises, both;
 // checklists of items each done often enough, across sessions; every 3, 7,
-// 10, 14 or 30 days; some easily met, some slipping).
+// 10, 14 or 30 days; some easily met, some slipping). A few tags are typed
+// two ways now and then ("leg" for "legs", "open-mat", "motivaton"), the
+// slips the Tag manager is for (see slip).
 //
 // Every record's id starts with DEMO_PREFIX, which is the only way test data
 // is told apart from real data: isDemoRecord finds it again so it can be
@@ -32,6 +34,10 @@ const pick = (list) => list[Math.floor(Math.random() * list.length)];
 const between = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 const chance = (p) => Math.random() < p;
 const roundTo = (n, step) => Math.round(n / step) * step;
+// Now and then, a tag typed the way people slip: what the Tag manager's
+// "Look alike" list catches.
+const SLIPS = { legs: "leg", "open mat": "open-mat", motivation: "motivaton" };
+const slip = (tag) => (SLIPS[tag] && chance(0.08) ? SLIPS[tag] : tag);
 const stamp = (date, hour = 18) => `${date}T${String(hour).padStart(2, "0")}:${String(between(0, 59)).padStart(2, "0")}:00.000Z`;
 
 // The Library's folders (a path per folder), then each exercise: name, its
@@ -408,7 +414,7 @@ export function generateDemoData(today = new Date(), months = 9) {
         id: demoId(),
         date,
         title: chance(0.2) ? pick(SESSION_TITLES) : "",
-        tags: [...new Set([...used.flatMap((r) => r.tags), ...(chance(0.1) ? ["deload"] : [])])],
+        tags: [...new Set([...used.flatMap((r) => r.tags).map(slip), ...(chance(0.1) ? ["deload"] : [])])],
         text,
         exerciseIds: blockExerciseIds(tidy.blocks),
         routineIds: used.map((r) => r.id),
@@ -425,7 +431,7 @@ export function generateDemoData(today = new Date(), months = 9) {
         id: demoId(),
         date,
         title: "",
-        tags: [pick(JOURNAL_TAGS), ...(chance(0.3) ? [pick(JOURNAL_TAGS)] : [])].filter((t, i, all) => all.indexOf(t) === i),
+        tags: [pick(JOURNAL_TAGS), ...(chance(0.3) ? [pick(JOURNAL_TAGS)] : [])].map(slip).filter((t, i, all) => all.indexOf(t) === i),
         text: pick(JOURNAL_TEXTS),
         exerciseIds: linked.map((name) => exerciseByName.get(name).id),
         routineIds: chance(0.2) ? [pick(routines).id] : [],
@@ -435,7 +441,7 @@ export function generateDemoData(today = new Date(), months = 9) {
     }
 
     if ((weekday === 2 || weekday === 4 || weekday === 6) && chance(0.55)) {
-      const tags = chance(0.6) ? [pick(ROLL_TAGS)] : [];
+      const tags = chance(0.6) ? [slip(pick(ROLL_TAGS))] : [];
       // Now and then just a quick note; otherwise gi or no-gi, a couple of
       // drills, and some rounds with partners and how techniques went.
       const quick = chance(0.2);

@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { searchTags, addTagsFromDraft } from "../lib/tags.js";
 import TagChip from "./TagChip.jsx";
+import DidYouMean from "./DidYouMean.jsx";
 import { labelStyle, inputStyle, pickedPillStyle, pillRemoveStyle, secondaryBtnStyle, chipRowStyle } from "./styles.js";
 
 export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddTag, onRemoveTag, tagSuggestions, accentVar }) {
@@ -12,6 +13,7 @@ export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddT
   const draftQuery = tagDraft.slice(draftPrefix.length).trim();
   const unused = tagSuggestions.filter((s) => !form.tags.includes(s.tag));
   const suggestions = (draftQuery ? searchTags(unused, draftQuery) : unused).slice(0, 8);
+  const vocabulary = tagSuggestions.map((s) => s.tag);
 
   const pickSuggestion = (tag) => {
     setForm((f) => ({ ...f, tags: addTagsFromDraft(f.tags, tag) }));
@@ -58,6 +60,14 @@ export default function TagsField({ form, setForm, tagDraft, setTagDraft, onAddT
           </div>
         </div>
       )}
+      {/* A new tag that looks like a slip for one that's in use. */}
+      <DidYouMean
+        query={draftQuery}
+        vocabulary={vocabulary}
+        exclude={[...form.tags, ...suggestions.map((s) => s.tag)]}
+        onPick={pickSuggestion}
+        accent={accentVar}
+      />
     </div>
   );
 }

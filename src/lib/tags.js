@@ -50,3 +50,82 @@ export function addTagsFromDraft(existing, draft) {
   });
   return next;
 }
+
+// Tag suggestions for a composer, shared across the whole app: the tags used
+// by `own` (the records of the kind being edited) first, as tagUsage orders
+// them, then every other tag used anywhere in `all`, so a tag made on a
+// session is offered on an exercise too and the same thing isn't tagged two
+// ways. Returns [{ tag, recent, total }].
+export function sharedTagUsage(own, all, todayISO, days = 30) {
+  const first = tagUsage(own, todayISO, days);
+  const seen = new Set(first.map((s) => s.tag));
+  return [...first, ...tagUsage(all, todayISO, days).filter((s) => !seen.has(s.tag))];
+}
+
+// Edit distance between two strings, counting a swap of neighbouring letters
+// as one edit ("pulls" / "plusl" is 1).
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
+}
+
+// How alike two different tags are, or null if they aren't: 0 when they only
+// differ by spaces or punctuation ("open mat" / "open-mat") or a plural
+// ("leg" / "legs", "stretch" / "stretches"), else the number of typos
+// between them — 1 for tags of 4+ letters, up to 2 for 8+ ("mobilty" /
+// "mobility"). Shorter tags are left alone: "abs" and "arms" are different
+// things. Under 6 letters a slip has to be a letter missed, doubled or
+// swapped, not a different letter: "sweep" and "sleep", "core" and "cord"
+// are different words.
+export function tagLikeness(a, b) {
+  if (a === b) return null;
+  const bare = (s) => s.replace(/[^\p{L}\p{N}]/gu, "");
+  const [x, y] = [bare(a), bare(b)];
+  if (!x || !y) return null;
+  if (x === y || x === `${y}s` || y === `${x}s` || x === `${y}es` || y === `${x}es`) return 0;
+  const shorter = Math.min(x.length, y.length);
+  const allowed = shorter >= 8 ? 2 : shorter >= 4 ? 1 : 0;
+  if (allowed === 0 || Math.abs(x.length - y.length) > allowed) return null;
+  const distance = editDistance(x, y);
+  if (distance > allowed) return null;
+  if (shorter < 6 && x.length === y.length) {
+    const diff = [...x].map((c, i) => (c === y[i] ? -1 : i)).filter((i) => i >= 0);
+    const swapped = diff.length === 2 && diff[1] === diff[0] + 1 && x[diff[0]] === y[diff[1]] && x[diff[1]] === y[diff[0]];
+    if (!swapped) return null;
+  }
+  return distance;
+}
+
+// The existing tags in `vocabulary` (most used first) that look like a slip
+// for `draft`, most alike first, then most used: what a "Did you mean?" hint
+// offers before a new tag is made. None when `draft` is already a tag.
+export function similarTags(draft, vocabulary, limit = 3) {
+  const d = draft.trim().toLowerCase();
+  if (!d || vocabulary.includes(d)) return [];
+  return vocabulary
+    .map((tag, i) => ({ tag, i, likeness: tagLikeness(d, tag) }))
+    .filter((c) => c.likeness !== null)
+    .sort((a, b) => a.likeness - b.likeness || a.i - b.i)
+    .slice(0, limit)
+    .map((c) => c.tag);
+}
+
+// `tags` with `from` replaced by `to` (or removed, when `to` is null), each
+// tag kept once and in place: renaming "leg" to "legs" on ["leg", "legs"]
+// gives ["legs"].
+export function replaceTag(tags, from, to) {
+  const out = [];
+  (tags || []).forEach((t) => {
+    const next = t === from ? to : t;
+    if (next && !out.includes(next)) out.push(next);
+  });
+  return out;
+}

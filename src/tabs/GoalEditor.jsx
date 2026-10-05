@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
-import { todayISO, uid } from "../lib/id.js";
+import { uid } from "../lib/id.js";
 import { newRecord, editRecord } from "../lib/records.js";
-import { tagUsage } from "../lib/tags.js";
+
 import { cleanFields } from "../lib/text.js";
 import { nameMap } from "../lib/search.js";
 import { useLog } from "../lib/LogContext.js";
@@ -14,6 +14,7 @@ import GoalRuleField from "./GoalRuleField.jsx";
 import GoalChecklistField from "./GoalChecklistField.jsx";
 import { MatchCard, Stepper, GOAL_ACCENT } from "./GoalParts.jsx";
 import { labelStyle, metaStyle, primaryBtnStyle, ghostLinkStyle } from "../ui/styles.js";
+import useTagSuggestions from "../lib/useTagSuggestions.js";
 
 // How many matching sessions the preview lists.
 const PREVIEW = 3;
@@ -42,8 +43,10 @@ export default function GoalEditor({ goal, onClose }) {
     items: (goal?.items || []).map((it) => ({ ...it, key: uid() })),
     days: goal?.days || 7,
   }));
-  // Tags from everything a goal can match on: sessions and their exercises.
-  const tagSuggestions = useMemo(() => tagUsage([...sessions, ...exercises], todayISO()), [sessions, exercises]);
+  // Tags from what a goal can match on first (sessions and their exercises),
+  // then the rest of the app's.
+  const matchable = useMemo(() => [...sessions, ...exercises], [sessions, exercises]);
+  const tagSuggestions = useTagSuggestions(matchable);
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const exerciseNameById = useMemo(() => nameMap(exercises), [exercises]);
   const matches = useMemo(() => goalMatches(form, sessions, exerciseById), [form, sessions, exerciseById]);

@@ -1,9 +1,8 @@
 import { useState, useMemo } from "react";
 import { ChevronRight, RotateCcw, Plus, Route, MapPin } from "lucide-react";
-import { todayISO } from "../lib/id.js";
 import { newRecord, editById } from "../lib/records.js";
 import { collectPositions, techniquesFrom } from "../lib/positions.js";
-import { tagUsage, addTagsFromDraft } from "../lib/tags.js";
+import { addTagsFromDraft } from "../lib/tags.js";
 import { cleanFields } from "../lib/text.js";
 import EntryComposer from "../ui/EntryComposer.jsx";
 import TagChip from "../ui/TagChip.jsx";
@@ -13,6 +12,7 @@ import FlowOptionCard from "./FlowOptionCard.jsx";
 import { PageHeader, PageBody } from "../ui/Page.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { inputStyle, primaryBtnStyle, secondaryBtnStyle, ghostLinkStyle, labelStyle, metaStyle, chipRowStyle } from "../ui/styles.js";
+import useTagSuggestions from "../lib/useTagSuggestions.js";
 
 const ACCENT = "--accent4";
 
@@ -34,7 +34,7 @@ export default function FlowTab({ techniques, setTechniques }) {
   const [tagDraft, setTagDraft] = useState("");
 
   const allPositions = useMemo(() => collectPositions(techniques), [techniques]);
-  const tagSuggestions = useMemo(() => tagUsage(techniques, todayISO()), [techniques]);
+  const tagSuggestions = useTagSuggestions(techniques);
   const currentPosition = path.length ? path[path.length - 1].position : null;
   const optionsAtPosition = useMemo(
     () => (currentPosition ? techniquesFrom(techniques, currentPosition) : []),

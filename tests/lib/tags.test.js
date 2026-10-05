@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tagCounts, tagUsage, searchTags, addTagsFromDraft } from "../../src/lib/tags.js";
+import { tagCounts, tagUsage, searchTags, addTagsFromDraft, sharedTagUsage, tagLikeness, similarTags, replaceTag } from "../../src/lib/tags.js";
 
 test("tagCounts sorts by usage, then alphabetically", () => {
   const entries = [{ tags: ["legs", "cardio"] }, { tags: ["cardio"] }, { tags: ["push"] }, { tags: ["cardio", "legs"] }];
@@ -81,4 +81,42 @@ test("tagUsage: undated items (routines, techniques, exercises) rank by all-time
 test("searchTags keeps tagUsage's order within the starts-with and contains groups", () => {
   const ranked = tagUsage([{ tags: ["single-leg"] }, { tags: ["single-leg"] }, { tags: ["legs"] }], "2026-09-22");
   assert.deepEqual(searchTags(ranked, "leg").map((c) => c.tag), ["legs", "single-leg"]);
+});
+
+test("sharedTagUsage: the kind's own tags first, then every other tag in the app", () => {
+  const own = [{ tags: ["legs"] }, { tags: ["legs", "strength"] }];
+  const all = [...own, { tags: ["sleep"] }, { tags: ["sleep"] }, { tags: ["sleep", "legs"] }];
+  assert.deepEqual(sharedTagUsage(own, all, "2026-10-01").map((s) => s.tag), ["legs", "strength", "sleep"]);
+});
+
+test("tagLikeness: spelling slips, plurals and punctuation, but not short different words", () => {
+  assert.equal(tagLikeness("leg", "legs"), 0);
+  assert.equal(tagLikeness("stretches", "stretch"), 0);
+  assert.equal(tagLikeness("open mat", "open-mat"), 0);
+  assert.equal(tagLikeness("mobilty", "mobility"), 1);
+  assert.equal(tagLikeness("plyometircs", "plyometrics"), 1); // a swap is one slip
+  assert.equal(tagLikeness("condtioning", "conditionnig"), 2);
+  assert.equal(tagLikeness("push", "pull"), null);
+  assert.equal(tagLikeness("abs", "arms"), null);
+  assert.equal(tagLikeness("core", "cord"), null); // short words: a different letter is a different word
+  assert.equal(tagLikeness("sweep", "sleep"), null);
+  assert.equal(tagLikeness("pussh", "push"), 1);
+  assert.equal(tagLikeness("psuh", "push"), 1);
+  assert.equal(tagLikeness("cardoi", "cardio"), 1);
+  assert.equal(tagLikeness("strenth", "strength"), 1);
+  assert.equal(tagLikeness("legs", "legs"), null);
+});
+
+test("similarTags: what a new tag might have meant, most alike then most used", () => {
+  const vocabulary = ["legs", "strength", "mobility", "leg day"];
+  assert.deepEqual(similarTags("Leg", vocabulary), ["legs"]);
+  assert.deepEqual(similarTags("mobilty ", vocabulary), ["mobility"]);
+  assert.deepEqual(similarTags("legs", vocabulary), []); // already a tag
+  assert.deepEqual(similarTags("cardio", vocabulary), []);
+});
+
+test("replaceTag: renames in place, keeps each tag once, or removes it", () => {
+  assert.deepEqual(replaceTag(["leg", "strength"], "leg", "legs"), ["legs", "strength"]);
+  assert.deepEqual(replaceTag(["strength", "leg", "legs"], "leg", "legs"), ["strength", "legs"]);
+  assert.deepEqual(replaceTag(["leg", "strength"], "leg", null), ["strength"]);
 });

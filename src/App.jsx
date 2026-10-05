@@ -27,6 +27,7 @@ import TechniquesTab from "./tabs/TechniquesTab.jsx";
 import FlowTab from "./tabs/FlowTab.jsx";
 import ExerciseLibraryTab from "./tabs/ExerciseLibraryTab.jsx";
 import PlanTab from "./tabs/PlanTab.jsx";
+import TagManagerTab from "./tabs/TagManagerTab.jsx";
 
 export default function App({ uid, userEmail, onLogout }) {
   const [page, setPage] = useState("home");
@@ -222,6 +223,8 @@ export default function App({ uid, userEmail, onLogout }) {
                 />
               ) : page === "plan" ? (
                 <PlanTab goals={goals} sessions={sessions} exercises={exercises} />
+              ) : page === "tags" ? (
+                <TagManagerTab />
               ) : page === "sessions" ? (
                 <SessionsTab
                   sessions={sessions}
