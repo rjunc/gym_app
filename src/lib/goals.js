@@ -376,7 +376,7 @@ export function recentWindows(goal, matches, today, n = 8) {
 }
 
 // "3 days", "2 weeks", "3 months": how long a goal has been short.
-function howLong(days) {
+export function howLong(days) {
   if (days < 14) return `${days} ${days === 1 ? "day" : "days"}`;
   if (days < 60) return `${Math.floor(days / 7)} weeks`;
   return `${Math.floor(days / 30)} months`;

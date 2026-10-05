@@ -171,12 +171,21 @@ but due within a day per week of window — tomorrow for a weekly goal, within
 due today: a session today still keeps it), **Overdue** (short, for up to
 one window since it was due, e.g. "Overdue 3 days"), **Behind** (short for a
 whole window or longer, e.g. "Behind 3 weeks · last met Sep 7"; a goal never
-met counts as Overdue in its first window, then Behind). The Plan page sorts
-by **Status** (a folding heading per status, worst first, and within one the
-longest short or soonest due first), by **Name**, or in **My order** (↑/↓
-on each card, saved as each goal's `order`); the sort and folded headings
-are remembered per device. Home shows a card
-listing every goal that isn't on track, worst first. See `src/lib/goals.js`.
+met counts as Overdue in its first window, then Behind).
+The Plan page leads with what to do (`src/lib/nextUp.js`). **Next session**
+suggests the routine that would do the most for the goals due: each routine
+is tried as if done today (its planned exercises, tags and itself) against
+those goals, and the one helping the most due-now goals (then the most in
+all, then the most used lately) wins, with a second routine to add that
+covers the most of the rest. **Up next** lists each thing to train for the
+goals due, once however many goals it serves: a checklist's short items, a
+goal's single chip, or the goal itself when it takes more than one thing,
+most urgent first. The goals follow, sorted by **Status** in three folding
+sections — **Due now** (Behind, Overdue, or due today), **Coming up** (At
+risk), **On track** (folded at first) — by **Name**, or in **My order** (↑/↓
+on each card, saved as each goal's `order`); the sort and folded sections
+are remembered per device. Home shows the same Next session and the first
+few Up next, or that everything's on track. See `src/lib/goals.js`.
 
 **Tags and the Tag manager.** Tags are plain lowercase strings on each
 record (`tags` on sessions, journals, mat sessions, routines, exercises and

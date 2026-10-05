@@ -5,30 +5,35 @@ import { nameMap } from "../lib/search.js";
 import { useSheets } from "../lib/SheetStack.js";
 import { useLog } from "../lib/LogContext.js";
 import useStoredState from "../lib/useStoredState.js";
-import { goalSummaries, goalLabel, frequencyLabel, recentWindows, progressText, isActive, sortSummaries, moveGoal, GOAL_STATUSES, GOAL_SORTS } from "../lib/goals.js";
+import { goalSummaries, goalLabel, frequencyLabel, progressText, isActive, sortSummaries, moveGoal, GOAL_STATUSES, GOAL_SORTS } from "../lib/goals.js";
+import { planSection, dueGoals, nextUp, suggestSession, PLAN_SECTIONS } from "../lib/nextUp.js";
 import { PageHeader, PageBody } from "../ui/Page.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import SegmentedToggle from "../ui/SegmentedToggle.jsx";
 import IconBtn from "../ui/IconBtn.jsx";
 import GoalEditor from "./GoalEditor.jsx";
-import { StatusPill, PeriodStrip, GOAL_ACCENT } from "./GoalParts.jsx";
+import { StatusPill, GOAL_ACCENT } from "./GoalParts.jsx";
+import { NextSessionCard, UpNextList } from "./PlanNext.jsx";
 import { cardStyle, primaryBtnStyle, metaStyle, eyebrowStyle } from "../ui/styles.js";
 
 // The Plan: goals for how often to train something ("plyometrics twice a
 // week", "strength + chest once a month"), each checked against your lifting
-// sessions over a rolling window (the last `days` days). A card per goal
-// with where it stands and the last eight windows at a glance; tapping one opens its
-// summary and history (see GoalSheet). Home warns about the ones slipping.
-// Sorted by status (grouped under a heading per status, worst first, each
-// heading folding away), by name, or in your own order (↑/↓ on each card);
-// the sort and the folded headings are remembered on this device. Inactive
-// goals are listed last, greyed out, and left out of the counts.
+// sessions over a rolling window (the last `days` days). It leads with what
+// to do: the suggested next session (the routine that covers the most due
+// goals, see suggestSession) and Up next, each thing to train for the goals
+// due now or soon, once however many goals it serves (see nextUp). Then a
+// card per goal with where it stands; tapping one opens its summary and
+// history (see GoalSheet). Home shows the same suggestion. Sorted by status
+// (Due now, Coming up, On track — folded away at first — each heading
+// folding away), by name, or in your own order (↑/↓ on each card); the sort
+// and the folded headings are remembered on this device. Inactive goals are
+// listed last, greyed out, and left out of the counts.
 export default function PlanTab({ goals, sessions, exercises }) {
   const sheets = useSheets();
-  const { setGoals, routines } = useLog();
+  const { setGoals, routines, routineUsage } = useLog();
   const [adding, setAdding] = useState(false);
   const [sort, setSort] = useStoredState("plan.sort", "status", (v) => v in GOAL_SORTS);
-  const [folded, setFolded] = useStoredState("plan.folded", [], Array.isArray);
+  const [folded, setFolded] = useStoredState("plan.sections.folded", ["on"], Array.isArray);
   const toggleFold = (key) => setFolded((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   const today = todayISO();
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
@@ -39,12 +44,18 @@ export default function PlanTab({ goals, sessions, exercises }) {
   const sorted = useMemo(() => sortSummaries(summaries, sort, (goal) => goalLabel(goal, nameById)), [summaries, sort, nameById]);
   const active = sorted.filter(({ goal }) => isActive(goal));
   const inactive = sorted.filter(({ goal }) => !isActive(goal));
+  const sectionOf = ({ state }) => planSection(state, today);
   const counts = {};
-  active.forEach(({ state }) => (counts[state.status] = (counts[state.status] || 0) + 1));
-  const overview = ["behind", "overdue", "risk", "on"]
+  active.forEach((summary) => (counts[sectionOf(summary)] = (counts[sectionOf(summary)] || 0) + 1));
+  const overview = Object.keys(PLAN_SECTIONS)
     .filter((s) => counts[s])
-    .map((s) => `${counts[s]} ${GOAL_STATUSES[s].label.toLowerCase()}`)
+    .map((s) => `${counts[s]} ${PLAN_SECTIONS[s].label.toLowerCase()}`)
     .join(" · ");
+  // What to do next: the goals due now or soon, what each comes down to, and
+  // the routine that would do the most for them.
+  const due = useMemo(() => dueGoals(summaries, today), [summaries, today]);
+  const upNext = useMemo(() => nextUp(due, nameById, today), [due, nameById, today]);
+  const suggestion = useMemo(() => suggestSession(due, routines, exerciseById, today, routineUsage), [due, routines, exerciseById, today, routineUsage]);
   // In your own order, each card gets ↑/↓ to move it within its section.
   const card = (summary, i, list) => (
     <GoalCard
@@ -63,10 +74,10 @@ export default function PlanTab({ goals, sessions, exercises }) {
       {!folded.includes(key) && list.map(card)}
     </div>
   );
-  const statusSections = ["behind", "overdue", "risk", "on"]
-    .map((status) => [status, active.filter(({ state }) => state.status === status)])
-    .filter(([, list]) => list.length > 0)
-    .map(([status, list]) => section(status, GOAL_STATUSES[status].label, list, `var(${GOAL_STATUSES[status].accent})`));
+  const statusSections = Object.entries(PLAN_SECTIONS)
+    .map(([key, meta]) => [key, meta, active.filter((summary) => sectionOf(summary) === key)])
+    .filter(([, , list]) => list.length > 0)
+    .map(([key, meta, list]) => section(key, meta.label, list, `var(${meta.accent})`));
 
   const addButton = (
     <button onClick={() => setAdding(true)} style={{ ...primaryBtnStyle, background: `var(${GOAL_ACCENT})` }}>
@@ -87,6 +98,13 @@ export default function PlanTab({ goals, sessions, exercises }) {
           </EmptyState>
         ) : (
           <>
+            {suggestion && <NextSessionCard suggestion={suggestion} dueCount={due.length} nameById={nameById} />}
+            {upNext.length > 0 && (
+              <div style={{ ...cardStyle, padding: "12px 14px" }}>
+                <div style={{ ...eyebrowStyle, color: "var(--text-dim)", marginBottom: 4 }}>Up next</div>
+                <UpNextList rows={upNext} nameById={nameById} />
+              </div>
+            )}
             {summaries.length > 1 && (
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={metaStyle}>Sort</span>
@@ -126,10 +144,11 @@ function SectionHeading({ label, count, color, open, onToggle }) {
   );
 }
 
-// One goal on the Plan page: its name, how often, where it stands and the
-// last eight windows. An inactive goal is greyed out, with an Inactive pill.
+// One goal on the Plan page: its name, how often and where it stands (its
+// history is on its sheet). An inactive goal is greyed out, with an Inactive
+// pill.
 // `move` ({ up, down, onMove }) adds ↑/↓ buttons, in your own order.
-function GoalCard({ summary: { goal, matches, state }, today, nameById, onOpen, move }) {
+function GoalCard({ summary: { goal, state }, today, nameById, onOpen, move }) {
   const active = isActive(goal);
   return (
     <div
@@ -151,7 +170,7 @@ function GoalCard({ summary: { goal, matches, state }, today, nameById, onOpen, 
             {frequencyLabel(goal)} · {progressText(goal, state, today, nameById)}
           </div>
         </div>
-        <StatusPill status={active ? state.status : "inactive"} />
+        <StatusPill status={active ? state.status : "inactive"} label={active && state.status === "risk" && state.due === today ? "Due today" : undefined} />
         {move && (
           <div style={{ display: "flex", margin: "-6px -6px -6px 0" }} onClick={(e) => e.stopPropagation()}>
             <IconBtn label="Move up" disabled={!move.up} onClick={() => move.onMove(-1)}>
@@ -163,7 +182,6 @@ function GoalCard({ summary: { goal, matches, state }, today, nameById, onOpen, 
           </div>
         )}
       </div>
-      <PeriodStrip rows={recentWindows(goal, matches, today, 8)} target={state.target} />
     </div>
   );
 }

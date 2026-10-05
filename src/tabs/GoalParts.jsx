@@ -13,8 +13,9 @@ const endLabel = ({ end }) => new Date(`${end}T00:00:00`).toLocaleDateString(und
 
 // A goal's status as a small coloured pill: On track, At risk, Overdue or
 // Behind (filled in, to stand out), or a grey Inactive for a goal that isn't
-// being tracked.
-export function StatusPill({ status }) {
+// being tracked. `label` words it differently (an At risk goal due today
+// reads "Due today").
+export function StatusPill({ status, label }) {
   const meta = status === "inactive" ? { label: "Inactive" } : GOAL_STATUSES[status];
   return (
     <span
@@ -29,7 +30,7 @@ export function StatusPill({ status }) {
         flexShrink: 0,
       }}
     >
-      {meta.label}
+      {label || meta.label}
     </span>
   );
 }

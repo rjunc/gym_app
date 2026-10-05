@@ -77,7 +77,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
               {previous.met ? " · met" : " · missed"}
             </div>
           </div>
-          <StatusPill status={isActive(goal) ? state.status : "inactive"} />
+          <StatusPill status={isActive(goal) ? state.status : "inactive"} label={isActive(goal) && state.status === "risk" && state.due === today ? "Due today" : undefined} />
         </div>
         <PeriodStrip rows={strip} target={state.target} labels />
         {!isActive(goal) && <div style={metaStyle}>Inactive: kept with its history, but not tracked on Home.</div>}
