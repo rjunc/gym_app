@@ -1,7 +1,7 @@
 import { Dumbbell, BookOpen, Minus, Plus, Check } from "lucide-react";
 import { formatDate } from "../lib/id.js";
 import { ENTRY_TYPES } from "../lib/entryTypes.js";
-import { GOAL_STATUSES, MAX_GOAL_DAYS, itemLabel, scopeOf } from "../lib/goals.js";
+import { GOAL_STATUSES, MAX_GOAL_DAYS, itemLabel, scopeOf, dayLabel, dueSoon } from "../lib/goals.js";
 import SetsSummary from "../ui/SetsSummary.jsx";
 import { SheetLink } from "../ui/SheetNav.jsx";
 import { eyebrowStyle, cardStyle, metaStyle, chipRowStyle, secondaryBtnStyle } from "../ui/styles.js";
@@ -214,15 +214,26 @@ export function Stepper({ value, setValue, label, compact = false }) {
 }
 
 // A checklist's items, read-only, each with how it's going in the current
-// window ("1 of 2", ticked once met). Exercises and routines link to their
-// sheets. `items` is goalStatus's items.
-export function ChecklistSummary({ items, nameById }) {
+// window ("1 of 2", ticked once met) and when it's next due — in the At
+// risk colour once that's soon — or, when it's short, when it was last done.
+// Exercises and routines link to their sheets. `items` is goalStatus's items.
+export function ChecklistSummary({ goal, items, nameById, today }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {items.map(({ item, count, target, met }, i) => (
+      {items.map(({ item, count, target, met, due, lastDone }, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <GoalChip chip={item} nameById={nameById} link />
-          <span style={{ ...metaStyle, flex: 1 }}>{target === 1 ? "once" : `${target} times`}</span>
+          <span style={{ ...metaStyle, flex: 1, minWidth: 0 }}>
+            {target === 1 ? "once" : `${target} times`}
+            {" · "}
+            {met ? (
+              <span style={dueSoon(goal, due, today) ? { color: `var(${GOAL_STATUSES.risk.accent})`, fontWeight: 600 } : undefined}>due {dayLabel(due, today)}</span>
+            ) : lastDone ? (
+              `last done ${dayLabel(lastDone, today)}`
+            ) : (
+              "never done"
+            )}
+          </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: met ? "var(--accent2)" : "var(--danger)", whiteSpace: "nowrap" }}>
             {met && <Check size={13} />}
             {count} of {target}

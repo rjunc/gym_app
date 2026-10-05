@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isActive, windowEnding, matchEntry, matchChecklist, goalMatches, scopeOf, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel, hasCriteria, withoutCriteria, sortSummaries, moveGoal, nextGoalOrder } from "../../src/lib/goals.js";
+import { isActive, windowEnding, matchEntry, matchChecklist, goalMatches, scopeOf, matchesIn, goalStatus, recentWindows, progressText, goalLabel, frequencyLabel, hasCriteria, dayLabel, withoutCriteria, sortSummaries, moveGoal, nextGoalOrder } from "../../src/lib/goals.js";
 
 const exercises = new Map([
   ["bench", { id: "bench", tags: ["strength", "push"] }],
@@ -354,4 +354,18 @@ test("checklist: routine items add up across sessions", () => {
   assert.equal(goalLabel(split, names), "Upper push, Lower A ×2");
   assert.equal(goalLabel({ mode: "checklist", items: [{ routineId: "gone", target: 1 }] }), "Deleted routine");
   assert.equal(goalLabel({ rules: [routineRule("upperPush")] }, names), "Upper push");
+});
+
+test("goalStatus, checklist: each item says when it's next due, or when it was last done", () => {
+  const goal = { mode: "checklist", items: [{ exerciseId: "lsit", target: 1 }, { exerciseId: "wall", target: 1 }, { exerciseId: "cope", target: 1 }], days: 30 };
+  const sessions = [dated("2026-08-20", ["cope"]), dated("2026-09-10", ["lsit"]), dated("2026-09-24", ["wall"])];
+  const s = goalStatus(goal, goalMatches(goal, sessions, isoExercises), "2026-10-01");
+  assert.deepEqual(s.items.map((it) => [it.met, it.due, it.lastDone]), [
+    [true, "2026-10-10", "2026-09-10"],
+    [true, "2026-10-24", "2026-09-24"],
+    [false, null, "2026-08-20"],
+  ]);
+  assert.equal(dayLabel("2026-10-02", "2026-10-01"), "tomorrow");
+  assert.equal(dayLabel("2026-09-30", "2026-10-01"), "yesterday");
+  assert.equal(dayLabel("2026-10-10", "2026-10-01"), "Oct 10");
 });

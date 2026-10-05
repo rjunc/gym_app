@@ -55,6 +55,16 @@ const dateOf = (iso) => new Date(`${iso}T00:00:00`);
 const daysBetween = (a, b) => Math.round((dateOf(b) - dateOf(a)) / 86400000);
 const shortDate = (iso) => dateOf(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
+// "today", "tomorrow", "yesterday", or "Oct 10": a day next to today.
+export function dayLabel(iso, today) {
+  const n = daysBetween(today, iso);
+  return n === 0 ? "today" : n === 1 ? "tomorrow" : n === -1 ? "yesterday" : shortDate(iso);
+}
+
+// Whether a met goal or checklist item due on `due` is close enough to be at
+// risk (see riskDays).
+export const dueSoon = (goal, due, today) => daysBetween(today, due) <= riskDays(goal);
+
 // The goal's window ending on `end` (today by default): the last `days`
 // days, as { start, end } ISO dates, both inclusive.
 export function windowEnding(goal, end) {
@@ -294,7 +304,9 @@ function tally(goal, tracks, { start, end }) {
 }
 
 // Where a goal stands today: { status, count, target, needed, due,
-// overdueDays, lastMet, window }, plus `items` for a checklist. `count` is
+// overdueDays, lastMet, window }, plus `items` for a checklist, each with
+// its own `due` (the last day it can next be done to stay met; null when
+// it's short) and `lastDone` (null if never). `count` is
 // the sessions in the window ending today (a checklist: the items done often
 // enough) and `needed` how many more it takes to meet the target (a
 // checklist: the items still short). A session on the `due` day still
@@ -314,19 +326,21 @@ export function goalStatus(goal, matches, today) {
   const window = windowEnding(goal, today);
   const tracks = goalTracks(goal, matches).map((t) => ({ ...t, dates: t.dates.filter((d) => d <= today).sort() }));
   const now = tally(goal, tracks, window);
+  // A track that's met is due once its oldest session that's still needed
+  // drops out of the window.
+  const trackDue = (t) => {
+    const inWindow = t.dates.filter((d) => d >= window.start);
+    return inWindow.length >= t.target ? shiftISODate(inWindow[inWindow.length - t.target], days) : null;
+  };
   const base = { ...now, needed: Math.max(0, now.target - now.count), window, due: null, overdueDays: 0, lastMet: null };
   delete base.met;
+  // A checklist's items also say when each is due (met) or was last done.
+  if (base.items) base.items = base.items.map((it, i) => ({ ...it, due: trackDue(tracks[i]), lastDone: tracks[i].dates[tracks[i].dates.length - 1] || null }));
 
   if (now.met) {
-    // Each track is due once its oldest session that's still needed drops
-    // out of the window; the goal, when the first of them is.
-    const due = tracks
-      .map((t) => {
-        const inWindow = t.dates.filter((d) => d >= window.start);
-        return shiftISODate(inWindow[inWindow.length - t.target], days);
-      })
-      .sort()[0];
-    return { ...base, status: daysBetween(today, due) <= riskDays(goal) ? "risk" : "on", due };
+    // The goal is due when the first of its tracks is.
+    const due = tracks.map(trackDue).sort()[0];
+    return { ...base, status: dueSoon(goal, due, today) ? "risk" : "on", due };
   }
 
   // Short today: step back to the last day the window was met. Nothing before

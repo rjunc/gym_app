@@ -154,6 +154,9 @@ item is done by the session's tags or any of its exercises'; a routine item,
 by the routine having been added to the session. The goal is met
 when every item is, and is due when the first item would drop short; its
 progress counts items ("3 of 4 done in the last 30 days · Wall sit left").
+Items run on their own rolling windows rather than resetting together, so
+the goal sheet shows each item's own due date ("once · due Oct 10", in the
+At risk colour when it's close) or, when it's short, when it was last done.
 Only lifting sessions count (not mat sessions). The goal form
 previews the latest sessions a goal matches as you edit it. An
 inactive goal (`active: false`) keeps its history but isn't tracked: it's

@@ -85,7 +85,7 @@ export default function GoalSheet({ goal, matches, exercises, onEdit, onToggleAc
 
       <div>
         <span style={labelStyle}>{isChecklist(goal) ? `Each of · ${windowName(goal).toLowerCase()}` : "Counts"}</span>
-        {isChecklist(goal) ? <ChecklistSummary items={state.items} nameById={nameById} /> : <RulesSummary goal={goal} nameById={nameById} />}
+        {isChecklist(goal) ? <ChecklistSummary goal={goal} items={state.items} nameById={nameById} today={today} /> : <RulesSummary goal={goal} nameById={nameById} />}
       </div>
 
       <div>
